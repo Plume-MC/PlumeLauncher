@@ -2,6 +2,8 @@ import { defineConfig } from "vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
 import wails from "@wailsio/runtime/plugins/vite";
+import path from "path";
+import tailwindcss from "@tailwindcss/vite";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -10,5 +12,10 @@ export default defineConfig({
     port: Number(process.env.WAILS_VITE_PORT) || 9245,
     strictPort: true,
   },
-  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), wails("./bindings")],
+  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), wails("./bindings"), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
 });
