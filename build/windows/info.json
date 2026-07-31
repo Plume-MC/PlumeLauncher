@@ -1,15 +1,15 @@
 {
 	"fixed": {
-		"file_version": "0.1.0"
+		"file_version": "1.0.0"
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "0.1.0",
-			"CompanyName": "Rozelith Corporation",
-			"FileDescription": "A myapp application",
-			"LegalCopyright": "© 2026, Rozelith Corporation",
-			"ProductName": "My Product",
-			"Comments": "This is a comment"
+			"ProductVersion": "1.0.0",
+			"CompanyName": "Plume",
+			"FileDescription": "A compact Minecraft launcher and instance manager",
+			"LegalCopyright": "© 2026, Plume",
+			"ProductName": "Plume Launcher",
+			"Comments": "Plume Launcher v1.0.0"
 		}
 	}
 }
