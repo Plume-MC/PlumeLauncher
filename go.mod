@@ -1,4 +1,4 @@
-module changeme
+module plumelauncher
 
 go 1.25.0
 
