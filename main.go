@@ -6,6 +6,8 @@ import (
 	"log"
 	"time"
 
+	"plumelauncher/internal/services"
+
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -38,7 +40,11 @@ func main() {
 		Name:        "myapp",
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
-			application.NewService(&GreetService{}),
+			application.NewService(&services.AccountService{}),
+			application.NewService(&services.InstanceService{}),
+			application.NewService(&services.DownloadService{}),
+			application.NewService(&services.LaunchService{}),
+			application.NewService(&services.SystemService{}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

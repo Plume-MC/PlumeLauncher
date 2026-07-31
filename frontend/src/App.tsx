@@ -1,7 +1,6 @@
 import './index.css'
 import { useState, useEffect, useRef } from 'react'
 import { Events, WML } from "@wailsio/runtime";
-import { GreetService } from "../bindings/plumelauncher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,13 +35,6 @@ function App() {
   const doGreet = () => {
     const n = name || 'anonymous';
     swapTitleName(n);
-    GreetService.Greet(n).then((msg) => {
-      toast({
-        title: "From Go",
-        description: msg,
-        type: "success",
-      });
-    }).catch(console.error);
   };
 
   useEffect(() => {
