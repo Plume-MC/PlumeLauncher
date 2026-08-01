@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Events } from '@wailsio/runtime';
 import { X, Terminal, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,25 @@ interface ActivityPanelProps {
 
 export function ActivityPanel({ isOpen, onClose }: ActivityPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('downloads');
+  const [consoleLines, setConsoleLines] = useState<string[]>([]);
+  const [downloadStatus, setDownloadStatus] = useState<string>('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const unsubs = [
+      Events.On('log-line', (data: any) => {
+        setConsoleLines((prev) => [...prev.slice(-200), data?.message ?? '']);
+      }),
+      Events.On('download-progress', (data: any) => {
+        setDownloadStatus(data?.status ?? '');
+      }),
+    ];
+
+    return () => {
+      for (const unsub of unsubs) unsub();
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -62,12 +82,20 @@ export function ActivityPanel({ isOpen, onClose }: ActivityPanelProps) {
       <div className="flex-1 overflow-auto p-3 font-mono text-xs text-muted-foreground">
         {activeTab === 'console' && (
           <div className="space-y-1">
-            <p className="text-muted-foreground/50">No active console output.</p>
+            {consoleLines.length === 0 ? (
+              <p className="text-muted-foreground/50">No active console output.</p>
+            ) : (
+              consoleLines.map((line, i) => <p key={i}>{line}</p>)
+            )}
           </div>
         )}
         {activeTab === 'downloads' && (
           <div className="space-y-1">
-            <p className="text-muted-foreground/50">No active downloads.</p>
+            {downloadStatus ? (
+              <p>{downloadStatus}</p>
+            ) : (
+              <p className="text-muted-foreground/50">No active downloads.</p>
+            )}
           </div>
         )}
       </div>
