@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 // DownloadWithResume downloads a URL to partPath with HTTP Range resume support.
@@ -76,6 +77,7 @@ func doDownload(ctx context.Context, client *http.Client, url string, partPath s
 	}
 
 	// Open .part file for writing (create or append)
+	os.MkdirAll(filepath.Dir(partPath), 0o755)
 	flags := os.O_CREATE | os.O_WRONLY
 	if offset == 0 {
 		flags |= os.O_TRUNC
