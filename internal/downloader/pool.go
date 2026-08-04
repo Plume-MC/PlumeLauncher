@@ -38,7 +38,7 @@ func NewPool(workers int, client *http.Client) *Pool {
 	}
 	return &Pool{
 		workers: workers,
-		tasks:   make(chan Task, workers*4),
+		tasks:   make(chan Task, 256),
 		client:  client,
 	}
 }
