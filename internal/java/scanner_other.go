@@ -4,8 +4,8 @@ package java
 
 import "os/exec"
 
-// scanWindowsCandidates is a no-op on non-Windows platforms.
-func scanWindowsCandidates() []string {
+// getPlatformCandidates is a no-op on non-Windows platforms.
+func getPlatformCandidates() []string {
 	return nil
 }
 

@@ -12,19 +12,9 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-// scanWindowsCandidates returns candidate java binary paths from Windows sources.
-func scanWindowsCandidates() []string {
+// getPlatformCandidates returns Windows-specific Java candidate paths.
+func getPlatformCandidates() []string {
 	var candidates []string
-
-	// JAVA_HOME
-	if javaHome := os.Getenv("JAVA_HOME"); javaHome != "" {
-		candidates = append(candidates, filepath.Join(javaHome, "bin", "java.exe"))
-	}
-
-	// PATH directories
-	for _, dir := range strings.Split(os.Getenv("PATH"), ";") {
-		candidates = append(candidates, filepath.Join(dir, "java.exe"))
-	}
 
 	// Common Windows installation directories
 	programFiles := []string{
@@ -53,11 +43,9 @@ func scanWindowsCandidates() []string {
 func scanRegistryJava() []string {
 	var paths []string
 
-	// Try Java Runtime Environment first
 	jrePath := scanRegistryKey(`SOFTWARE\JavaSoft\Java Runtime Environment`)
 	paths = append(paths, jrePath...)
 
-	// Then Java Development Kit
 	jdkPath := scanRegistryKey(`SOFTWARE\JavaSoft\Java Development Kit`)
 	paths = append(paths, jdkPath...)
 
@@ -97,7 +85,6 @@ func scanRegistryKey(keyPath string) []string {
 	return paths
 }
 
-// addJavaFromRoot walks a root directory looking for Java installations.
 func addJavaFromRoot(root string, paths *[]string) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -108,13 +95,11 @@ func addJavaFromRoot(root string, paths *[]string) {
 			continue
 		}
 		subdir := filepath.Join(root, entry.Name())
-		// Check <subdir>/bin/java.exe
 		javaBin := filepath.Join(subdir, "bin", "java.exe")
 		if _, err := os.Stat(javaBin); err == nil {
 			*paths = append(*paths, javaBin)
 			continue
 		}
-		// Check <subdir>/jre/bin/java.exe (legacy)
 		jreBin := filepath.Join(subdir, "jre", "bin", "java.exe")
 		if _, err := os.Stat(jreBin); err == nil {
 			*paths = append(*paths, jreBin)
@@ -126,6 +111,9 @@ func addJavaFromRoot(root string, paths *[]string) {
 func hideWindowOnWindows(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		HideWindow:    true,
-		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+		CreationFlags: 0x08000000,
 	}
 }
+
+// Ensure strings is used
+var _ = strings.Contains
