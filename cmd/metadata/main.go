@@ -5,13 +5,17 @@
 //	go run cmd/metadata/main.go <version>
 //	go run cmd/metadata/main.go <version> --download
 //	go run cmd/metadata/main.go --manifest
+//	go run cmd/metadata/main.go --scan-java
+//	go run cmd/metadata/main.go --select-java <mc-version>
 //	PLUME_DATA_ROOT=.minecraft-dev go run cmd/metadata/main.go 1.0
 //
 // Examples:
 //
-//	go run cmd/metadata/main.go 1.0          # Plan for MC 1.0
+//	go run cmd/metadata/main.go 1.0               # Plan for MC 1.0
 //	go run cmd/metadata/main.go 1.21.4 --download  # Download all artifacts
-//	go run cmd/metadata/main.go --manifest    # Print version manifest
+//	go run cmd/metadata/main.go --manifest         # Print version manifest
+//	go run cmd/metadata/main.go --scan-java        # Detect installed Java
+//	go run cmd/metadata/main.go --select-java 1.21.4  # Select Java for MC version
 package main
 
 import (
@@ -22,13 +26,14 @@ import (
 	"path/filepath"
 	"time"
 
+	javapkg "plumelauncher/internal/java"
 	"plumelauncher/internal/downloader"
 	"plumelauncher/internal/metadata"
 )
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <version> [--download] | --manifest\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s <version> [--download] | --manifest | --scan-java | --select-java <mc-version>\n", os.Args[0])
 		os.Exit(1)
 	}
 
@@ -45,19 +50,74 @@ func main() {
 	client := metadata.NewClient(dataRoot)
 	ctx := context.Background()
 
-	if os.Args[1] == "--manifest" {
+	switch os.Args[1] {
+	case "--manifest":
 		printManifest(client, ctx)
+	case "--scan-java":
+		scanJava()
+	case "--select-java":
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "Usage: %s --select-java <mc-version>\n", os.Args[0])
+			os.Exit(1)
+		}
+		selectJava(os.Args[2])
+	default:
+		versionID := os.Args[1]
+		download := len(os.Args) > 2 && os.Args[2] == "--download"
+		if download {
+			downloadVersion(client, ctx, dataRoot, versionID)
+		} else {
+			printPlan(client, ctx, versionID)
+		}
+	}
+}
+
+func scanJava() {
+	fmt.Fprintf(os.Stderr, "Scanning Java installations...\n\n")
+
+	installs, err := javapkg.ScanJavaInstallations()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(installs) == 0 {
+		fmt.Fprintf(os.Stderr, "No Java installations found.\n")
 		return
 	}
 
-	versionID := os.Args[1]
-	download := len(os.Args) > 2 && os.Args[2] == "--download"
-
-	if download {
-		downloadVersion(client, ctx, dataRoot, versionID)
-	} else {
-		printPlan(client, ctx, versionID)
+	fmt.Fprintf(os.Stderr, "Found %d Java installation(s):\n\n", len(installs))
+	for i, inst := range installs {
+		fmt.Fprintf(os.Stderr, "  [%d] Java %d (%s)\n", i+1, inst.Major, inst.Version)
+		fmt.Fprintf(os.Stderr, "      Path: %s\n\n", inst.Path)
 	}
+}
+
+func selectJava(mcVersion string) {
+	fmt.Fprintf(os.Stderr, "Scanning Java installations...\n")
+
+	installs, err := javapkg.ScanJavaInstallations()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(installs) == 0 {
+		fmt.Fprintf(os.Stderr, "No Java installations found.\n")
+		os.Exit(1)
+	}
+
+	required := javapkg.RequiredJavaMajor(mcVersion)
+	fmt.Fprintf(os.Stderr, "Minecraft %s requires Java %d\n\n", mcVersion, required)
+
+	result, err := javapkg.SelectJava(installs, mcVersion)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Fprintf(os.Stderr, "Selected: Java %d (%s)\n", result.Major, result.Version)
+	fmt.Fprintf(os.Stderr, "Path: %s\n", result.Path)
 }
 
 func printManifest(client *metadata.Client, ctx context.Context) {
