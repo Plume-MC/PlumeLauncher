@@ -47,7 +47,7 @@ func TestSelectJavaExactMatch(t *testing.T) {
 		{Path: "/path/to/java21", Version: "21.0.3", Major: 21},
 	}
 
-	// MC 1.16.5 needs Java 8
+	// MC 1.16.5 needs Java 8, exact match preferred
 	result, err := java.SelectJava(installs, "1.16.5")
 	if err != nil {
 		t.Fatalf("SelectJava: %v", err)
@@ -56,13 +56,75 @@ func TestSelectJavaExactMatch(t *testing.T) {
 		t.Errorf("Major = %d, want 8", result.Major)
 	}
 
-	// MC 1.20.5 needs Java 21
+	// MC 1.20.5 needs Java 21, exact match preferred
 	result, err = java.SelectJava(installs, "1.20.5")
 	if err != nil {
 		t.Fatalf("SelectJava: %v", err)
 	}
 	if result.Major != 21 {
 		t.Errorf("Major = %d, want 21", result.Major)
+	}
+}
+
+func TestSelectJavaCompatibleHigher(t *testing.T) {
+	installs := []java.JavaInfo{
+		{Path: "/path/to/java25", Version: "25.0.3", Major: 25},
+	}
+
+	// MC 1.18.2 needs Java 17 minimum, Java 25 is compatible (25 >= 17)
+	result, err := java.SelectJava(installs, "1.18.2")
+	if err != nil {
+		t.Fatalf("SelectJava: %v", err)
+	}
+	if result.Major != 25 {
+		t.Errorf("Major = %d, want 25", result.Major)
+	}
+}
+
+func TestSelectJavaCompatibleOlderMC(t *testing.T) {
+	installs := []java.JavaInfo{
+		{Path: "/path/to/java21", Version: "21.0.3", Major: 21},
+	}
+
+	// MC 1.7.10 needs Java 8 minimum, Java 21 is compatible (21 >= 8)
+	result, err := java.SelectJava(installs, "1.7.10")
+	if err != nil {
+		t.Fatalf("SelectJava: %v", err)
+	}
+	if result.Major != 21 {
+		t.Errorf("Major = %d, want 21", result.Major)
+	}
+}
+
+func TestSelectJavaPrefersExactOverHigher(t *testing.T) {
+	installs := []java.JavaInfo{
+		{Path: "/path/to/java17", Version: "17.0.8", Major: 17},
+		{Path: "/path/to/java21", Version: "21.0.3", Major: 21},
+	}
+
+	// MC 1.18.2 needs Java 17 minimum, exact match preferred over higher
+	result, err := java.SelectJava(installs, "1.18.2")
+	if err != nil {
+		t.Fatalf("SelectJava: %v", err)
+	}
+	if result.Major != 17 {
+		t.Errorf("Major = %d, want 17 (exact preferred over 21)", result.Major)
+	}
+}
+
+func TestSelectJavaClosestHigher(t *testing.T) {
+	installs := []java.JavaInfo{
+		{Path: "/path/to/java21", Version: "21.0.3", Major: 21},
+		{Path: "/path/to/java25", Version: "25.0.3", Major: 25},
+	}
+
+	// MC 1.18.2 needs Java 17 minimum, closest above preferred (21 over 25)
+	result, err := java.SelectJava(installs, "1.18.2")
+	if err != nil {
+		t.Fatalf("SelectJava: %v", err)
+	}
+	if result.Major != 21 {
+		t.Errorf("Major = %d, want 21 (closest above preferred)", result.Major)
 	}
 }
 
