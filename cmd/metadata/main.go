@@ -26,8 +26,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"plumelauncher/internal/auth"
 	javapkg "plumelauncher/internal/java"
 	"plumelauncher/internal/downloader"
+	"plumelauncher/internal/launch"
 	"plumelauncher/internal/metadata"
 )
 
@@ -61,6 +63,12 @@ func main() {
 			os.Exit(1)
 		}
 		selectJava(os.Args[2])
+	case "--build-args":
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "Usage: %s --build-args <mc-version>\n", os.Args[0])
+			os.Exit(1)
+		}
+		buildArgs(client, ctx, dataRoot, os.Args[2])
 	default:
 		versionID := os.Args[1]
 		download := len(os.Args) > 2 && os.Args[2] == "--download"
@@ -212,4 +220,48 @@ func resolvePlan(client *metadata.Client, ctx context.Context, versionID string)
 	fmt.Fprintf(os.Stderr, "%s\n\n", metadata.PlanSummary(plan))
 
 	return detail, plan
+}
+
+func buildArgs(client *metadata.Client, ctx context.Context, dataRoot string, versionID string) {
+	detail, _ := resolvePlan(client, ctx, versionID)
+
+	gameDir := dataRoot
+	nativesDir := filepath.Join(gameDir, "versions", detail.ID, "natives")
+
+	opts := launch.Options{
+		PlayerName: "Player",
+		UUID:       auth.OfflineUUID("Player"),
+		AccessToken: "0",
+		UserType:   "offline",
+		VersionID:  detail.ID,
+		GameDir:    gameDir,
+		AssetsDir:  filepath.Join(gameDir, "assets"),
+		NativesDir: nativesDir,
+		RamMB:      4096,
+		Width:      854,
+		Height:     480,
+	}
+
+	javaPath := ""
+	installs, _ := javapkg.ScanJavaInstallations()
+	if len(installs) > 0 {
+		javaPath = installs[0].Path
+	}
+
+	args, err := launch.BuildArguments(*detail, opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Fprintf(os.Stderr, "Java path: %s\n\n", javaPath)
+	fmt.Fprintf(os.Stderr, "Launch command:\n")
+	fmt.Fprintf(os.Stderr, "  \"%s\" \\\n", javaPath)
+	for i, arg := range args {
+		if i < len(args)-1 {
+			fmt.Fprintf(os.Stderr, "    %s \\\n", arg)
+		} else {
+			fmt.Fprintf(os.Stderr, "    %s\n", arg)
+		}
+	}
 }
