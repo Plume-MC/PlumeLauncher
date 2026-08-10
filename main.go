@@ -6,6 +6,8 @@ import (
 	"log"
 	"time"
 
+	"plumelauncher/internal/bootstrap"
+	"plumelauncher/internal/instances"
 	"plumelauncher/internal/services"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -30,6 +32,19 @@ func init() {
 // and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
 // logs any error that might occur.
 func main() {
+	config, err := bootstrap.Initialize("")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defaults, err := instances.LoadConfig(config.DataRoot)
+	if err != nil {
+		log.Fatal(err)
+	}
+	registry := instances.NewRegistry()
+	instanceService := &services.InstanceService{
+		DataRoot: config.DataRoot,
+		Manager:  instances.NewManager(config.DataRoot, defaults),
+	}
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -40,11 +55,11 @@ func main() {
 		Name:        "Plume Launcher",
 		Description: "A compact Minecraft launcher and instance manager",
 		Services: []application.Service{
-			application.NewService(&services.AccountService{}),
-			application.NewService(&services.InstanceService{}),
-			application.NewService(&services.DownloadService{}),
-			application.NewService(&services.LaunchService{}),
-			application.NewService(&services.SystemService{}),
+			application.NewService(&services.AccountService{DataRoot: config.DataRoot}),
+			application.NewService(instanceService),
+			application.NewService(&services.DownloadService{DataRoot: config.DataRoot}),
+			application.NewService(&services.LaunchService{DataRoot: config.DataRoot, Registry: registry}),
+			application.NewService(&services.SystemService{DataRoot: config.DataRoot, Defaults: defaults}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -84,7 +99,7 @@ func main() {
 	}()
 
 	// Run the application. This blocks until the application has been exited.
-	err := app.Run()
+	err = app.Run()
 
 	// If an error occurred while running the application, log it and exit.
 	if err != nil {

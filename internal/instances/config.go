@@ -1,7 +1,7 @@
 package instances
 
 import (
-	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -29,16 +29,11 @@ func SaveConfig(dataRoot string, defaults LauncherDefaults) error {
 func LoadConfig(dataRoot string) (LauncherDefaults, error) {
 	path := filepath.Join(dataRoot, "config.json")
 
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
+	var config ConfigFile
+	if err := storage.ReadJSON(path, &config); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
 			return DefaultLauncherDefaults(), nil
 		}
-		return LauncherDefaults{}, err
-	}
-
-	var config ConfigFile
-	if err := json.Unmarshal(data, &config); err != nil {
 		return LauncherDefaults{}, err
 	}
 

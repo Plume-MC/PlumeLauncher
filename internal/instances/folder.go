@@ -4,20 +4,15 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 )
 
 // OpenInstanceFolder opens the instance directory in the OS file manager.
 // Validates that the path is under DataRoot.
 func OpenInstanceFolder(dataRoot string, instanceID string) error {
-	dir := filepath.Join(dataRoot, "instances", instanceID)
-
-	// Validate path is under DataRoot
-	absDir, _ := filepath.Abs(dir)
-	absRoot, _ := filepath.Abs(dataRoot)
-	if len(absDir) < len(absRoot) || absDir[:len(absRoot)] != absRoot {
-		return fmt.Errorf("path traversal detected")
+	dir, err := instanceDirectory(dataRoot, instanceID)
+	if err != nil {
+		return err
 	}
 
 	// Verify directory exists

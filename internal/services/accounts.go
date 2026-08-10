@@ -1,7 +1,7 @@
 package services
 
 import (
-	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -71,16 +71,11 @@ func (s *AccountService) ListAccounts() ([]Account, error) {
 
 func (s *AccountService) loadAccounts() ([]Account, error) {
 	path := filepath.Join(s.DataRoot, "accounts.json")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
+	var file accountsFile
+	if err := storage.ReadJSON(path, &file); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
 		}
-		return nil, err
-	}
-
-	var file accountsFile
-	if err := json.Unmarshal(data, &file); err != nil {
 		return nil, err
 	}
 	return file.Accounts, nil

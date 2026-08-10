@@ -48,10 +48,16 @@ func (m *Manager) Create(name, mcVersion string, loader LoaderType) (*Instance, 
 		UpdatedAt: now,
 	}
 
-	// Create instance directory
-	dir := filepath.Join(m.dataRoot, "instances", id)
+	// Create the instance root and its isolated Minecraft working directory.
+	dir, err := instanceDirectory(m.dataRoot, id)
+	if err != nil {
+		return nil, err
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("create instance dir: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, ".minecraft"), 0o755); err != nil {
+		return nil, fmt.Errorf("create game dir: %w", err)
 	}
 
 	// Save instance JSON
@@ -100,18 +106,14 @@ func (m *Manager) List() ([]Instance, error) {
 
 // Delete removes an instance directory and its contents.
 func (m *Manager) Delete(id string) error {
-	dir := filepath.Join(m.dataRoot, "instances", id)
+	dir, err := instanceDirectory(m.dataRoot, id)
+	if err != nil {
+		return err
+	}
 
 	// Verify instance exists
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return fmt.Errorf("instance %s not found", id)
-	}
-
-	// Validate path is under DataRoot
-	absDir, _ := filepath.Abs(dir)
-	absRoot, _ := filepath.Abs(m.dataRoot)
-	if len(absDir) < len(absRoot) || absDir[:len(absRoot)] != absRoot {
-		return fmt.Errorf("path traversal detected")
 	}
 
 	return os.RemoveAll(dir)
@@ -149,13 +151,34 @@ func (m *Manager) UpdateSettings(id string, settings Settings) error {
 }
 
 func (m *Manager) save(inst *Instance) error {
-	path := filepath.Join(m.dataRoot, "instances", inst.ID, "instance.json")
+	dir, err := instanceDirectory(m.dataRoot, inst.ID)
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(dir, "instance.json")
 	return writeInstanceJSON(path, inst)
 }
 
 func (m *Manager) load(id string) (*Instance, error) {
-	path := filepath.Join(m.dataRoot, "instances", id, "instance.json")
-	return readInstanceJSON(path)
+	dir, err := instanceDirectory(m.dataRoot, id)
+	if err != nil {
+		return nil, err
+	}
+	inst, err := readInstanceJSON(filepath.Join(dir, "instance.json"))
+	if err != nil {
+		return nil, err
+	}
+	if inst.ID != id {
+		return nil, fmt.Errorf("instance ID does not match directory")
+	}
+	return inst, nil
+}
+
+func instanceDirectory(dataRoot, id string) (string, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return "", fmt.Errorf("invalid instance ID")
+	}
+	return filepath.Join(dataRoot, "instances", id), nil
 }
 
 func writeInstanceJSON(path string, inst *Instance) error {

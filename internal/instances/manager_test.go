@@ -1,6 +1,8 @@
 package instances_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"plumelauncher/internal/instances"
@@ -27,6 +29,9 @@ func TestCreateInstance(t *testing.T) {
 	}
 	if inst.ID == "" {
 		t.Error("ID is empty")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "instances", inst.ID, ".minecraft")); err != nil {
+		t.Errorf("isolated game directory: %v", err)
 	}
 }
 
