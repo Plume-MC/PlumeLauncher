@@ -183,7 +183,7 @@ func downloadVersion(client *metadata.Client, ctx context.Context, dataRoot stri
 			done <- err
 			return
 		}
-		done <- orch.WaitForDownloads()
+		done <- nil
 	}()
 
 	// Print progress every 500ms

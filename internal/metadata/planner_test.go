@@ -146,7 +146,7 @@ func TestResolvePlan1Point12Point2(t *testing.T) {
 
 func TestResolvePlanRuleFiltering(t *testing.T) {
 	detail := metadata.VersionDetail{
-		ID: "1.18.2",
+		ID:         "1.18.2",
 		AssetIndex: metadata.AssetIndex{ID: "1.18", URL: "http://example.com"},
 		Downloads: metadata.Downloads{
 			Client: &metadata.DownloadInfo{URL: "http://example.com/client.jar", Size: 100, SHA1: "a"},
@@ -197,7 +197,7 @@ func TestResolvePlanRuleFiltering(t *testing.T) {
 
 func TestResolvePlanPathContainment(t *testing.T) {
 	detail := metadata.VersionDetail{
-		ID: "1.0",
+		ID:         "1.0",
 		AssetIndex: metadata.AssetIndex{ID: "1.0", URL: "http://example.com"},
 		Downloads: metadata.Downloads{
 			Client: &metadata.DownloadInfo{URL: "http://example.com", Size: 100, SHA1: "a", Path: "../../etc/passwd"},
@@ -214,9 +214,17 @@ func TestResolvePlanPathContainment(t *testing.T) {
 	}
 }
 
+func TestValidatePathRejectsTraversalComponents(t *testing.T) {
+	for _, value := range []string{"../artifact.jar", "nested/../artifact.jar", `nested\\..\\artifact.jar`} {
+		if err := metadata.ValidatePath(value); err == nil {
+			t.Errorf("ValidatePath(%q) succeeded", value)
+		}
+	}
+}
+
 func TestResolvePlanEmptyLibraries(t *testing.T) {
 	detail := metadata.VersionDetail{
-		ID: "1.0",
+		ID:         "1.0",
 		AssetIndex: metadata.AssetIndex{ID: "1.0", URL: "http://example.com"},
 		Downloads: metadata.Downloads{
 			Client: &metadata.DownloadInfo{URL: "http://example.com", Size: 100, SHA1: "a"},

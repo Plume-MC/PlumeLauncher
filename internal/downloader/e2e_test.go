@@ -184,7 +184,7 @@ func TestE2EVerifyAndRepair(t *testing.T) {
 		VersionID: "test",
 		Artifacts: []metadata.Artifact{
 			{URL: server.URL + "/good.jar", Path: "lib/good.jar", Size: 4, Required: true},
-			{URL: server.URL + "/bad.jar", Path: "lib/bad.jar", Size: 100, Required: true}, // wrong size
+			{URL: server.URL + "/bad.jar", Path: "lib/bad.jar", Size: 4, Required: true},
 			{URL: server.URL + "/missing.jar", Path: "lib/missing.jar", Size: 4, Required: true},
 		},
 	}
@@ -204,6 +204,10 @@ func TestE2EVerifyAndRepair(t *testing.T) {
 		}
 	}
 
+	if err := os.WriteFile(filepath.Join(dir, "lib", "bad.jar"), []byte("bad"), 0o644); err != nil {
+		t.Fatalf("corrupt artifact: %v", err)
+	}
+
 	// Verify
 	results := downloader.VerifyPlan(dir, plan)
 	validCount := 0
@@ -213,7 +217,7 @@ func TestE2EVerifyAndRepair(t *testing.T) {
 		}
 	}
 	// good.jar (4 bytes, expected 4) → valid
-	// bad.jar (4 bytes, expected 100) → invalid
+	// bad.jar was corrupted after download → invalid
 	// missing.jar (4 bytes, expected 4) → valid
 	if validCount != 2 {
 		t.Errorf("valid count = %d, want 2", validCount)
@@ -233,9 +237,7 @@ func TestE2EVerifyAndRepair(t *testing.T) {
 			validCount++
 		}
 	}
-	// bad.jar has wrong expected size (100) but server returns 4 bytes, so it's still invalid
-	// good.jar and missing.jar should be valid after repair
-	if validCount != 2 {
-		t.Errorf("valid count after repair = %d, want 2", validCount)
+	if validCount != 3 {
+		t.Errorf("valid count after repair = %d, want 3", validCount)
 	}
 }

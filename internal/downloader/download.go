@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 // DownloadWithResume downloads a URL to partPath with HTTP Range resume support.
@@ -69,7 +71,9 @@ func doDownload(ctx context.Context, client *http.Client, url string, partPath s
 		offset = 0
 		os.Remove(partPath)
 	case http.StatusPartialContent:
-		// Resume — append to existing .part
+		if !validContentRange(resp.Header.Get("Content-Range"), offset) {
+			return 0, fmt.Errorf("invalid Content-Range for offset %d", offset)
+		}
 	case http.StatusRequestedRangeNotSatisfiable:
 		return 0, errRangeNotSatisfiable
 	default:
@@ -93,4 +97,23 @@ func doDownload(ctx context.Context, client *http.Client, url string, partPath s
 
 	written, err := io.Copy(f, resp.Body)
 	return written, err
+}
+
+func validContentRange(value string, offset int64) bool {
+	if !strings.HasPrefix(value, "bytes ") {
+		return false
+	}
+
+	parts := strings.Split(strings.TrimPrefix(value, "bytes "), "/")
+	if len(parts) != 2 {
+		return false
+	}
+
+	rangeParts := strings.Split(parts[0], "-")
+	if len(rangeParts) != 2 {
+		return false
+	}
+
+	start, err := strconv.ParseInt(rangeParts[0], 10, 64)
+	return err == nil && start == offset
 }

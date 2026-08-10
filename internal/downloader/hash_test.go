@@ -64,7 +64,7 @@ func TestCommitFileSuccess(t *testing.T) {
 	finalPath := filepath.Join(dir, "file.txt")
 	os.WriteFile(partPath, []byte("content"), 0o644)
 
-	err := downloader.CommitFile(partPath, finalPath, "")
+	err := downloader.CommitFile(partPath, finalPath, "", 0)
 	if err != nil {
 		t.Fatalf("CommitFile: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestCommitFileWithHash(t *testing.T) {
 	finalPath := filepath.Join(dir, "file.txt")
 	os.WriteFile(partPath, []byte("hello world"), 0o644)
 
-	err := downloader.CommitFile(partPath, finalPath, "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed")
+	err := downloader.CommitFile(partPath, finalPath, "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed", 11)
 	if err != nil {
 		t.Fatalf("CommitFile: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestCommitFileHashMismatch(t *testing.T) {
 	finalPath := filepath.Join(dir, "file.txt")
 	os.WriteFile(partPath, []byte("wrong data"), 0o644)
 
-	err := downloader.CommitFile(partPath, finalPath, "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed")
+	err := downloader.CommitFile(partPath, finalPath, "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed", 10)
 	if err != downloader.ErrHashMismatch {
 		t.Fatalf("expected ErrHashMismatch, got %v", err)
 	}
@@ -118,7 +118,7 @@ func TestCommitFileCreatesNestedDir(t *testing.T) {
 	finalPath := filepath.Join(dir, "sub", "dir", "file.txt")
 	os.WriteFile(partPath, []byte("data"), 0o644)
 
-	err := downloader.CommitFile(partPath, finalPath, "")
+	err := downloader.CommitFile(partPath, finalPath, "", 0)
 	if err != nil {
 		t.Fatalf("CommitFile: %v", err)
 	}

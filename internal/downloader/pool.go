@@ -9,10 +9,10 @@ import (
 
 // Task is a single download unit.
 type Task struct {
-	URL      string
-	Path     string
-	SHA1     string
-	Size     int64
+	URL        string
+	Path       string
+	SHA1       string
+	Size       int64
 	OnComplete func() // called after successful commit
 }
 
@@ -22,10 +22,10 @@ type Pool struct {
 	tasks    chan Task
 	wg       sync.WaitGroup
 	errors   []error
- errorsMu sync.Mutex
- client   *http.Client
- closed   bool
- closedMu sync.Mutex
+	errorsMu sync.Mutex
+	client   *http.Client
+	closed   bool
+	closedMu sync.Mutex
 }
 
 // NewPool creates a bounded worker pool with the given concurrency.
@@ -115,7 +115,7 @@ func (p *Pool) process(ctx context.Context, task Task, cacheDir string) {
 	}
 	_ = written
 
-	if err := CommitFile(partPath, task.Path, task.SHA1); err != nil {
+	if err := CommitFile(partPath, task.Path, task.SHA1, task.Size); err != nil {
 		p.errorsMu.Lock()
 		p.errors = append(p.errors, fmt.Errorf("commit %s: %w", task.Path, err))
 		p.errorsMu.Unlock()

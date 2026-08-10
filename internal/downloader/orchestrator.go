@@ -15,6 +15,7 @@ import (
 // Orchestrator downloads artifacts from an ArtifactPlan.
 type Orchestrator struct {
 	dataRoot string
+	workers  int
 	pool     *Pool
 	progress *ProgressTracker
 }
@@ -23,12 +24,11 @@ type Orchestrator struct {
 func NewOrchestrator(dataRoot string, workers int) *Orchestrator {
 	return &Orchestrator{
 		dataRoot: dataRoot,
-		pool:     NewPool(workers, &http.Client{}),
+		workers:  workers,
 	}
 }
 
-// DownloadPlan downloads all artifacts in the plan.
-// Does NOT call pool.Wait() — caller should call DownloadAssets or pool.Wait after.
+// DownloadPlan downloads and verifies all artifacts in the plan before returning.
 func (o *Orchestrator) DownloadPlan(ctx context.Context, plan *metadata.ArtifactPlan) error {
 	o.progress = NewProgressTracker(len(plan.Artifacts))
 
@@ -39,30 +39,31 @@ func (o *Orchestrator) DownloadPlan(ctx context.Context, plan *metadata.Artifact
 	}
 	o.progress.AddTotal(0, totalSize)
 
-	o.pool.Start(ctx, filepath.Join(o.dataRoot, "cache"))
-
+	tasks := make([]Task, 0, len(plan.Artifacts))
 	for _, artifact := range plan.Artifacts {
+		if err := metadata.ValidatePath(artifact.Path); err != nil {
+			return err
+		}
 		fullPath := filepath.Join(o.dataRoot, artifact.Path)
-		task := Task{
-			URL:      artifact.URL,
-			Path:     fullPath,
-			SHA1:     artifact.Sha1,
-			Size:     artifact.Size,
+		tasks = append(tasks, Task{
+			URL:  artifact.URL,
+			Path: fullPath,
+			SHA1: artifact.Sha1,
+			Size: artifact.Size,
 			OnComplete: func() {
 				o.progress.Increment(artifact.Size, artifact.Size)
 			},
-		}
-
-		if !o.pool.Submit(task) {
-			return fmt.Errorf("pool closed, cannot submit task")
-		}
+		})
 	}
 
-	return nil
+	return o.downloadTasks(ctx, tasks)
 }
 
 // WaitForDownloads waits for all submitted tasks to complete.
 func (o *Orchestrator) WaitForDownloads() error {
+	if o.pool == nil {
+		return nil
+	}
 	o.pool.Wait()
 
 	if errs := o.pool.Errors(); len(errs) > 0 {
@@ -103,8 +104,12 @@ func (o *Orchestrator) DownloadAssets(ctx context.Context, detail metadata.Versi
 			return err
 		}
 		// Cache
-		os.MkdirAll(filepath.Dir(indexPath), 0o755)
-		os.WriteFile(indexPath, indexData, 0o644)
+		if err := os.MkdirAll(filepath.Dir(indexPath), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(indexPath, indexData, 0o644); err != nil {
+			return err
+		}
 	}
 
 	// Parse asset index
@@ -118,12 +123,15 @@ func (o *Orchestrator) DownloadAssets(ctx context.Context, detail metadata.Versi
 		return fmt.Errorf("parse asset index: %w", err)
 	}
 
-	// Submit asset object downloads
+	// Build asset object downloads
 	baseURL := "https://resources.download.minecraft.net/"
 	objectsDir := filepath.Join(o.dataRoot, "assets", "objects")
 
 	var tasks []Task
 	for _, obj := range indexObj.Objects {
+		if len(obj.Hash) != 40 {
+			return fmt.Errorf("invalid asset hash %q", obj.Hash)
+		}
 		path := filepath.Join(objectsDir, obj.Hash[:2], obj.Hash)
 		url := baseURL + obj.Hash[:2] + "/" + obj.Hash
 		tasks = append(tasks, Task{
@@ -148,17 +156,22 @@ func (o *Orchestrator) DownloadAssets(ctx context.Context, detail metadata.Versi
 	}
 	o.progress.AddTotal(len(tasks), totalSize)
 
-	// Submit all tasks
+	return o.downloadTasks(ctx, tasks)
+}
+
+func (o *Orchestrator) downloadTasks(ctx context.Context, tasks []Task) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	o.pool = NewPool(o.workers, &http.Client{})
+	o.pool.Start(ctx, filepath.Join(o.dataRoot, "cache"))
 	for _, task := range tasks {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
 		if !o.pool.Submit(task) {
 			return fmt.Errorf("pool closed, cannot submit task")
 		}
 	}
-
-	return nil
+	return o.WaitForDownloads()
 }
 
 // Progress returns the current download progress.

@@ -12,6 +12,7 @@ import (
 
 // ErrHashMismatch is returned when a downloaded file's SHA1 does not match expected.
 var ErrHashMismatch = errors.New("sha1 hash mismatch")
+var ErrSizeMismatch = errors.New("file size mismatch")
 
 // VerifyFileSHA1 checks if a file matches the expected SHA1 hash.
 // Returns (true, nil) if expected is empty (skip verification).
@@ -35,10 +36,21 @@ func VerifyFileSHA1(path string, expected string) (bool, error) {
 	return strings.EqualFold(actual, expected), nil
 }
 
-// CommitFile verifies a .part file's SHA1, then atomically moves it to finalPath.
-// If expectedSHA1 is empty, hash verification is skipped.
+// CommitFile verifies a .part file's expected size and SHA1, then atomically moves it to finalPath.
+// A size of zero and an empty SHA1 mean the corresponding metadata was unavailable.
 // On any error, the .part file is cleaned up.
-func CommitFile(partPath string, finalPath string, expectedSHA1 string) error {
+func CommitFile(partPath string, finalPath string, expectedSHA1 string, expectedSize int64) error {
+	if expectedSize > 0 {
+		info, err := os.Stat(partPath)
+		if err != nil {
+			return err
+		}
+		if info.Size() != expectedSize {
+			os.Remove(partPath)
+			return ErrSizeMismatch
+		}
+	}
+
 	// Verify hash if expected is provided
 	if expectedSHA1 != "" {
 		ok, err := VerifyFileSHA1(partPath, expectedSHA1)
@@ -59,12 +71,9 @@ func CommitFile(partPath string, finalPath string, expectedSHA1 string) error {
 		return err
 	}
 
-	// Remove existing final file if present
-	os.Remove(finalPath)
-
-	// Atomic rename
+	// Rename only after validation. If a platform cannot replace an existing file,
+	// leave both the existing valid artifact and the verified .part untouched.
 	if err := os.Rename(partPath, finalPath); err != nil {
-		os.Remove(partPath)
 		return err
 	}
 

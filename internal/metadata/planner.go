@@ -2,6 +2,8 @@ package metadata
 
 import (
 	"fmt"
+	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -9,10 +11,10 @@ import (
 type ArtifactRole string
 
 const (
-	RoleClient        ArtifactRole = "client"
-	RoleLibrary       ArtifactRole = "library"
-	RoleNative        ArtifactRole = "native"
-	RoleAsset         ArtifactRole = "asset"
+	RoleClient         ArtifactRole = "client"
+	RoleLibrary        ArtifactRole = "library"
+	RoleNative         ArtifactRole = "native"
+	RoleAsset          ArtifactRole = "asset"
 	RoleLegacyResource ArtifactRole = "legacy_resource"
 )
 
@@ -172,15 +174,15 @@ func (p *ArtifactPlan) addAssetIndex(detail VersionDetail) {
 }
 
 // ValidatePath checks that a path has no traversal or absolute components.
-func ValidatePath(path string) error {
-	if path == "" {
+func ValidatePath(value string) error {
+	if value == "" {
 		return nil
 	}
-	if path[0] == '/' || path[0] == '\\' {
-		return fmt.Errorf("absolute path not allowed: %s", path)
+	if path.IsAbs(value) || filepath.VolumeName(value) != "" || value[0] == '\\' {
+		return fmt.Errorf("absolute path not allowed: %s", value)
 	}
-	if strings.Contains(path, "..") {
-		return fmt.Errorf("traversal not allowed: %s", path)
+	if strings.Contains(value, "\\") || path.Clean(value) != value || value == "." || strings.HasPrefix(value, "../") || strings.Contains(value, "/../") {
+		return fmt.Errorf("traversal not allowed: %s", value)
 	}
 	return nil
 }
