@@ -11,30 +11,27 @@ import (
 
 // Options holds launch configuration for a Minecraft instance.
 type Options struct {
-	PlayerName    string
-	UUID          string
-	AccessToken   string
-	UserType      string // "offline", "ely.by", "microsoft"
-	VersionID     string
-	GameDir       string
-	AssetsDir     string
-	NativesDir    string
-	RamMB         int
-	Width         int
-	Height        int
-	Fullscreen    bool
-	GPU           string // "auto", "discrete", "integrated"
-	Wrapper       []string // validated argv prefix
-	JavaPath      string
-	JVMArgs       []string
+	PlayerName  string
+	UUID        string
+	AccessToken string
+	UserType    string // "offline", "ely.by", "microsoft"
+	VersionID   string
+	GameDir     string
+	AssetsDir   string
+	NativesDir  string
+	RamMB       int
+	Width       int
+	Height      int
+	Fullscreen  bool
+	GPU         string   // "auto", "discrete", "integrated"
+	Wrapper     []string // validated argv prefix
+	JavaPath    string
+	JVMArgs     []string
 }
 
 // BuildArguments constructs the full Java command line for launching Minecraft.
 func BuildArguments(version metadata.VersionDetail, opts Options) ([]string, error) {
 	var args []string
-
-	// Wrapper prefix (validated argv, not shell)
-	args = append(args, opts.Wrapper...)
 
 	// JVM args
 	args = append(args, buildJvmArgs(version, opts)...)
@@ -49,6 +46,24 @@ func BuildArguments(version metadata.VersionDetail, opts Options) ([]string, err
 	args = append(args, buildGameArgs(version, opts)...)
 
 	return args, nil
+}
+
+// BuildCommand constructs the executable and argv without invoking a shell.
+// A wrapper is an optional executable followed by its fixed argv prefix.
+func BuildCommand(javaPath string, javaArgs []string, wrapper []string) (string, []string, error) {
+	if javaPath == "" {
+		return "", nil, fmt.Errorf("java path is required")
+	}
+	if len(wrapper) == 0 {
+		return javaPath, javaArgs, nil
+	}
+	for _, arg := range wrapper {
+		if arg == "" || strings.ContainsRune(arg, 0) {
+			return "", nil, fmt.Errorf("invalid wrapper argument")
+		}
+	}
+	args := append(append([]string{}, wrapper[1:]...), javaPath)
+	return wrapper[0], append(args, javaArgs...), nil
 }
 
 func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {
@@ -110,10 +125,9 @@ func buildGameArgs(version metadata.VersionDetail, opts Options) []string {
 			args = append(args, resolved...)
 		}
 	} else if version.MinecraftArguments != nil {
-		// Legacy: parse space-separated args, each may be quoted
+		// Legacy arguments are space-separated and may contain quoted values.
 		legacy := string(version.MinecraftArguments)
-		for _, part := range strings.Fields(legacy) {
-			part = strings.Trim(part, `"`)
+		for _, part := range splitLegacyArguments(legacy) {
 			resolved := replaceVars(part, version, opts)
 			args = append(args, resolved)
 		}
@@ -143,6 +157,36 @@ func buildGameArgs(version metadata.VersionDetail, opts Options) []string {
 		args = append(args, "--fullscreen")
 	}
 
+	return args
+}
+
+func splitLegacyArguments(value string) []string {
+	var args []string
+	var current strings.Builder
+	quoted := false
+	escaped := false
+
+	for _, r := range value {
+		switch {
+		case escaped:
+			current.WriteRune(r)
+			escaped = false
+		case r == '\\':
+			escaped = true
+		case r == '"':
+			quoted = !quoted
+		case r == ' ' && !quoted:
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
 	return args
 }
 
@@ -177,22 +221,22 @@ func resolveArgument(arg metadata.Argument, version metadata.VersionDetail, opts
 
 func replaceVars(s string, version metadata.VersionDetail, opts Options) string {
 	vars := map[string]string{
-		"${auth_player_name}":    opts.PlayerName,
-		"${auth_uuid}":           opts.UUID,
-		"${auth_access_token}":   opts.AccessToken,
-		"${user_type}":           mapUserType(opts.UserType),
-		"${user_properties}":     "{}",
-		"${version_name}":        version.ID,
-		"${game_directory}":      opts.GameDir,
-		"${assets_root}":         opts.AssetsDir,
-		"${assets_index_name}":   version.AssetIndex.ID,
-		"${auth_xuid}":           "",
-		"${clientid}":            "",
-		"${version_type}":        "PlumeLauncher",
-		"${natives_directory}":   opts.NativesDir,
-		"${launcher_name}":       "PlumeLauncher",
-		"${launcher_version}":    "1.0.0",
-		"${classpath}":           buildClasspath(version, opts),
+		"${auth_player_name}":  opts.PlayerName,
+		"${auth_uuid}":         opts.UUID,
+		"${auth_access_token}": opts.AccessToken,
+		"${user_type}":         mapUserType(opts.UserType),
+		"${user_properties}":   "{}",
+		"${version_name}":      version.ID,
+		"${game_directory}":    opts.GameDir,
+		"${assets_root}":       opts.AssetsDir,
+		"${assets_index_name}": version.AssetIndex.ID,
+		"${auth_xuid}":         "",
+		"${clientid}":          "",
+		"${version_type}":      "PlumeLauncher",
+		"${natives_directory}": opts.NativesDir,
+		"${launcher_name}":     "PlumeLauncher",
+		"${launcher_version}":  "1.0.0",
+		"${classpath}":         buildClasspath(version, opts),
 	}
 
 	for k, v := range vars {

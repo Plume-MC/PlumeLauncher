@@ -21,7 +21,7 @@ func TestBuildArgumentsModern(t *testing.T) {
 				{StringValue: "${version_name}"},
 			},
 		},
-		MainClass: "net.minecraft.client.main.Main",
+		MainClass:  "net.minecraft.client.main.Main",
 		AssetIndex: metadata.AssetIndex{ID: "1.18"},
 	}
 
@@ -79,8 +79,8 @@ func TestBuildArgumentsModern(t *testing.T) {
 
 func TestBuildArgumentsLegacy(t *testing.T) {
 	version := metadata.VersionDetail{
-		ID:          "1.0",
-		MainClass:   "net.minecraft.client.Minecraft",
+		ID:                 "1.0",
+		MainClass:          "net.minecraft.client.Minecraft",
 		MinecraftArguments: []byte(`"--username" "${auth_player_name}" "--version" "${version_name}"`),
 	}
 
@@ -122,6 +122,25 @@ func TestBuildArgumentsLegacy(t *testing.T) {
 	}
 }
 
+func TestBuildArgumentsLegacyQuotedValue(t *testing.T) {
+	version := metadata.VersionDetail{
+		ID:                 "1.0",
+		MainClass:          "net.minecraft.client.Minecraft",
+		MinecraftArguments: []byte(`--username "Player Name"`),
+	}
+
+	args, err := launch.BuildArguments(version, launch.Options{GameDir: "test", NativesDir: "test/natives"})
+	if err != nil {
+		t.Fatalf("BuildArguments: %v", err)
+	}
+	for i, arg := range args {
+		if arg == "--username" && i+1 < len(args) && args[i+1] == "Player Name" {
+			return
+		}
+	}
+	t.Fatal("quoted legacy value was split")
+}
+
 func TestMapUserType(t *testing.T) {
 	// Test via buildArguments indirectly
 	version := metadata.VersionDetail{ID: "test", MainClass: "main", AssetIndex: metadata.AssetIndex{ID: "test"}}
@@ -149,9 +168,9 @@ func TestMapUserType(t *testing.T) {
 
 func TestBuildArgumentsFullscreen(t *testing.T) {
 	version := metadata.VersionDetail{
-		ID:          "1.18.2",
-		MainClass:   "net.minecraft.client.main.Main",
-		AssetIndex:  metadata.AssetIndex{ID: "1.18"},
+		ID:         "1.18.2",
+		MainClass:  "net.minecraft.client.main.Main",
+		AssetIndex: metadata.AssetIndex{ID: "1.18"},
 	}
 
 	opts := launch.Options{

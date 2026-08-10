@@ -26,6 +26,9 @@ func ExtractNatives(jarPath string, targetDir string) error {
 		if f.FileInfo().IsDir() {
 			continue
 		}
+		if f.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink entry not allowed: %s", f.Name)
+		}
 
 		name := f.Name
 
@@ -44,10 +47,8 @@ func ExtractNatives(jarPath string, targetDir string) error {
 		destPath := filepath.Join(targetDir, name)
 
 		// Path traversal rejection
-		cleanDest := filepath.Clean(destPath)
-		cleanTarget := filepath.Clean(targetDir)
-		if !strings.HasPrefix(cleanDest, cleanTarget+string(os.PathSeparator)) &&
-			cleanDest != cleanTarget {
+		rel, err := filepath.Rel(targetDir, destPath)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
 			return fmt.Errorf("path traversal detected: %s", name)
 		}
 

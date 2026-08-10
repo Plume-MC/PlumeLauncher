@@ -2,11 +2,18 @@
 
 package java
 
-import "os/exec"
+import (
+	"os/exec"
+	"path/filepath"
+)
 
-// getPlatformCandidates is a no-op on non-Windows platforms.
+// getPlatformCandidates discovers standard Linux JVM installation paths.
 func getPlatformCandidates() []string {
-	return nil
+	candidates := []string{"/usr/bin/java", "/usr/local/bin/java"}
+	if matches, err := filepath.Glob("/usr/lib/jvm/*/bin/java"); err == nil {
+		candidates = append(candidates, matches...)
+	}
+	return candidates
 }
 
 // hideWindowOnWindows is a no-op on non-Windows platforms.

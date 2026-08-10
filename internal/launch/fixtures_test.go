@@ -39,7 +39,7 @@ func TestBuildArgumentsModern1Point18Point2(t *testing.T) {
 				{StringValue: "${version_type}"},
 			},
 		},
-		MainClass: "net.minecraft.client.main.Main",
+		MainClass:  "net.minecraft.client.main.Main",
 		AssetIndex: metadata.AssetIndex{ID: "1.18"},
 	}
 
@@ -84,10 +84,10 @@ func TestBuildArgumentsModern1Point18Point2(t *testing.T) {
 
 func TestBuildArgumentsLegacy1Point0(t *testing.T) {
 	version := metadata.VersionDetail{
-		ID:          "1.0",
-		MainClass:   "net.minecraft.client.Minecraft",
+		ID:                 "1.0",
+		MainClass:          "net.minecraft.client.Minecraft",
 		MinecraftArguments: []byte(`"--username" "${auth_player_name}" "--version" "${version_name}" "--gameDir" "${game_directory}"`),
-		AssetIndex:  metadata.AssetIndex{ID: "1.0"},
+		AssetIndex:         metadata.AssetIndex{ID: "1.0"},
 	}
 
 	opts := launch.Options{
@@ -127,9 +127,9 @@ func TestBuildArgumentsLegacy1Point0(t *testing.T) {
 
 func TestBuildArgumentsResolution(t *testing.T) {
 	version := metadata.VersionDetail{
-		ID:          "1.21.4",
-		MainClass:   "net.minecraft.client.main.Main",
-		AssetIndex:  metadata.AssetIndex{ID: "19"},
+		ID:         "1.21.4",
+		MainClass:  "net.minecraft.client.main.Main",
+		AssetIndex: metadata.AssetIndex{ID: "19"},
 	}
 
 	opts := launch.Options{
@@ -166,9 +166,9 @@ func TestBuildArgumentsResolution(t *testing.T) {
 
 func TestBuildArgumentsFullscreenFixture(t *testing.T) {
 	version := metadata.VersionDetail{
-		ID:          "1.21.4",
-		MainClass:   "net.minecraft.client.main.Main",
-		AssetIndex:  metadata.AssetIndex{ID: "19"},
+		ID:         "1.21.4",
+		MainClass:  "net.minecraft.client.main.Main",
+		AssetIndex: metadata.AssetIndex{ID: "19"},
 	}
 
 	opts := launch.Options{
@@ -197,16 +197,16 @@ func TestBuildArgumentsFullscreenFixture(t *testing.T) {
 
 func TestBuildArgumentsWrapper(t *testing.T) {
 	version := metadata.VersionDetail{
-		ID:          "1.21.4",
-		MainClass:   "net.minecraft.client.main.Main",
-		AssetIndex:  metadata.AssetIndex{ID: "19"},
+		ID:         "1.21.4",
+		MainClass:  "net.minecraft.client.main.Main",
+		AssetIndex: metadata.AssetIndex{ID: "19"},
 	}
 
 	opts := launch.Options{
 		VersionID:  "1.21.4",
 		GameDir:    "C:/test/.minecraft",
 		NativesDir: "C:/test/.minecraft/versions/1.21.4/natives",
-		Wrapper:     []string{"gamemoderun", "--"},
+		Wrapper:    []string{"gamemoderun", "--"},
 	}
 
 	args, err := launch.BuildArguments(version, opts)
@@ -214,15 +214,18 @@ func TestBuildArgumentsWrapper(t *testing.T) {
 		t.Fatalf("BuildArguments: %v", err)
 	}
 
-	// Wrapper should be first
-	if args[0] != "gamemoderun" || args[1] != "--" {
-		t.Errorf("wrapper not at start: %v", args[:3])
+	command, commandArgs, err := launch.BuildCommand("/usr/bin/java", args, opts.Wrapper)
+	if err != nil {
+		t.Fatalf("BuildCommand: %v", err)
+	}
+	if command != "gamemoderun" || commandArgs[0] != "--" || commandArgs[1] != "/usr/bin/java" {
+		t.Errorf("wrapper command = %q %v", command, commandArgs[:2])
 	}
 }
 
 func TestBuildArgumentsNoMainClass(t *testing.T) {
 	version := metadata.VersionDetail{
-		ID: "1.0",
+		ID:         "1.0",
 		AssetIndex: metadata.AssetIndex{ID: "1.0"},
 	}
 
