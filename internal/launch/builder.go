@@ -109,9 +109,9 @@ func buildGameArgs(version metadata.VersionDetail, opts Options) []string {
 			resolved := resolveArgument(arg, version, opts)
 			args = append(args, resolved...)
 		}
-	} else if version.MainClassArguments != nil {
+	} else if version.MinecraftArguments != nil {
 		// Legacy: parse space-separated args, each may be quoted
-		legacy := string(version.MainClassArguments)
+		legacy := string(version.MinecraftArguments)
 		for _, part := range strings.Fields(legacy) {
 			part = strings.Trim(part, `"`)
 			resolved := replaceVars(part, version, opts)

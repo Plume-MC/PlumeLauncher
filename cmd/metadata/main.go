@@ -308,6 +308,29 @@ func launchGame(client *metadata.Client, ctx context.Context, dataRoot string, v
 	gameDir := absDataRoot
 	nativesDir := filepath.Join(gameDir, "versions", detail.ID, "natives")
 
+	// Extract natives from downloaded JARs
+	fmt.Fprintf(os.Stderr, "Extracting natives...\n")
+	os.RemoveAll(nativesDir)
+	os.MkdirAll(nativesDir, 0o755)
+	sys := metadata.CurrentSystem()
+	extracted := 0
+	for _, lib := range detail.Libraries {
+		if !metadata.ShouldDownload(lib.Rules, sys) {
+			continue
+		}
+		nativePath, ok := metadata.ResolveNativePath(lib, sys)
+		if !ok {
+			continue
+		}
+		jarPath := filepath.Join(gameDir, nativePath)
+		if err := launch.ExtractNatives(jarPath, nativesDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to extract %s: %v\n", lib.Name, err)
+			continue
+		}
+		extracted++
+	}
+	fmt.Fprintf(os.Stderr, "Extracted %d native JARs to %s\n\n", extracted, nativesDir)
+
 	opts := launch.Options{
 		PlayerName: "Player",
 		UUID:       auth.OfflineUUID("Player"),

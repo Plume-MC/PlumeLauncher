@@ -86,7 +86,7 @@ func TestBuildArgumentsLegacy1Point0(t *testing.T) {
 	version := metadata.VersionDetail{
 		ID:          "1.0",
 		MainClass:   "net.minecraft.client.Minecraft",
-		MainClassArguments: []byte(`"--username" "${auth_player_name}" "--version" "${version_name}" "--gameDir" "${game_directory}"`),
+		MinecraftArguments: []byte(`"--username" "${auth_player_name}" "--version" "${version_name}" "--gameDir" "${game_directory}"`),
 		AssetIndex:  metadata.AssetIndex{ID: "1.0"},
 	}
 

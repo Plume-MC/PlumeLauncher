@@ -39,8 +39,8 @@ type VersionDetail struct {
 	JavaVersion          JavaVersion      `json:"javaVersion"`
 	Libraries            []Library        `json:"libraries"`
 	Logging              *Logging         `json:"logging,omitempty"`
-	MainClass            string           `json:"mainClass"`
-	MainClassArguments   json.RawMessage  `json:"mainClassArguments,omitempty"`
+	MainClass           string          `json:"mainClass"`
+	MinecraftArguments  json.RawMessage `json:"minecraftArguments,omitempty"`
 	MinimumLauncherVersion int            `json:"minimumLauncherVersion"`
 	InheritsFrom         string           `json:"inheritsFrom,omitempty"`
 	ReleaseTime          string           `json:"releaseTime"`
