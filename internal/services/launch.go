@@ -1,16 +1,20 @@
 package services
 
 import (
+	"os/exec"
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/launch"
 	"plumelauncher/internal/metadata"
+	"sync"
 )
 
 // LaunchService manages Minecraft launch.
 type LaunchService struct {
-	DataRoot string
-	Registry *instances.Registry
+	DataRoot  string
+	Registry  *instances.Registry
+	mu        sync.Mutex
+	processes map[string]*exec.Cmd
 }
 
 // Launch starts a Minecraft instance.
@@ -43,16 +47,40 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 		return NewIncompatibleError("no Java installation found")
 	}
 
+	requiredMajor := java.RequiredJavaMajor(detail.ID)
 	javaPath := opts.JavaPath
-	if javaPath == "" {
-		javaPath = installs[0].Path
+	if javaPath != "" {
+		if _, err := java.ValidateJavaPath(javaPath, requiredMajor); err != nil {
+			return NewIncompatibleError(err.Error())
+		}
+	} else {
+		selected, err := java.SelectJava(installs, detail.ID)
+		if err != nil {
+			return NewIncompatibleError(err.Error())
+		}
+		javaPath = selected.Path
 	}
 
 	// Launch process
-	cmd, err := launch.Launch(javaPath, args, opts.GameDir, nil)
+	command, commandArgs, err := launch.BuildCommand(javaPath, args, opts.Wrapper)
+	if err != nil {
+		return NewValidationError(err.Error(), "wrapper")
+	}
+	cmd, err := launch.Launch(command, commandArgs, opts.GameDir, nil)
 	if err != nil {
 		return NewInternalError("failed to launch: " + err.Error())
 	}
+	s.mu.Lock()
+	if s.processes == nil {
+		s.processes = make(map[string]*exec.Cmd)
+	}
+	s.processes[opts.VersionID] = cmd
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		delete(s.processes, opts.VersionID)
+		s.mu.Unlock()
+	}()
 
 	// Monitor (blocks until exit)
 	err = launch.Monitor(cmd, func(line string, isStderr bool) {
@@ -75,6 +103,15 @@ func (s *LaunchService) Stop(instanceID string) error {
 		return NewNotFoundError("no active launch for " + instanceID)
 	}
 
+	s.mu.Lock()
+	cmd := s.processes[instanceID]
+	s.mu.Unlock()
+	if cmd == nil {
+		return NewNotFoundError("no process for active launch")
+	}
+	if err := launch.Stop(cmd); err != nil {
+		return NewInternalError("failed to stop launch: " + err.Error())
+	}
 	s.Registry.Cancel(instanceID)
 	return nil
 }

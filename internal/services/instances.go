@@ -2,6 +2,7 @@ package services
 
 import (
 	"plumelauncher/internal/instances"
+	"strings"
 )
 
 // InstanceService manages Minecraft instances.
@@ -69,8 +70,36 @@ func (s *InstanceService) UpdateInstanceSettings(id string, settings instances.S
 	if settings.MaxRamMB != nil && *settings.MaxRamMB > 65536 {
 		return NewValidationError("maxRamMB must be at most 65536", "maxRamMB")
 	}
+	if settings.MinRamMB != nil && settings.MaxRamMB != nil && *settings.MinRamMB > *settings.MaxRamMB {
+		return NewValidationError("minRamMB must not exceed maxRamMB", "minRamMB", "maxRamMB")
+	}
+	if settings.GPUPreference != nil && !validGPUPreference(*settings.GPUPreference) {
+		return NewValidationError("invalid GPU preference", "gpuPreference")
+	}
+	if settings.WrapperCommand != nil && !validWrapper(*settings.WrapperCommand) {
+		return NewValidationError("invalid wrapper command", "wrapperCommand")
+	}
 
 	return s.Manager.UpdateSettings(id, settings)
+}
+
+// OpenInstanceFolder opens a selected instance through the platform file manager.
+func (s *InstanceService) OpenInstanceFolder(id string) error {
+	if id == "" {
+		return NewValidationError("id is required", "id")
+	}
+	if err := instances.OpenInstanceFolder(s.DataRoot, id); err != nil {
+		return NewNotFoundError(err.Error())
+	}
+	return nil
+}
+
+func validGPUPreference(value string) bool {
+	return value == "" || value == "auto" || value == "discrete" || value == "integrated"
+}
+
+func validWrapper(value string) bool {
+	return value == "" || (!strings.ContainsRune(value, 0) && len(strings.Fields(value)) > 0)
 }
 
 // DeleteInstance removes an instance.

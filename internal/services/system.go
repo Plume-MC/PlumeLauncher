@@ -3,6 +3,7 @@ package services
 import (
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
+	"strings"
 )
 
 // SystemService manages launcher settings and system operations.
@@ -25,11 +26,30 @@ func (s *SystemService) UpdateSettings(settings instances.LauncherDefaults) erro
 	if settings.DefaultMaxRamMB < 0 || settings.DefaultMaxRamMB > 65536 {
 		return NewValidationError("defaultMaxRamMB out of range", "defaultMaxRamMB")
 	}
+	if settings.DefaultMinRamMB > settings.DefaultMaxRamMB {
+		return NewValidationError("defaultMinRamMB must not exceed defaultMaxRamMB", "defaultMinRamMB", "defaultMaxRamMB")
+	}
+	if !validGPUPreference(settings.GPUPreference) {
+		return NewValidationError("invalid GPU preference", "gpuPreference")
+	}
+	if !validWrapper(settings.WrapperCommand) {
+		return NewValidationError("invalid wrapper command", "wrapperCommand")
+	}
+	if settings.DefaultJavaPath != "" {
+		if _, err := java.CheckJava(settings.DefaultJavaPath); err != nil {
+			return NewValidationError("default Java path is not executable", "defaultJavaPath")
+		}
+	}
 
 	s.Defaults = settings
 
 	// Persist
 	return instances.SaveConfig(s.DataRoot, settings)
+}
+
+// WrapperArgs converts the validated persisted wrapper command to an argv prefix.
+func WrapperArgs(value string) []string {
+	return strings.Fields(value)
 }
 
 // GetDataRoot returns the data root path.
