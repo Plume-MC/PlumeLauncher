@@ -215,8 +215,11 @@ func mapUserType(userType string) string {
 func buildClasspath(version metadata.VersionDetail, opts Options) string {
 	var paths []string
 
+	// Resolve GameDir to absolute path
+	gameDir, _ := filepath.Abs(opts.GameDir)
+
 	// Add client jar
-	clientPath := filepath.Join(opts.GameDir, "versions", version.ID, version.ID+".jar")
+	clientPath := filepath.Join(gameDir, "versions", version.ID, version.ID+".jar")
 	paths = append(paths, clientPath)
 
 	// Add allowed libraries
@@ -229,7 +232,7 @@ func buildClasspath(version metadata.VersionDetail, opts Options) string {
 			if path == "" {
 				path = metadata.ResolveMavenPath(lib.Name)
 			}
-			paths = append(paths, filepath.Join(opts.GameDir, path))
+			paths = append(paths, filepath.Join(gameDir, path))
 		}
 	}
 

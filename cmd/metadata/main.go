@@ -165,9 +165,9 @@ func printPlan(client *metadata.Client, ctx context.Context, versionID string) {
 }
 
 func downloadVersion(client *metadata.Client, ctx context.Context, dataRoot string, versionID string) {
-	_, plan := resolvePlan(client, ctx, versionID)
+	detail, plan := resolvePlan(client, ctx, versionID)
 
-	fmt.Fprintf(os.Stderr, "Downloading %d artifacts...\n\n", len(plan.Artifacts))
+	fmt.Fprintf(os.Stderr, "Downloading %d artifacts + asset objects...\n\n", len(plan.Artifacts))
 
 	orch := downloader.NewOrchestrator(dataRoot, 10)
 	start := time.Now()
@@ -175,7 +175,15 @@ func downloadVersion(client *metadata.Client, ctx context.Context, dataRoot stri
 	// Run download in a goroutine to print progress
 	done := make(chan error, 1)
 	go func() {
-		done <- orch.DownloadPlan(ctx, plan)
+		if err := orch.DownloadPlan(ctx, plan); err != nil {
+			done <- err
+			return
+		}
+		if err := orch.DownloadAssets(ctx, *detail); err != nil {
+			done <- err
+			return
+		}
+		done <- orch.WaitForDownloads()
 	}()
 
 	// Print progress every 500ms
@@ -237,7 +245,8 @@ func resolvePlan(client *metadata.Client, ctx context.Context, versionID string)
 func buildArgs(client *metadata.Client, ctx context.Context, dataRoot string, versionID string) {
 	detail, _ := resolvePlan(client, ctx, versionID)
 
-	gameDir := dataRoot
+	absDataRoot, _ := filepath.Abs(dataRoot)
+	gameDir := absDataRoot
 	nativesDir := filepath.Join(gameDir, "versions", detail.ID, "natives")
 
 	opts := launch.Options{
@@ -294,7 +303,9 @@ func launchGame(client *metadata.Client, ctx context.Context, dataRoot string, v
 			len(statuses)-validCount, len(statuses))
 	}
 
-	gameDir := dataRoot
+	// Resolve to absolute paths for Java process
+	absDataRoot, _ := filepath.Abs(dataRoot)
+	gameDir := absDataRoot
 	nativesDir := filepath.Join(gameDir, "versions", detail.ID, "natives")
 
 	opts := launch.Options{
