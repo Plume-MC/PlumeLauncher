@@ -7,6 +7,8 @@
 //	go run cmd/metadata/main.go --manifest
 //	go run cmd/metadata/main.go --scan-java
 //	go run cmd/metadata/main.go --select-java <mc-version>
+//	go run cmd/metadata/main.go --build-args <mc-version>
+//	go run cmd/metadata/main.go --launch <mc-version>
 //	PLUME_DATA_ROOT=.minecraft-dev go run cmd/metadata/main.go 1.0
 //
 // Examples:
@@ -16,6 +18,8 @@
 //	go run cmd/metadata/main.go --manifest         # Print version manifest
 //	go run cmd/metadata/main.go --scan-java        # Detect installed Java
 //	go run cmd/metadata/main.go --select-java 1.21.4  # Select Java for MC version
+//	go run cmd/metadata/main.go --build-args 1.21.4    # Show launch command
+//	go run cmd/metadata/main.go --launch 1.21.4        # Launch Minecraft
 package main
 
 import (
@@ -23,7 +27,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"plumelauncher/internal/auth"
@@ -69,6 +75,12 @@ func main() {
 			os.Exit(1)
 		}
 		buildArgs(client, ctx, dataRoot, os.Args[2])
+	case "--launch":
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "Usage: %s --launch <mc-version>\n", os.Args[0])
+			os.Exit(1)
+		}
+		launchGame(client, ctx, dataRoot, os.Args[2])
 	default:
 		versionID := os.Args[1]
 		download := len(os.Args) > 2 && os.Args[2] == "--download"
@@ -264,4 +276,88 @@ func buildArgs(client *metadata.Client, ctx context.Context, dataRoot string, ve
 			fmt.Fprintf(os.Stderr, "    %s\n", arg)
 		}
 	}
+}
+
+func launchGame(client *metadata.Client, ctx context.Context, dataRoot string, versionID string) {
+	detail, plan := resolvePlan(client, ctx, versionID)
+
+	// Verify artifacts exist
+	statuses := downloader.VerifyPlan(dataRoot, plan)
+	validCount := 0
+	for _, s := range statuses {
+		if s.Valid {
+			validCount++
+		}
+	}
+	if validCount < len(statuses) {
+		fmt.Fprintf(os.Stderr, "Warning: %d/%d artifacts missing or corrupt. Run --download first.\n",
+			len(statuses)-validCount, len(statuses))
+	}
+
+	gameDir := dataRoot
+	nativesDir := filepath.Join(gameDir, "versions", detail.ID, "natives")
+
+	opts := launch.Options{
+		PlayerName: "Player",
+		UUID:       auth.OfflineUUID("Player"),
+		AccessToken: "0",
+		UserType:   "offline",
+		VersionID:  detail.ID,
+		GameDir:    gameDir,
+		AssetsDir:  filepath.Join(gameDir, "assets"),
+		NativesDir: nativesDir,
+		RamMB:      4096,
+		Width:      854,
+		Height:     480,
+	}
+
+	javaPath := ""
+	installs, _ := javapkg.ScanJavaInstallations()
+	if len(installs) > 0 {
+		javaPath = installs[0].Path
+	}
+	if javaPath == "" {
+		fmt.Fprintf(os.Stderr, "Error: no Java installation found\n")
+		os.Exit(1)
+	}
+
+	args, err := launch.BuildArguments(*detail, opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Fprintf(os.Stderr, "Launching Minecraft %s with Java %s...\n", versionID, javaPath)
+	fmt.Fprintf(os.Stderr, "Press Ctrl+C to stop.\n\n")
+
+	cmd, err := launch.Launch(javaPath, args, gameDir, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error launching: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Handle Ctrl+C
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		fmt.Fprintf(os.Stderr, "\nStopping game...\n")
+		launch.Stop(cmd)
+	}()
+
+	// Monitor stdout/stderr
+	err = launch.Monitor(cmd, func(line string, isStderr bool) {
+		if isStderr {
+			fmt.Fprintf(os.Stderr, "[ERROR] %s\n", line)
+		} else {
+			fmt.Fprintf(os.Stderr, "[GAME] %s\n", line)
+		}
+	})
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "\nGame exited: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Fprintf(os.Stderr, "\nGame exited successfully.\n")
 }
