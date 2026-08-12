@@ -5,8 +5,16 @@ import { Input } from '@/components/ui/input';
 import { ContextStrip } from '@/components/home/ContextStrip';
 import { InstanceCard } from '@/components/home/InstanceCard';
 import { InstanceDetailSheet } from '@/components/home/InstanceDetailSheet';
+import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
+import type { Instance } from '../../bindings/plumelauncher/internal/instances/models.js';
 
-export function Home() {
+interface HomeProps {
+  account: Account | null;
+  instances: Instance[];
+  onRefresh: () => Promise<void>;
+}
+
+export function Home({ account, instances, onRefresh }: HomeProps) {
   const [search, setSearch] = useState('');
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -15,7 +23,7 @@ export function Home() {
       {/* Header */}
       <div className="mb-4 space-y-2">
         <h1 className="text-lg font-semibold tracking-tight">Instance Library</h1>
-        <ContextStrip accountName="Player" accountType="offline" instanceCount={0} />
+         <ContextStrip accountName={account?.displayName || account?.username} accountType={account?.type === 'ely.by' ? 'ely.by' : 'offline'} instanceCount={instances.length} />
       </div>
 
       {/* Toolbar */}
@@ -41,13 +49,13 @@ export function Home() {
 
       {/* Card grid */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Empty state placeholder */}
-        <div className="col-span-full rounded-lg border border-dashed border-border py-16 text-center">
+        {instances.length === 0 && <div className="col-span-full rounded-lg border border-dashed border-border py-16 text-center">
           <p className="text-sm text-muted-foreground">No instances yet.</p>
           <p className="mt-1 text-xs text-muted-foreground/50">
             Click "New Instance" to create one.
           </p>
-        </div>
+        </div>}
+        {instances.map((instance) => <InstanceCard key={instance.id} name={instance.name} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.state as 'not_installed' | 'ready' | 'running' | 'downloading'} onOpenDetail={() => setDetailOpen(true)} />)}
       </div>
 
       <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} />
