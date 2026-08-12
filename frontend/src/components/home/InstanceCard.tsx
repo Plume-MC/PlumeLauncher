@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-type InstanceState = 'not_installed' | 'ready' | 'running' | 'downloading';
+type InstanceState = 'not_installed' | 'ready' | 'running' | 'downloading' | 'failed' | 'stopped' | 'crashed';
 
 interface InstanceCardProps {
   name: string;
@@ -13,6 +13,7 @@ interface InstanceCardProps {
   onPlay?: () => void;
   onDownload?: () => void;
   onOpenDetail?: () => void;
+  onAction?: (action: 'play' | 'install' | 'stop' | 'repair') => void;
 }
 
 const stateLabel: Record<InstanceState, string> = {
@@ -37,6 +38,7 @@ export function InstanceCard({
   onPlay,
   onDownload,
   onOpenDetail,
+  onAction,
 }: InstanceCardProps) {
   return (
     <Card
@@ -55,29 +57,27 @@ export function InstanceCard({
       </CardHeader>
       <CardContent className="flex items-center justify-between pt-0">
         <div className="flex items-center gap-1.5">
-          {state === 'ready' && (
-            <Button size="sm" onClick={(e) => { e.stopPropagation(); onPlay?.(); }} aria-label={`Play ${name}`}>
+           {(state === 'ready' || state === 'stopped') && (
+             <Button size="sm" onClick={(e) => { e.stopPropagation(); onPlay?.(); onAction?.('play'); }} aria-label={`Play ${name}`}>
               <Play className="size-3" />
               Play
             </Button>
           )}
-          {state === 'not_installed' && (
-            <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onDownload?.(); }} aria-label={`Install ${name}`}>
+           {(state === 'not_installed' || state === 'failed' || state === 'crashed') && (
+             <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onDownload?.(); onAction?.(state === 'not_installed' ? 'install' : 'repair'); }} aria-label={`${state === 'not_installed' ? 'Install' : 'Repair'} ${name}`}>
               <Download className="size-3" />
               Install
             </Button>
           )}
-          {state === 'downloading' && (
+           {state === 'downloading' && (
             <Badge variant="outline" className="text-[10px]">
               <Download className="mr-1 size-3 animate-pulse" />
               Downloading
             </Badge>
           )}
-          {state === 'running' && (
-            <Badge variant="secondary" className="text-[10px]">
-              Running
-            </Badge>
-          )}
+           {state === 'running' && (
+             <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onAction?.('stop'); }} aria-label={`Stop ${name}`}>Stop</Button>
+           )}
         </div>
         <Badge variant="outline" className="text-[10px] capitalize">{loader}</Badge>
       </CardContent>

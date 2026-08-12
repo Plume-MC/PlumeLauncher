@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ContextStrip } from '@/components/home/ContextStrip';
 import { InstanceCard } from '@/components/home/InstanceCard';
 import { InstanceDetailSheet } from '@/components/home/InstanceDetailSheet';
+import { HomeService } from '../../bindings/plumelauncher/internal/services/index.js';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
 import type { Instance } from '../../bindings/plumelauncher/internal/instances/models.js';
 
@@ -16,7 +17,28 @@ interface HomeProps {
 
 export function Home({ account, instances, onRefresh }: HomeProps) {
   const [search, setSearch] = useState('');
+  const [loaderFilter, setLoaderFilter] = useState<'all' | 'vanilla' | 'fabric' | 'quilt'>('all');
+  const [sort, setSort] = useState<'newest' | 'oldest' | 'name'>('newest');
   const [detailOpen, setDetailOpen] = useState(false);
+  const [detailInstance, setDetailInstance] = useState<Instance | null>(null);
+  const [busyId, setBusyId] = useState('');
+
+  const visibleInstances = [...instances]
+    .filter((instance) => loaderFilter === 'all' || instance.loader === loaderFilter)
+    .filter((instance) => instance.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : sort === 'oldest' ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt));
+
+  const runAction = async (id: string, action: 'play' | 'install' | 'stop' | 'repair') => {
+    setBusyId(id)
+    try {
+      if (action === 'play') await HomeService.LaunchInstance(id)
+      if (action === 'install' || action === 'repair') await HomeService.InstallInstance(id)
+      if (action === 'stop') await HomeService.StopInstance(id)
+      await onRefresh()
+    } finally {
+      setBusyId('')
+    }
+  }
 
   return (
     <div className="mx-auto flex h-full max-w-5xl flex-col px-5 py-6">
@@ -38,9 +60,14 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
             aria-label="Search instances"
           />
         </div>
-        <Button variant="ghost" size="icon-sm" aria-label="Filter">
-          <SlidersHorizontal className="size-3.5" />
-        </Button>
+         <label className="sr-only" htmlFor="loader-filter">Filter by loader</label>
+         <select id="loader-filter" value={loaderFilter} onChange={(event) => setLoaderFilter(event.target.value as typeof loaderFilter)} className="h-8 rounded-md border border-border bg-background px-2 text-xs">
+           <option value="all">All loaders</option><option value="vanilla">Vanilla</option><option value="fabric">Fabric</option><option value="quilt">Quilt</option>
+         </select>
+         <label className="sr-only" htmlFor="sort-instances">Sort instances</label>
+         <select id="sort-instances" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)} className="h-8 rounded-md border border-border bg-background px-2 text-xs">
+           <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="name">Name</option>
+         </select>
         <Button size="sm" className="gap-1.5">
           <Plus className="size-3.5" />
           New Instance
@@ -55,10 +82,11 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
             Click "New Instance" to create one.
           </p>
         </div>}
-        {instances.map((instance) => <InstanceCard key={instance.id} name={instance.name} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.state as 'not_installed' | 'ready' | 'running' | 'downloading'} onOpenDetail={() => setDetailOpen(true)} />)}
+        {instances.length > 0 && visibleInstances.length === 0 && <div className="col-span-full py-16 text-center text-sm text-muted-foreground">No matching instances.</div>}
+        {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={busyId === instance.id ? `${instance.name}...` : instance.name} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.state as 'not_installed' | 'ready' | 'running' | 'downloading' | 'failed' | 'stopped' | 'crashed'} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
       </div>
 
-      <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} />
+      <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} instanceName={detailInstance?.name} mcVersion={detailInstance?.mcVersion} loader={detailInstance?.loader} />
     </div>
   );
 }
