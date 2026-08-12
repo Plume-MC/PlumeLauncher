@@ -9,6 +9,7 @@ interface InstanceDetailSheetProps {
   instanceName?: string;
   mcVersion?: string;
   loader?: string;
+  onDelete?: () => void;
 }
 
 export function InstanceDetailSheet({
@@ -17,6 +18,7 @@ export function InstanceDetailSheet({
   instanceName = 'Instance',
   mcVersion = '1.21',
   loader = 'vanilla',
+  onDelete,
 }: InstanceDetailSheetProps) {
   if (!isOpen) return null;
 
@@ -83,7 +85,7 @@ export function InstanceDetailSheet({
             <Button variant="ghost" size="icon-sm" aria-label="Repair">
               <Wrench className="size-3.5" />
             </Button>
-            <Button variant="ghost" size="icon-sm" className="text-destructive" aria-label="Delete">
+           <Button variant="ghost" size="icon-sm" className="text-destructive" aria-label="Delete" onClick={onDelete}>
               <Trash2 className="size-3.5" />
             </Button>
           </div>

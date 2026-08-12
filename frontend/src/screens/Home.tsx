@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { ContextStrip } from '@/components/home/ContextStrip';
 import { InstanceCard } from '@/components/home/InstanceCard';
 import { InstanceDetailSheet } from '@/components/home/InstanceDetailSheet';
+import { CreateInstanceDialog } from '@/components/home/CreateInstanceDialog';
+import { DeleteInstanceDialog } from '@/components/home/DeleteInstanceDialog';
 import { HomeService } from '../../bindings/plumelauncher/internal/services/index.js';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
 import type { Instance } from '../../bindings/plumelauncher/internal/instances/models.js';
@@ -21,6 +23,8 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
   const [sort, setSort] = useState<'newest' | 'oldest' | 'name'>('newest');
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailInstance, setDetailInstance] = useState<Instance | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState('');
 
   const visibleInstances = [...instances]
@@ -68,7 +72,7 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
          <select id="sort-instances" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)} className="h-8 rounded-md border border-border bg-background px-2 text-xs">
            <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="name">Name</option>
          </select>
-        <Button size="sm" className="gap-1.5">
+         <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
           <Plus className="size-3.5" />
           New Instance
         </Button>
@@ -86,7 +90,9 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
         {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={busyId === instance.id ? `${instance.name}...` : instance.name} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.state as 'not_installed' | 'ready' | 'running' | 'downloading' | 'failed' | 'stopped' | 'crashed'} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
       </div>
 
-      <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} instanceName={detailInstance?.name} mcVersion={detailInstance?.mcVersion} loader={detailInstance?.loader} />
+      <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} instanceName={detailInstance?.name} mcVersion={detailInstance?.mcVersion} loader={detailInstance?.loader} onDelete={() => { setDetailOpen(false); setDeleteId(detailInstance?.id ?? null); }} />
+      <CreateInstanceDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={onRefresh} />
+      <DeleteInstanceDialog instanceId={deleteId} instanceName={detailInstance?.name} onOpenChange={(open) => { if (!open) setDeleteId(null); }} onDeleted={onRefresh} />
     </div>
   );
 }
