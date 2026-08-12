@@ -41,6 +41,7 @@ func main() {
 		log.Fatal(err)
 	}
 	registry := instances.NewRegistry()
+	launchService := &services.LaunchService{DataRoot: config.DataRoot, Registry: registry}
 	instanceService := &services.InstanceService{
 		DataRoot: config.DataRoot,
 		Manager:  instances.NewManager(config.DataRoot, defaults),
@@ -58,7 +59,7 @@ func main() {
 			application.NewService(&services.AccountService{DataRoot: config.DataRoot}),
 			application.NewService(instanceService),
 			application.NewService(&services.DownloadService{DataRoot: config.DataRoot}),
-			application.NewService(&services.LaunchService{DataRoot: config.DataRoot, Registry: registry}),
+			application.NewService(launchService),
 			application.NewService(&services.SystemService{DataRoot: config.DataRoot, Defaults: defaults}),
 		},
 		Assets: application.AssetOptions{
@@ -68,6 +69,13 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
+	app.RegisterService(application.NewService(&services.HomeService{
+		DataRoot:  config.DataRoot,
+		Defaults:  defaults,
+		Instances: instances.NewManager(config.DataRoot, defaults),
+		Registry:  registry,
+		Launch:    launchService,
+	}))
 
 	// Create a new window with the necessary options.
 	// 'Title' is the title of the window.
