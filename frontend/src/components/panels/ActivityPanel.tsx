@@ -9,9 +9,10 @@ type Tab = 'console' | 'downloads';
 interface ActivityPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  activityCount?: number;
 }
 
-export function ActivityPanel({ isOpen, onClose }: ActivityPanelProps) {
+export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('downloads');
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
   const [downloadStatus, setDownloadStatus] = useState<string>('');
@@ -43,8 +44,11 @@ export function ActivityPanel({ isOpen, onClose }: ActivityPanelProps) {
     >
       {/* Tab bar */}
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
-        <div className="flex items-center gap-1">
-          <button
+         <div className="flex items-center gap-1" role="tablist" aria-label="Activity views">
+             <button
+             type="button"
+             role="tab"
+             aria-selected={activeTab === 'console'}
             className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
               activeTab === 'console'
                 ? 'bg-accent text-foreground'
@@ -55,7 +59,10 @@ export function ActivityPanel({ isOpen, onClose }: ActivityPanelProps) {
             <Terminal className="size-3.5" />
             Console
           </button>
-          <button
+           <button
+             type="button"
+             role="tab"
+             aria-selected={activeTab === 'downloads'}
             className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
               activeTab === 'downloads'
                 ? 'bg-accent text-foreground'
@@ -65,7 +72,7 @@ export function ActivityPanel({ isOpen, onClose }: ActivityPanelProps) {
           >
             <Download className="size-3.5" />
             Downloads
-            <Badge variant="outline" className="ml-1 h-4 px-1 text-[9px]">0</Badge>
+             {activityCount > 0 && <Badge variant="outline" className="ml-1 h-4 px-1 text-[9px]">{activityCount}</Badge>}
           </button>
         </div>
         <Button

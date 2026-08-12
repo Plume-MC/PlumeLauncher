@@ -6,9 +6,10 @@ import { Badge } from '@/components/ui/badge';
 interface TopBarProps {
   onActivityToggle?: () => void;
   onSettingsClick?: () => void;
+  activityCount?: number;
 }
 
-export function TopBar({ onActivityToggle, onSettingsClick }: TopBarProps) {
+export function TopBar({ onActivityToggle, onSettingsClick, activityCount = 0 }: TopBarProps) {
   return (
     <header
       className="flex h-14 items-center justify-between border-b border-border bg-background px-4"
@@ -23,10 +24,13 @@ export function TopBar({ onActivityToggle, onSettingsClick }: TopBarProps) {
         <Button
           variant="ghost"
           size="icon-sm"
+          className="relative"
           onClick={onActivityToggle}
           aria-label="Toggle activity panel"
+          aria-pressed={activityCount > 0}
         >
           <PanelRight className="size-4" />
+          {activityCount > 0 && <span className="absolute right-1 top-1 grid size-3 place-items-center rounded-full bg-info text-[8px] text-info-foreground" aria-label={`${activityCount} active operation`}>{activityCount}</span>}
         </Button>
         <Separator orientation="vertical" className="h-5 bg-border" />
         <Button

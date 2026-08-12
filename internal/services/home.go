@@ -11,6 +11,8 @@ import (
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/launch"
 	"plumelauncher/internal/metadata"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // HomeService exposes instance actions in terms of persisted instance IDs.
@@ -21,6 +23,7 @@ type HomeService struct {
 	Instances *instances.Manager
 	Registry  *instances.Registry
 	Launch    *LaunchService
+	App       *application.App
 }
 
 func (s *HomeService) ListInstances() ([]instances.Instance, error) {
@@ -58,7 +61,13 @@ func (s *HomeService) InstallInstance(id string) error {
 		return err
 	}
 	orch := downloader.NewOrchestrator(s.DataRoot, 10)
+	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "downloading"})
 	if err := orch.DownloadPlan(context.Background(), plan); err != nil {
+		emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "failed", Error: err.Error()})
+		_ = s.Instances.UpdateState(id, instances.StateFailed)
+		return err
+	}
+	if err := orch.DownloadAssets(context.Background(), *detail); err != nil {
 		_ = s.Instances.UpdateState(id, instances.StateFailed)
 		return err
 	}
@@ -68,6 +77,7 @@ func (s *HomeService) InstallInstance(id string) error {
 	if err := s.Instances.UpdateState(id, instances.StateReady); err != nil {
 		return err
 	}
+	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "completed", FileProgress: len(plan.Artifacts), TotalFiles: len(plan.Artifacts)})
 	return nil
 }
 

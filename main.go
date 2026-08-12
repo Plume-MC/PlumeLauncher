@@ -75,6 +75,7 @@ func main() {
 		Instances: instances.NewManager(config.DataRoot, defaults),
 		Registry:  registry,
 		Launch:    launchService,
+		App:       app,
 	}))
 
 	// Create a new window with the necessary options.

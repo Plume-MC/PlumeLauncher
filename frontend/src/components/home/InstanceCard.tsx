@@ -2,6 +2,7 @@ import { Play, Download, MoreVertical } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 type InstanceState = 'not_installed' | 'ready' | 'running' | 'downloading' | 'failed' | 'stopped' | 'crashed';
 
@@ -40,10 +41,15 @@ export function InstanceCard({
   onOpenDetail,
   onAction,
 }: InstanceCardProps) {
+  const reducedMotion = useReducedMotion();
   return (
     <Card
       className="cursor-pointer transition-colors hover:border-primary/40"
       onClick={onOpenDetail}
+      onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && onOpenDetail) { event.preventDefault(); onOpenDetail(); } }}
+      tabIndex={0}
+      role="button"
+      aria-label={`Open details for ${name}`}
       data-slot="instance-card"
     >
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
@@ -71,7 +77,7 @@ export function InstanceCard({
           )}
            {state === 'downloading' && (
             <Badge variant="outline" className="text-[10px]">
-              <Download className="mr-1 size-3 animate-pulse" />
+               <Download className={`mr-1 size-3 ${reducedMotion ? '' : 'animate-pulse'}`} />
               Downloading
             </Badge>
           )}
