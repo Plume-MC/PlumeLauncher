@@ -86,6 +86,17 @@ func TestListInstances(t *testing.T) {
 	}
 }
 
+func TestListInstancesReturnsEmptySlice(t *testing.T) {
+	mgr := instances.NewManager(t.TempDir(), instances.DefaultLauncherDefaults())
+	list, err := mgr.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if list == nil || len(list) != 0 {
+		t.Fatalf("List = %#v, want empty slice", list)
+	}
+}
+
 func TestListInstancesEmpty(t *testing.T) {
 	dir := t.TempDir()
 	mgr := instances.NewManager(dir, instances.DefaultLauncherDefaults())

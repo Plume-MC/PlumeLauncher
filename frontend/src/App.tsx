@@ -17,7 +17,7 @@ function App() {
   const refresh = async () => {
     const accounts = await AccountService.ListAccounts()
     setAccount(accounts[0] ?? null)
-    setInstances(await HomeService.ListInstances())
+    setInstances((await HomeService.ListInstances()) ?? [])
     setSetup(accounts.length === 0)
   }
 

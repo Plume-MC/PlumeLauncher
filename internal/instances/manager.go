@@ -84,12 +84,12 @@ func (m *Manager) List() ([]Instance, error) {
 	entries, err := os.ReadDir(instancesDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return []Instance{}, nil
 		}
 		return nil, err
 	}
 
-	var instances []Instance
+	instances := make([]Instance, 0, len(entries))
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
