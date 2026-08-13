@@ -6,7 +6,7 @@ import (
 )
 
 // ValidateJavaPath checks if a custom Java path is executable and compatible
-// with the required Java major version.
+// with the required minimum Java major version.
 func ValidateJavaPath(path string, requiredMajor int) (*JavaInfo, error) {
 	// Check file exists
 	if _, err := os.Stat(path); err != nil {
@@ -23,8 +23,8 @@ func ValidateJavaPath(path string, requiredMajor int) (*JavaInfo, error) {
 	}
 
 	// Check major version compatibility
-	if requiredMajor > 0 && info.Major != requiredMajor {
-		return nil, fmt.Errorf("java at %s is version %d, but version %d is required", path, info.Major, requiredMajor)
+	if requiredMajor > 0 && info.Major < requiredMajor {
+		return nil, fmt.Errorf("java at %s is version %d, but version %d or newer is required", path, info.Major, requiredMajor)
 	}
 
 	return info, nil

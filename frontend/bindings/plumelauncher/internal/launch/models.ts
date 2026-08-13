@@ -15,6 +15,7 @@ export interface Options {
     "UserType": string;
     "VersionID": string;
     "GameDir": string;
+    "ClasspathRoot": string;
     "AssetsDir": string;
     "NativesDir": string;
     "RamMB": number;

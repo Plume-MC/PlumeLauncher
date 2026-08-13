@@ -66,23 +66,31 @@ func TestSelectJavaExactMatch(t *testing.T) {
 	}
 }
 
-func TestSelectJavaRejectsHigherMajor(t *testing.T) {
+func TestSelectJavaFallsBackToHigherMajor(t *testing.T) {
 	installs := []java.JavaInfo{
 		{Path: "/path/to/java25", Version: "25.0.3", Major: 25},
 	}
 
-	if _, err := java.SelectJava(installs, "1.18.2"); err == nil {
-		t.Fatal("expected exact-major selection to reject Java 25")
+	result, err := java.SelectJava(installs, "1.18.2")
+	if err != nil {
+		t.Fatalf("SelectJava: %v", err)
+	}
+	if result.Major != 25 {
+		t.Fatalf("Major = %d, want 25", result.Major)
 	}
 }
 
-func TestSelectJavaRejectsHigherMajorForOlderMinecraft(t *testing.T) {
+func TestSelectJavaFallsBackToHigherMajorForOlderMinecraft(t *testing.T) {
 	installs := []java.JavaInfo{
 		{Path: "/path/to/java21", Version: "21.0.3", Major: 21},
 	}
 
-	if _, err := java.SelectJava(installs, "1.7.10"); err == nil {
-		t.Fatal("expected exact-major selection to reject Java 21")
+	result, err := java.SelectJava(installs, "1.7.10")
+	if err != nil {
+		t.Fatalf("SelectJava: %v", err)
+	}
+	if result.Major != 21 {
+		t.Fatalf("Major = %d, want 21", result.Major)
 	}
 }
 

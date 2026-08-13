@@ -11,22 +11,23 @@ import (
 
 // Options holds launch configuration for a Minecraft instance.
 type Options struct {
-	PlayerName  string
-	UUID        string
-	AccessToken string
-	UserType    string // "offline", "ely.by", "microsoft"
-	VersionID   string
-	GameDir     string
-	AssetsDir   string
-	NativesDir  string
-	RamMB       int
-	Width       int
-	Height      int
-	Fullscreen  bool
-	GPU         string   // "auto", "discrete", "integrated"
-	Wrapper     []string // validated argv prefix
-	JavaPath    string
-	JVMArgs     []string
+	PlayerName    string
+	UUID          string
+	AccessToken   string
+	UserType      string // "offline", "ely.by", "microsoft"
+	VersionID     string
+	GameDir       string
+	ClasspathRoot string
+	AssetsDir     string
+	NativesDir    string
+	RamMB         int
+	Width         int
+	Height        int
+	Fullscreen    bool
+	GPU           string   // "auto", "discrete", "integrated"
+	Wrapper       []string // validated argv prefix
+	JavaPath      string
+	JVMArgs       []string
 }
 
 // BuildArguments constructs the full Java command line for launching Minecraft.
@@ -259,11 +260,14 @@ func mapUserType(userType string) string {
 func buildClasspath(version metadata.VersionDetail, opts Options) string {
 	var paths []string
 
-	// Resolve GameDir to absolute path
-	gameDir, _ := filepath.Abs(opts.GameDir)
+	root := opts.ClasspathRoot
+	if root == "" {
+		root = opts.GameDir
+	}
+	root, _ = filepath.Abs(root)
 
 	// Add client jar
-	clientPath := filepath.Join(gameDir, "versions", version.ID, version.ID+".jar")
+	clientPath := filepath.Join(root, "versions", version.ID, version.ID+".jar")
 	paths = append(paths, clientPath)
 
 	// Add allowed libraries
@@ -276,7 +280,7 @@ func buildClasspath(version metadata.VersionDetail, opts Options) string {
 			if path == "" {
 				path = metadata.ResolveMavenPath(lib.Name)
 			}
-			paths = append(paths, filepath.Join(gameDir, path))
+			paths = append(paths, filepath.Join(root, path))
 		}
 	}
 

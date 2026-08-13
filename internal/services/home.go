@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"plumelauncher/internal/auth"
@@ -47,6 +48,9 @@ func (s *HomeService) InstallInstance(id string) error {
 	if err != nil {
 		return NewNotFoundError("instance not found")
 	}
+	if inst.State == instances.StatePlanning || inst.State == instances.StateDownloading || inst.State == instances.StateVerifying {
+		return NewConflictError("instance install is already active")
+	}
 
 	client := metadata.NewClient(s.DataRoot)
 	detail, err := client.ResolveVersionChain(context.Background(), inst.MCVersion)
@@ -86,6 +90,9 @@ func (s *HomeService) LaunchInstance(id string) error {
 	if err != nil {
 		return NewNotFoundError("instance not found")
 	}
+	if inst.State != instances.StateReady && inst.State != instances.StateStopped {
+		return NewConflictError("instance is not ready; install or repair it first")
+	}
 	detail, err := metadata.NewClient(s.DataRoot).ResolveVersionChain(context.Background(), inst.MCVersion)
 	if err != nil {
 		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
@@ -103,23 +110,40 @@ func (s *HomeService) LaunchInstance(id string) error {
 		}
 		javaPath = selected.Path
 	}
+	nativesDir := filepath.Join(s.DataRoot, "instances", id, "natives")
+	if err := os.RemoveAll(nativesDir); err != nil {
+		return NewInternalError("clear natives: " + err.Error())
+	}
+	for _, library := range detail.Libraries {
+		if !metadata.ShouldDownload(library.Rules, metadata.CurrentSystem()) {
+			continue
+		}
+		nativePath, ok := metadata.ResolveNativePath(library, metadata.CurrentSystem())
+		if !ok {
+			continue
+		}
+		if err := launch.ExtractNatives(filepath.Join(s.DataRoot, nativePath), nativesDir); err != nil {
+			return NewIntegrityError("extract natives: " + err.Error())
+		}
+	}
 	launcher := s.Launch
 	if launcher == nil {
 		launcher = &LaunchService{Registry: s.Registry}
 	}
 	return launcher.Launch(*detail, launch.Options{
-		PlayerName:  "Player",
-		UUID:        auth.OfflineUUID("Player"),
-		AccessToken: "0",
-		UserType:    "offline",
-		VersionID:   id,
-		GameDir:     filepath.Join(s.DataRoot, "instances", id, ".minecraft"),
-		AssetsDir:   filepath.Join(s.DataRoot, "assets"),
-		NativesDir:  filepath.Join(s.DataRoot, "instances", id, "natives"),
-		RamMB:       settings.MaxRamMB,
-		Width:       settings.ResolutionW,
-		Height:      settings.ResolutionH,
-		JavaPath:    javaPath,
+		PlayerName:    "Player",
+		UUID:          auth.OfflineUUID("Player"),
+		AccessToken:   "0",
+		UserType:      "offline",
+		VersionID:     id,
+		GameDir:       filepath.Join(s.DataRoot, "instances", id, ".minecraft"),
+		ClasspathRoot: s.DataRoot,
+		AssetsDir:     filepath.Join(s.DataRoot, "assets"),
+		NativesDir:    nativesDir,
+		RamMB:         settings.MaxRamMB,
+		Width:         settings.ResolutionW,
+		Height:        settings.ResolutionH,
+		JavaPath:      javaPath,
 	})
 }
 
