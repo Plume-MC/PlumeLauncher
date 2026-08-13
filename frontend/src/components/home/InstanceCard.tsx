@@ -15,6 +15,7 @@ interface InstanceCardProps {
   onDownload?: () => void;
   onOpenDetail?: () => void;
   onAction?: (action: 'play' | 'install' | 'stop' | 'repair') => void;
+  busy?: boolean;
 }
 
 const stateLabel: Record<InstanceState, string> = {
@@ -40,6 +41,7 @@ export function InstanceCard({
   onDownload,
   onOpenDetail,
   onAction,
+  busy = false,
 }: InstanceCardProps) {
   const reducedMotion = useReducedMotion();
   return (
@@ -64,13 +66,13 @@ export function InstanceCard({
       <CardContent className="flex items-center justify-between pt-0">
         <div className="flex items-center gap-1.5">
            {(state === 'ready' || state === 'stopped') && (
-             <Button size="sm" onClick={(e) => { e.stopPropagation(); onPlay?.(); onAction?.('play'); }} aria-label={`Play ${name}`}>
+             <Button size="sm" disabled={busy} onClick={(e) => { e.stopPropagation(); onPlay?.(); onAction?.('play'); }} aria-label={`Play ${name}`}>
               <Play className="size-3" />
               Play
             </Button>
           )}
            {(state === 'not_installed' || state === 'failed' || state === 'crashed') && (
-             <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onDownload?.(); onAction?.(state === 'not_installed' ? 'install' : 'repair'); }} aria-label={`${state === 'not_installed' ? 'Install' : 'Repair'} ${name}`}>
+             <Button size="sm" variant="secondary" disabled={busy} onClick={(e) => { e.stopPropagation(); onDownload?.(); onAction?.(state === 'not_installed' ? 'install' : 'repair'); }} aria-label={`${state === 'not_installed' ? 'Install' : 'Repair'} ${name}`}>
               <Download className="size-3" />
               Install
             </Button>
@@ -82,7 +84,7 @@ export function InstanceCard({
             </Badge>
           )}
            {state === 'running' && (
-             <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onAction?.('stop'); }} aria-label={`Stop ${name}`}>Stop</Button>
+             <Button size="sm" variant="secondary" disabled={busy} onClick={(e) => { e.stopPropagation(); onAction?.('stop'); }} aria-label={`Stop ${name}`}>Stop</Button>
            )}
         </div>
         <Badge variant="outline" className="text-[10px] capitalize">{loader}</Badge>

@@ -8,6 +8,7 @@ import { InstanceDetailSheet } from '@/components/home/InstanceDetailSheet';
 import { CreateInstanceDialog } from '@/components/home/CreateInstanceDialog';
 import { DeleteInstanceDialog } from '@/components/home/DeleteInstanceDialog';
 import { HomeService } from '../../bindings/plumelauncher/internal/services/index.js';
+import { toast } from '@/components/ui/toast';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
 import type { Instance } from '../../bindings/plumelauncher/internal/instances/models.js';
 
@@ -33,13 +34,17 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
     .sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : sort === 'oldest' ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt));
 
   const runAction = async (id: string, action: 'play' | 'install' | 'stop' | 'repair') => {
+    if (busyId) return;
     setBusyId(id)
     try {
       if (action === 'play') await HomeService.LaunchInstance(id)
       if (action === 'install' || action === 'repair') await HomeService.InstallInstance(id)
       if (action === 'stop') await HomeService.StopInstance(id)
-      await onRefresh()
+      toast.add({ type: 'success', title: action === 'play' ? 'Minecraft closed' : `${action === 'install' ? 'Install' : action === 'repair' ? 'Repair' : 'Stop'} complete` })
+    } catch (error) {
+      toast.add({ type: 'error', title: 'Action failed', description: error instanceof Error ? error.message : 'Please check the launcher logs.', priority: 'high' })
     } finally {
+      await onRefresh()
       setBusyId('')
     }
   }
@@ -87,7 +92,7 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
           </p>
         </div>}
         {instances.length > 0 && visibleInstances.length === 0 && <div className="col-span-full py-16 text-center text-sm text-muted-foreground">No matching instances.</div>}
-        {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={busyId === instance.id ? `${instance.name}...` : instance.name} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.state as 'not_installed' | 'ready' | 'running' | 'downloading' | 'failed' | 'stopped' | 'crashed'} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
+        {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.state as 'not_installed' | 'ready' | 'running' | 'downloading' | 'failed' | 'stopped' | 'crashed'} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
       </div>
 
       <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} instanceName={detailInstance?.name} mcVersion={detailInstance?.mcVersion} loader={detailInstance?.loader} onDelete={() => { setDetailOpen(false); setDeleteId(detailInstance?.id ?? null); }} />
