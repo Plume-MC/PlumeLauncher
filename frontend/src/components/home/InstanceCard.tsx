@@ -48,10 +48,8 @@ export function InstanceCard({
     <Card
       className="cursor-pointer transition-colors hover:border-primary/40"
       onClick={onOpenDetail}
-      onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && onOpenDetail) { event.preventDefault(); onOpenDetail(); } }}
-      tabIndex={0}
-      role="button"
-      aria-label={`Open details for ${name}`}
+       role="group"
+       aria-label={`${name} instance`}
       data-slot="instance-card"
     >
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
@@ -59,9 +57,12 @@ export function InstanceCard({
           <CardTitle className="truncate text-sm">{name}</CardTitle>
           <p className="mt-0.5 font-mono text-xs text-muted-foreground">MC {mcVersion}</p>
         </div>
-        <Badge variant={stateVariant[state]} className="shrink-0 text-[10px]">
-          {stateLabel[state]}
-        </Badge>
+         <Badge variant={stateVariant[state]} className="shrink-0 text-[10px]">
+           {stateLabel[state]}
+         </Badge>
+         <Button size="icon-xs" variant="ghost" onClick={(event) => { event.stopPropagation(); onOpenDetail?.(); }} aria-label={`Open details for ${name}`}>
+           <MoreVertical className="size-3.5" />
+         </Button>
       </CardHeader>
       <CardContent className="flex items-center justify-between pt-0">
         <div className="flex items-center gap-1.5">

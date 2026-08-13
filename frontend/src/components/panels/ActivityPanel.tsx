@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type KeyboardEvent } from 'react';
 import { Events } from '@wailsio/runtime';
 import { X, Terminal, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,17 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
 
   if (!isOpen) return null;
 
+  const selectTab = (tab: Tab) => setActiveTab(tab);
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const tabs: Tab[] = ['console', 'downloads'];
+    const index = tabs.indexOf(activeTab);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index - 1 + tabs.length) % tabs.length : index;
+    if (next === index && !['Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    selectTab(tabs[next]);
+    event.currentTarget.querySelector<HTMLButtonElement>(`[data-tab="${tabs[next]}"]`)?.focus();
+  };
+
   return (
     <div
       className="fixed bottom-4 right-4 z-50 flex w-[560px] max-w-[90vw] flex-col rounded-lg border border-border bg-background shadow-lg"
@@ -44,31 +55,39 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
     >
       {/* Tab bar */}
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
-         <div className="flex items-center gap-1" role="tablist" aria-label="Activity views">
-             <button
-             type="button"
-             role="tab"
-             aria-selected={activeTab === 'console'}
+          <div className="flex items-center gap-1" role="tablist" aria-label="Activity views" onKeyDown={handleTabKeyDown}>
+              <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'console'}
+              aria-controls="activity-console"
+              id="activity-tab-console"
+              tabIndex={activeTab === 'console' ? 0 : -1}
+              data-tab="console"
             className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
               activeTab === 'console'
                 ? 'bg-accent text-foreground'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
-            onClick={() => setActiveTab('console')}
+             onClick={() => selectTab('console')}
           >
             <Terminal className="size-3.5" />
             Console
           </button>
            <button
              type="button"
-             role="tab"
-             aria-selected={activeTab === 'downloads'}
+              role="tab"
+              aria-selected={activeTab === 'downloads'}
+              aria-controls="activity-downloads"
+              id="activity-tab-downloads"
+              tabIndex={activeTab === 'downloads' ? 0 : -1}
+              data-tab="downloads"
             className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
               activeTab === 'downloads'
                 ? 'bg-accent text-foreground'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
-            onClick={() => setActiveTab('downloads')}
+             onClick={() => selectTab('downloads')}
           >
             <Download className="size-3.5" />
             Downloads
@@ -86,7 +105,7 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-3 font-mono text-xs text-muted-foreground">
+      <div id={`activity-${activeTab}`} role="tabpanel" aria-labelledby={`activity-tab-${activeTab}`} className="flex-1 overflow-auto p-3 font-mono text-xs text-muted-foreground">
         {activeTab === 'console' && (
           <div className="space-y-1">
             {consoleLines.length === 0 ? (
