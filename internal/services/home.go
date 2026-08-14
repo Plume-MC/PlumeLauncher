@@ -52,6 +52,16 @@ func (s *HomeService) InstallInstance(id string) error {
 		return NewConflictError("instance install is already active")
 	}
 
+	op, err := s.Registry.Start(id, instances.OpDownload)
+	if err != nil {
+		return NewConflictError(err.Error())
+	}
+	defer func() {
+		if current := s.Registry.Get(id); current != nil && current.Status == instances.OpStatusRunning {
+			s.Registry.Fail(id)
+		}
+	}()
+
 	client := metadata.NewClient(s.DataRoot)
 	detail, err := client.ResolveVersionChain(context.Background(), inst.MCVersion)
 	if err != nil {
@@ -66,12 +76,12 @@ func (s *HomeService) InstallInstance(id string) error {
 	}
 	orch := downloader.NewOrchestrator(s.DataRoot, 10)
 	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "downloading"})
-	if err := orch.DownloadPlan(context.Background(), plan); err != nil {
+	if err := orch.DownloadPlan(op.CancelContext, plan); err != nil {
 		emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "failed", Error: err.Error()})
 		_ = s.Instances.UpdateState(id, instances.StateFailed)
 		return err
 	}
-	if err := orch.DownloadAssets(context.Background(), *detail); err != nil {
+	if err := orch.DownloadAssets(op.CancelContext, *detail); err != nil {
 		_ = s.Instances.UpdateState(id, instances.StateFailed)
 		return err
 	}
@@ -82,6 +92,47 @@ func (s *HomeService) InstallInstance(id string) error {
 		return err
 	}
 	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "completed", FileProgress: len(plan.Artifacts), TotalFiles: len(plan.Artifacts)})
+	s.Registry.Complete(id)
+	return nil
+}
+
+// VerifyInstance checks the persisted artifact plan for an instance.
+func (s *HomeService) VerifyInstance(id string) ([]downloader.VerifyStatus, error) {
+	inst, err := s.Instances.Get(id)
+	if err != nil {
+		return nil, NewNotFoundError("instance not found")
+	}
+	detail, err := metadata.NewClient(s.DataRoot).ResolveVersionChain(context.Background(), inst.MCVersion)
+	if err != nil {
+		return nil, NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
+	}
+	plan := metadata.ResolvePlan(*detail, metadata.CurrentSystem())
+	return downloader.VerifyPlan(s.DataRoot, plan), nil
+}
+
+// RepairInstance restores missing or corrupt artifacts for an instance.
+func (s *HomeService) RepairInstance(id string) error {
+	inst, err := s.Instances.Get(id)
+	if err != nil {
+		return NewNotFoundError("instance not found")
+	}
+	if s.Registry.IsActive(id) {
+		return NewConflictError("instance already has an active operation")
+	}
+	detail, err := metadata.NewClient(s.DataRoot).ResolveVersionChain(context.Background(), inst.MCVersion)
+	if err != nil {
+		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
+	}
+	plan := metadata.ResolvePlan(*detail, metadata.CurrentSystem())
+	return downloader.RepairPlan(context.Background(), s.DataRoot, plan)
+}
+
+// CancelInstance cancels the active download or launch operation.
+func (s *HomeService) CancelInstance(id string) error {
+	if s.Registry.Get(id) == nil || !s.Registry.IsActive(id) {
+		return NewNotFoundError("no active operation for instance")
+	}
+	s.Registry.Cancel(id)
 	return nil
 }
 

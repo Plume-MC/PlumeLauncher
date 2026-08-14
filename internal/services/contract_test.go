@@ -149,6 +149,30 @@ func TestSystemServiceScanJava(t *testing.T) {
 	t.Logf("Found %d Java installations", len(installs))
 }
 
+func TestHomeServiceCancelRequiresActiveOperation(t *testing.T) {
+	dir := t.TempDir()
+	mgr := instances.NewManager(dir, instances.DefaultLauncherDefaults())
+	registry := instances.NewRegistry()
+	svc := &services.HomeService{DataRoot: dir, Instances: mgr, Registry: registry}
+
+	inst, err := mgr.Create("Test", "1.21.4", instances.LoaderVanilla)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.CancelInstance(inst.ID); err == nil {
+		t.Fatal("expected no-active-operation error")
+	}
+	if _, err := registry.Start(inst.ID, instances.OpDownload); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.CancelInstance(inst.ID); err != nil {
+		t.Fatalf("CancelInstance: %v", err)
+	}
+	if registry.IsActive(inst.ID) {
+		t.Fatal("operation remains active")
+	}
+}
+
 func TestErrorCodes(t *testing.T) {
 	dir := t.TempDir()
 	mgr := instances.NewManager(dir, instances.DefaultLauncherDefaults())

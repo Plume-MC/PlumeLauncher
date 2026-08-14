@@ -9,14 +9,26 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as downloader$0 from "../downloader/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as instances$0 from "../instances/models.js";
 
+/**
+ * CancelInstance cancels the active download or launch operation.
+ */
+export function CancelInstance(id: string): $CancellablePromise<void> {
+    return $Call.ByID(909256986, id);
+}
+
 export function CreateInstance(name: string, version: string, loader: string): $CancellablePromise<instances$0.Instance | null> {
-    return $Call.ByID(2514643128, name, version, loader);
+    return $Call.ByID(2514643128, name, version, loader).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 export function DeleteInstance(id: string): $CancellablePromise<void> {
@@ -31,10 +43,35 @@ export function LaunchInstance(id: string): $CancellablePromise<void> {
     return $Call.ByID(1169192303, id);
 }
 
-export function ListInstances(): $CancellablePromise<instances$0.Instance[] | null> {
-    return $Call.ByID(3323204425);
+export function ListInstances(): $CancellablePromise<instances$0.Instance[]> {
+    return $Call.ByID(3323204425).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * RepairInstance restores missing or corrupt artifacts for an instance.
+ */
+export function RepairInstance(id: string): $CancellablePromise<void> {
+    return $Call.ByID(27060533, id);
 }
 
 export function StopInstance(id: string): $CancellablePromise<void> {
     return $Call.ByID(4014632784, id);
 }
+
+/**
+ * VerifyInstance checks the persisted artifact plan for an instance.
+ */
+export function VerifyInstance(id: string): $CancellablePromise<downloader$0.VerifyStatus[]> {
+    return $Call.ByID(2734969665, id).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+// Private type creation functions
+const $$createType0 = instances$0.Instance.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $Create.Array($$createType0);
+const $$createType3 = downloader$0.VerifyStatus.createFrom;
+const $$createType4 = $Create.Array($$createType3);

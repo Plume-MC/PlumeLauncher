@@ -8,7 +8,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -18,12 +18,21 @@ import * as $models from "./models.js";
  * CreateOffline creates an offline account with deterministic UUID.
  */
 export function CreateOffline(username: string): $CancellablePromise<$models.Account | null> {
-    return $Call.ByID(1701179032, username);
+    return $Call.ByID(1701179032, username).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
  * ListAccounts returns all accounts.
  */
-export function ListAccounts(): $CancellablePromise<$models.Account[] | null> {
-    return $Call.ByID(2525240705);
+export function ListAccounts(): $CancellablePromise<$models.Account[]> {
+    return $Call.ByID(2525240705).then(($result: any) => {
+        return $$createType2($result);
+    });
 }
+
+// Private type creation functions
+const $$createType0 = $models.Account.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $Create.Array($$createType0);

@@ -16,6 +16,6 @@ export {
     SystemService
 };
 
-export type {
+export {
     Account
 } from "./models.js";

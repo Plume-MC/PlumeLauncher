@@ -3,6 +3,10 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import { Create as $Create } from "@wailsio/runtime";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as json$0 from "../../../encoding/json/models.js";
 
 /**
@@ -13,30 +17,118 @@ export type Argument = any;
 /**
  * Arguments holds game and JVM arguments.
  */
-export interface Arguments {
-    "game": Argument[] | null;
-    "jvm": Argument[] | null;
+export class Arguments {
+    "game": Argument[];
+    "jvm": Argument[];
+
+    /** Creates a new Arguments instance. */
+    constructor($$source: Partial<Arguments> = {}) {
+        if (!("game" in $$source)) {
+            this["game"] = [];
+        }
+        if (!("jvm" in $$source)) {
+            this["jvm"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Arguments instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Arguments {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("game" in $$parsedSource) {
+            $$parsedSource["game"] = $$createField0_0($$parsedSource["game"]);
+        }
+        if ("jvm" in $$parsedSource) {
+            $$parsedSource["jvm"] = $$createField1_0($$parsedSource["jvm"]);
+        }
+        return new Arguments($$parsedSource as Partial<Arguments>);
+    }
 }
 
 /**
  * Artifact represents a single required file for an instance.
  */
-export interface Artifact {
+export class Artifact {
     "role": ArtifactRole;
     "url": string;
     "path": string;
     "size": number;
     "sha1": string;
-    "rules"?: Rule[] | null;
+    "rules"?: Rule[];
     "required": boolean;
+
+    /** Creates a new Artifact instance. */
+    constructor($$source: Partial<Artifact> = {}) {
+        if (!("role" in $$source)) {
+            this["role"] = ArtifactRole.$zero;
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+        if (!("sha1" in $$source)) {
+            this["sha1"] = "";
+        }
+        if (!("required" in $$source)) {
+            this["required"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Artifact instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Artifact {
+        const $$createField5_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("rules" in $$parsedSource) {
+            $$parsedSource["rules"] = $$createField5_0($$parsedSource["rules"]);
+        }
+        return new Artifact($$parsedSource as Partial<Artifact>);
+    }
 }
 
 /**
  * ArtifactPlan is the complete set of artifacts needed for a version.
  */
-export interface ArtifactPlan {
+export class ArtifactPlan {
     "versionId": string;
-    "artifacts": Artifact[] | null;
+    "artifacts": Artifact[];
+
+    /** Creates a new ArtifactPlan instance. */
+    constructor($$source: Partial<ArtifactPlan> = {}) {
+        if (!("versionId" in $$source)) {
+            this["versionId"] = "";
+        }
+        if (!("artifacts" in $$source)) {
+            this["artifacts"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ArtifactPlan instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ArtifactPlan {
+        const $$createField1_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("artifacts" in $$parsedSource) {
+            $$parsedSource["artifacts"] = $$createField1_0($$parsedSource["artifacts"]);
+        }
+        return new ArtifactPlan($$parsedSource as Partial<ArtifactPlan>);
+    }
 }
 
 /**
@@ -58,126 +150,435 @@ export enum ArtifactRole {
 /**
  * AssetIndex points to the asset index JSON file.
  */
-export interface AssetIndex {
+export class AssetIndex {
     "id": string;
     "sha1": string;
     "size": number;
     "totalSize": number;
     "url": string;
+
+    /** Creates a new AssetIndex instance. */
+    constructor($$source: Partial<AssetIndex> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("sha1" in $$source)) {
+            this["sha1"] = "";
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+        if (!("totalSize" in $$source)) {
+            this["totalSize"] = 0;
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AssetIndex instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AssetIndex {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AssetIndex($$parsedSource as Partial<AssetIndex>);
+    }
 }
 
 /**
  * DownloadInfo describes a single downloadable artifact.
  */
-export interface DownloadInfo {
+export class DownloadInfo {
     "sha1": string;
     "size": number;
     "url": string;
     "path"?: string;
+
+    /** Creates a new DownloadInfo instance. */
+    constructor($$source: Partial<DownloadInfo> = {}) {
+        if (!("sha1" in $$source)) {
+            this["sha1"] = "";
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DownloadInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DownloadInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DownloadInfo($$parsedSource as Partial<DownloadInfo>);
+    }
 }
 
 /**
  * Downloads holds download info for client, server, and mappings.
  */
-export interface Downloads {
+export class Downloads {
     "client"?: DownloadInfo | null;
     "server"?: DownloadInfo | null;
     "client_mappings"?: DownloadInfo | null;
     "server_mappings"?: DownloadInfo | null;
+
+    /** Creates a new Downloads instance. */
+    constructor($$source: Partial<Downloads> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Downloads instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Downloads {
+        const $$createField0_0 = $$createType6;
+        const $$createField1_0 = $$createType6;
+        const $$createField2_0 = $$createType6;
+        const $$createField3_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("client" in $$parsedSource) {
+            $$parsedSource["client"] = $$createField0_0($$parsedSource["client"]);
+        }
+        if ("server" in $$parsedSource) {
+            $$parsedSource["server"] = $$createField1_0($$parsedSource["server"]);
+        }
+        if ("client_mappings" in $$parsedSource) {
+            $$parsedSource["client_mappings"] = $$createField2_0($$parsedSource["client_mappings"]);
+        }
+        if ("server_mappings" in $$parsedSource) {
+            $$parsedSource["server_mappings"] = $$createField3_0($$parsedSource["server_mappings"]);
+        }
+        return new Downloads($$parsedSource as Partial<Downloads>);
+    }
 }
 
 /**
  * ExtractRule defines which files to exclude during native extraction.
  */
-export interface ExtractRule {
-    "exclude": string[] | null;
+export class ExtractRule {
+    "exclude": string[];
+
+    /** Creates a new ExtractRule instance. */
+    constructor($$source: Partial<ExtractRule> = {}) {
+        if (!("exclude" in $$source)) {
+            this["exclude"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExtractRule instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExtractRule {
+        const $$createField0_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("exclude" in $$parsedSource) {
+            $$parsedSource["exclude"] = $$createField0_0($$parsedSource["exclude"]);
+        }
+        return new ExtractRule($$parsedSource as Partial<ExtractRule>);
+    }
 }
 
 /**
  * FeatureRule matches against feature flags.
  */
-export interface FeatureRule {
+export class FeatureRule {
     "is_demo_user"?: boolean | null;
     "has_custom_resolution"?: boolean | null;
+
+    /** Creates a new FeatureRule instance. */
+    constructor($$source: Partial<FeatureRule> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FeatureRule instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FeatureRule {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FeatureRule($$parsedSource as Partial<FeatureRule>);
+    }
 }
 
 /**
  * JavaVersion specifies which Java version is required.
  */
-export interface JavaVersion {
+export class JavaVersion {
     "component": string;
     "majorVersion": number;
+
+    /** Creates a new JavaVersion instance. */
+    constructor($$source: Partial<JavaVersion> = {}) {
+        if (!("component" in $$source)) {
+            this["component"] = "";
+        }
+        if (!("majorVersion" in $$source)) {
+            this["majorVersion"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new JavaVersion instance from a string or object.
+     */
+    static createFrom($$source: any = {}): JavaVersion {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new JavaVersion($$parsedSource as Partial<JavaVersion>);
+    }
 }
 
 /**
  * Library is a Minecraft dependency library.
  */
-export interface Library {
+export class Library {
     "downloads"?: LibraryDownloads | null;
     "name": string;
     "url"?: string;
-    "natives"?: { [_ in string]?: string } | null;
+    "natives"?: { [_ in string]?: string };
     "extract"?: ExtractRule | null;
-    "rules"?: Rule[] | null;
-    "classifiers"?: { [_ in string]?: DownloadInfo } | null;
+    "rules"?: Rule[];
+    "classifiers"?: { [_ in string]?: DownloadInfo };
+
+    /** Creates a new Library instance. */
+    constructor($$source: Partial<Library> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Library instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Library {
+        const $$createField0_0 = $$createType9;
+        const $$createField3_0 = $$createType10;
+        const $$createField4_0 = $$createType12;
+        const $$createField5_0 = $$createType2;
+        const $$createField6_0 = $$createType13;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("downloads" in $$parsedSource) {
+            $$parsedSource["downloads"] = $$createField0_0($$parsedSource["downloads"]);
+        }
+        if ("natives" in $$parsedSource) {
+            $$parsedSource["natives"] = $$createField3_0($$parsedSource["natives"]);
+        }
+        if ("extract" in $$parsedSource) {
+            $$parsedSource["extract"] = $$createField4_0($$parsedSource["extract"]);
+        }
+        if ("rules" in $$parsedSource) {
+            $$parsedSource["rules"] = $$createField5_0($$parsedSource["rules"]);
+        }
+        if ("classifiers" in $$parsedSource) {
+            $$parsedSource["classifiers"] = $$createField6_0($$parsedSource["classifiers"]);
+        }
+        return new Library($$parsedSource as Partial<Library>);
+    }
 }
 
 /**
  * LibraryDownloads holds the main artifact and optional classifiers.
  */
-export interface LibraryDownloads {
+export class LibraryDownloads {
     "artifact": DownloadInfo;
-    "classifiers"?: { [_ in string]?: DownloadInfo } | null;
+    "classifiers"?: { [_ in string]?: DownloadInfo };
+
+    /** Creates a new LibraryDownloads instance. */
+    constructor($$source: Partial<LibraryDownloads> = {}) {
+        if (!("artifact" in $$source)) {
+            this["artifact"] = (new DownloadInfo());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LibraryDownloads instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LibraryDownloads {
+        const $$createField0_0 = $$createType5;
+        const $$createField1_0 = $$createType13;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("artifact" in $$parsedSource) {
+            $$parsedSource["artifact"] = $$createField0_0($$parsedSource["artifact"]);
+        }
+        if ("classifiers" in $$parsedSource) {
+            $$parsedSource["classifiers"] = $$createField1_0($$parsedSource["classifiers"]);
+        }
+        return new LibraryDownloads($$parsedSource as Partial<LibraryDownloads>);
+    }
 }
 
 /**
  * LogFileInfo is metadata about the logging config file.
  */
-export interface LogFileInfo {
+export class LogFileInfo {
     "id": string;
     "sha1": string;
     "size": number;
     "url": string;
+
+    /** Creates a new LogFileInfo instance. */
+    constructor($$source: Partial<LogFileInfo> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("sha1" in $$source)) {
+            this["sha1"] = "";
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LogFileInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LogFileInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LogFileInfo($$parsedSource as Partial<LogFileInfo>);
+    }
 }
 
 /**
  * Logging defines client-side logging configuration.
  */
-export interface Logging {
+export class Logging {
     "client"?: LoggingConfig | null;
+
+    /** Creates a new Logging instance. */
+    constructor($$source: Partial<Logging> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Logging instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Logging {
+        const $$createField0_0 = $$createType15;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("client" in $$parsedSource) {
+            $$parsedSource["client"] = $$createField0_0($$parsedSource["client"]);
+        }
+        return new Logging($$parsedSource as Partial<Logging>);
+    }
 }
 
 /**
  * LoggingConfig describes the logging configuration file.
  */
-export interface LoggingConfig {
+export class LoggingConfig {
     "argument": string;
     "file": LogFileInfo;
     "type": string;
+
+    /** Creates a new LoggingConfig instance. */
+    constructor($$source: Partial<LoggingConfig> = {}) {
+        if (!("argument" in $$source)) {
+            this["argument"] = "";
+        }
+        if (!("file" in $$source)) {
+            this["file"] = (new LogFileInfo());
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LoggingConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LoggingConfig {
+        const $$createField1_0 = $$createType16;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("file" in $$parsedSource) {
+            $$parsedSource["file"] = $$createField1_0($$parsedSource["file"]);
+        }
+        return new LoggingConfig($$parsedSource as Partial<LoggingConfig>);
+    }
 }
 
 /**
  * OSRule matches against operating system properties.
  */
-export interface OSRule {
+export class OSRule {
     "name"?: string;
     "arch"?: string;
     "version"?: string;
+
+    /** Creates a new OSRule instance. */
+    constructor($$source: Partial<OSRule> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OSRule instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OSRule {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OSRule($$parsedSource as Partial<OSRule>);
+    }
 }
 
 /**
  * Rule defines an allow/disallow condition for libraries, natives, or arguments.
  */
-export interface Rule {
+export class Rule {
     "action": string;
     "os"?: OSRule | null;
     "features"?: FeatureRule | null;
+
+    /** Creates a new Rule instance. */
+    constructor($$source: Partial<Rule> = {}) {
+        if (!("action" in $$source)) {
+            this["action"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Rule instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Rule {
+        const $$createField1_0 = $$createType18;
+        const $$createField2_0 = $$createType20;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("os" in $$parsedSource) {
+            $$parsedSource["os"] = $$createField1_0($$parsedSource["os"]);
+        }
+        if ("features" in $$parsedSource) {
+            $$parsedSource["features"] = $$createField2_0($$parsedSource["features"]);
+        }
+        return new Rule($$parsedSource as Partial<Rule>);
+    }
 }
 
 /**
  * VersionDetail is the full metadata for a single Minecraft version.
  */
-export interface VersionDetail {
+export class VersionDetail {
     "arguments"?: Arguments | null;
     "assetIndex": AssetIndex;
     "assets": string;
@@ -185,7 +586,7 @@ export interface VersionDetail {
     "downloads": Downloads;
     "id": string;
     "javaVersion": JavaVersion;
-    "libraries": Library[] | null;
+    "libraries": Library[];
     "logging"?: Logging | null;
     "mainClass": string;
     "minecraftArguments"?: json$0.RawMessage;
@@ -194,4 +595,107 @@ export interface VersionDetail {
     "releaseTime": string;
     "time": string;
     "type": string;
+
+    /** Creates a new VersionDetail instance. */
+    constructor($$source: Partial<VersionDetail> = {}) {
+        if (!("assetIndex" in $$source)) {
+            this["assetIndex"] = (new AssetIndex());
+        }
+        if (!("assets" in $$source)) {
+            this["assets"] = "";
+        }
+        if (!("downloads" in $$source)) {
+            this["downloads"] = (new Downloads());
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("javaVersion" in $$source)) {
+            this["javaVersion"] = (new JavaVersion());
+        }
+        if (!("libraries" in $$source)) {
+            this["libraries"] = [];
+        }
+        if (!("mainClass" in $$source)) {
+            this["mainClass"] = "";
+        }
+        if (!("minimumLauncherVersion" in $$source)) {
+            this["minimumLauncherVersion"] = 0;
+        }
+        if (!("releaseTime" in $$source)) {
+            this["releaseTime"] = "";
+        }
+        if (!("time" in $$source)) {
+            this["time"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VersionDetail instance from a string or object.
+     */
+    static createFrom($$source: any = {}): VersionDetail {
+        const $$createField0_0 = $$createType22;
+        const $$createField1_0 = $$createType23;
+        const $$createField4_0 = $$createType24;
+        const $$createField6_0 = $$createType25;
+        const $$createField7_0 = $$createType27;
+        const $$createField8_0 = $$createType29;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("arguments" in $$parsedSource) {
+            $$parsedSource["arguments"] = $$createField0_0($$parsedSource["arguments"]);
+        }
+        if ("assetIndex" in $$parsedSource) {
+            $$parsedSource["assetIndex"] = $$createField1_0($$parsedSource["assetIndex"]);
+        }
+        if ("downloads" in $$parsedSource) {
+            $$parsedSource["downloads"] = $$createField4_0($$parsedSource["downloads"]);
+        }
+        if ("javaVersion" in $$parsedSource) {
+            $$parsedSource["javaVersion"] = $$createField6_0($$parsedSource["javaVersion"]);
+        }
+        if ("libraries" in $$parsedSource) {
+            $$parsedSource["libraries"] = $$createField7_0($$parsedSource["libraries"]);
+        }
+        if ("logging" in $$parsedSource) {
+            $$parsedSource["logging"] = $$createField8_0($$parsedSource["logging"]);
+        }
+        return new VersionDetail($$parsedSource as Partial<VersionDetail>);
+    }
 }
+
+// Private type creation functions
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = Rule.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = Artifact.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = DownloadInfo.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = $Create.Array($Create.Any);
+const $$createType8 = LibraryDownloads.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = $Create.Map($Create.Any, $Create.Any);
+const $$createType11 = ExtractRule.createFrom;
+const $$createType12 = $Create.Nullable($$createType11);
+const $$createType13 = $Create.Map($Create.Any, $$createType5);
+const $$createType14 = LoggingConfig.createFrom;
+const $$createType15 = $Create.Nullable($$createType14);
+const $$createType16 = LogFileInfo.createFrom;
+const $$createType17 = OSRule.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = FeatureRule.createFrom;
+const $$createType20 = $Create.Nullable($$createType19);
+const $$createType21 = Arguments.createFrom;
+const $$createType22 = $Create.Nullable($$createType21);
+const $$createType23 = AssetIndex.createFrom;
+const $$createType24 = Downloads.createFrom;
+const $$createType25 = JavaVersion.createFrom;
+const $$createType26 = Library.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = Logging.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);

@@ -8,7 +8,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -34,6 +34,12 @@ export function RepairPlan(plan: metadata$0.ArtifactPlan | null): $CancellablePr
 /**
  * VerifyPlan checks all artifacts in the plan.
  */
-export function VerifyPlan(plan: metadata$0.ArtifactPlan | null): $CancellablePromise<downloader$0.VerifyStatus[] | null> {
-    return $Call.ByID(1439173882, plan);
+export function VerifyPlan(plan: metadata$0.ArtifactPlan | null): $CancellablePromise<downloader$0.VerifyStatus[]> {
+    return $Call.ByID(1439173882, plan).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
+
+// Private type creation functions
+const $$createType0 = downloader$0.VerifyStatus.createFrom;
+const $$createType1 = $Create.Array($$createType0);
