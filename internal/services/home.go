@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"plumelauncher/internal/auth"
 	"plumelauncher/internal/downloader"
@@ -76,6 +77,26 @@ func (s *HomeService) InstallInstance(id string) error {
 	}
 	orch := downloader.NewOrchestrator(s.DataRoot, 10)
 	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "downloading"})
+	stopProgress := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(250 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				snapshot := orch.Progress()
+				emit(s.App, EventDownloadProgress, DownloadProgressEvent{
+					OperationID: id, InstanceID: id, Status: "downloading",
+					FileProgress: snapshot.CompletedFiles, TotalFiles: snapshot.TotalFiles,
+					ByteProgress: snapshot.CompletedBytes, TotalBytes: snapshot.TotalBytes,
+					Speed: snapshot.Speed, ETA: snapshot.ETA.Seconds(),
+				})
+			case <-stopProgress:
+				return
+			}
+		}
+	}()
+	defer close(stopProgress)
 	if err := orch.DownloadPlan(op.CancelContext, plan); err != nil {
 		emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "failed", Error: err.Error()})
 		_ = s.Instances.UpdateState(id, instances.StateFailed)

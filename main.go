@@ -69,6 +69,7 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
+	launchService.App = app
 	app.RegisterService(application.NewService(&services.HomeService{
 		DataRoot:  config.DataRoot,
 		Defaults:  defaults,

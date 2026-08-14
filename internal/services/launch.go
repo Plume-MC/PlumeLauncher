@@ -7,12 +7,15 @@ import (
 	"plumelauncher/internal/launch"
 	"plumelauncher/internal/metadata"
 	"sync"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // LaunchService manages Minecraft launch.
 type LaunchService struct {
 	DataRoot  string
 	Registry  *instances.Registry
+	App       *application.App
 	mu        sync.Mutex
 	processes map[string]*exec.Cmd
 }
@@ -70,6 +73,7 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	if err != nil {
 		return NewInternalError("failed to launch: " + err.Error())
 	}
+	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "running"})
 	s.mu.Lock()
 	if s.processes == nil {
 		s.processes = make(map[string]*exec.Cmd)
@@ -84,15 +88,21 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 
 	// Monitor (blocks until exit)
 	err = launch.Monitor(cmd, func(line string, isStderr bool) {
-		// Log callback — could emit Wails event here
+		level := "info"
+		if isStderr {
+			level = "error"
+		}
+		emit(s.App, EventLogLine, LogLineEvent{Level: level, Message: line, InstanceID: opts.VersionID})
 	})
 
 	s.Registry.Complete(opts.VersionID)
 
 	if err != nil {
+		emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "failed"})
 		return NewInternalError("game process error: " + err.Error())
 	}
 
+	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "stopped"})
 	return nil
 }
 
