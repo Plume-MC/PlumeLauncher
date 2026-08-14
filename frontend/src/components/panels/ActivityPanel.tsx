@@ -3,8 +3,10 @@ import { Events } from '@wailsio/runtime';
 import { X, Terminal, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { HomeService } from '../../../bindings/plumelauncher/internal/services/index.js';
 
 type Tab = 'console' | 'downloads';
+type DownloadProgress = { instanceId: string; status: string; fileProgress: number; totalFiles: number; byteProgress: number; totalBytes: number; speed: number; eta: number; error?: string };
 
 interface ActivityPanelProps {
   isOpen: boolean;
@@ -15,17 +17,18 @@ interface ActivityPanelProps {
 export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('downloads');
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
-  const [downloadStatus, setDownloadStatus] = useState<string>('');
+  const [download, setDownload] = useState<DownloadProgress | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
 
     const unsubs = [
-      Events.On('log-line', (data: any) => {
-        setConsoleLines((prev) => [...prev.slice(-200), data?.message ?? '']);
-      }),
-      Events.On('download-progress', (data: any) => {
-        setDownloadStatus(data?.status ?? '');
+       Events.On('log-line', (data: any) => {
+         setConsoleLines((prev) => [...prev.slice(-199), `${data?.level === 'error' ? '[ERR] ' : ''}${data?.message ?? ''}`]);
+       }),
+       Events.On('download-progress', (data: any) => {
+         setDownload(data as DownloadProgress);
       }),
     ];
 
@@ -45,6 +48,12 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
     event.preventDefault();
     selectTab(tabs[next]);
     event.currentTarget.querySelector<HTMLButtonElement>(`[data-tab="${tabs[next]}"]`)?.focus();
+  };
+
+  const cancelDownload = async () => {
+    if (!download?.instanceId) return;
+    setCancelling(true);
+    try { await HomeService.CancelInstance(download.instanceId); } finally { setCancelling(false); }
   };
 
   return (
@@ -117,9 +126,14 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
         )}
         {activeTab === 'downloads' && (
           <div className="space-y-1">
-            {downloadStatus ? (
-              <p>{downloadStatus}</p>
-            ) : (
+             {download ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between"><p>{download.status} · {download.fileProgress}/{download.totalFiles} files</p>{download.status === 'downloading' && <Button variant="ghost" size="sm" disabled={cancelling} onClick={() => void cancelDownload()}>{cancelling ? 'Cancelling...' : 'Cancel'}</Button>}</div>
+                <progress className="h-1.5 w-full accent-primary" value={download.totalBytes ? download.byteProgress : download.fileProgress} max={download.totalBytes || download.totalFiles} aria-label="Download progress" />
+                <p className="text-muted-foreground/70">{download.totalBytes ? `${Math.round(download.byteProgress / 1024 / 1024)} / ${Math.round(download.totalBytes / 1024 / 1024)} MB` : 'Preparing files'}{download.speed > 0 && ` · ${Math.round(download.speed / 1024)} KB/s`}</p>
+                {download.error && <p className="text-destructive">{download.error}</p>}
+              </div>
+             ) : (
               <p className="text-muted-foreground/50">No active downloads.</p>
             )}
           </div>
