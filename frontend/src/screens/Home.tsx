@@ -95,7 +95,7 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
         {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.state as 'not_installed' | 'ready' | 'running' | 'downloading' | 'failed' | 'stopped' | 'crashed'} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
       </div>
 
-      <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} instanceName={detailInstance?.name} mcVersion={detailInstance?.mcVersion} loader={detailInstance?.loader} onDelete={() => { setDetailOpen(false); setDeleteId(detailInstance?.id ?? null); }} />
+       <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} instance={detailInstance} onChanged={onRefresh} onDelete={() => { setDetailOpen(false); setDeleteId(detailInstance?.id ?? null); }} />
       <CreateInstanceDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={onRefresh} />
       <DeleteInstanceDialog instanceId={deleteId} instanceName={detailInstance?.name} onOpenChange={(open) => { if (!open) setDeleteId(null); }} onDeleted={onRefresh} />
     </div>
