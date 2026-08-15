@@ -13,7 +13,8 @@ type Task struct {
 	Path       string
 	SHA1       string
 	Size       int64
-	OnComplete func() // called after successful commit
+	OnComplete func(cached bool) // called after successful commit
+	OnProgress func(int64)
 }
 
 // Pool is a bounded worker pool for download tasks.
@@ -98,7 +99,7 @@ func (p *Pool) process(ctx context.Context, task Task, cacheDir string) {
 		ok, err := VerifyFileSHA1(task.Path, task.SHA1)
 		if err == nil && ok {
 			if task.OnComplete != nil {
-				task.OnComplete()
+				task.OnComplete(true)
 			}
 			return
 		}
@@ -106,7 +107,7 @@ func (p *Pool) process(ctx context.Context, task Task, cacheDir string) {
 
 	partPath := task.Path + ".part"
 
-	written, err := DownloadWithResume(ctx, p.client, task.URL, partPath)
+	written, err := DownloadWithResumeProgress(ctx, p.client, task.URL, partPath, task.OnProgress)
 	if err != nil {
 		p.errorsMu.Lock()
 		p.errors = append(p.errors, fmt.Errorf("download %s: %w", task.URL, err))
@@ -123,6 +124,6 @@ func (p *Pool) process(ctx context.Context, task Task, cacheDir string) {
 	}
 
 	if task.OnComplete != nil {
-		task.OnComplete()
+		task.OnComplete(false)
 	}
 }

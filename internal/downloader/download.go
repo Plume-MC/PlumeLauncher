@@ -14,6 +14,11 @@ import (
 // DownloadWithResume downloads a URL to partPath with HTTP Range resume support.
 // Returns the number of bytes written. On failure, the .part file is preserved for resume.
 func DownloadWithResume(ctx context.Context, client *http.Client, url string, partPath string) (int64, error) {
+	return DownloadWithResumeProgress(ctx, client, url, partPath, nil)
+}
+
+// DownloadWithResumeProgress reports byte chunks as they are written.
+func DownloadWithResumeProgress(ctx context.Context, client *http.Client, url string, partPath string, onProgress func(int64)) (int64, error) {
 	const maxAttempts = 2
 
 	var offset int64
@@ -25,7 +30,7 @@ func DownloadWithResume(ctx context.Context, client *http.Client, url string, pa
 
 	var lastErr error
 	for attempt := 0; attempt < maxAttempts; attempt++ {
-		written, err := doDownload(ctx, client, url, partPath, offset)
+		written, err := doDownload(ctx, client, url, partPath, offset, onProgress)
 		if err == nil {
 			return written + offset, nil
 		}
@@ -49,7 +54,7 @@ func DownloadWithResume(ctx context.Context, client *http.Client, url string, pa
 
 var errRangeNotSatisfiable = fmt.Errorf("416 Range Not Satisfiable")
 
-func doDownload(ctx context.Context, client *http.Client, url string, partPath string, offset int64) (int64, error) {
+func doDownload(ctx context.Context, client *http.Client, url string, partPath string, offset int64, onProgress func(int64)) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return 0, err
@@ -95,8 +100,25 @@ func doDownload(ctx context.Context, client *http.Client, url string, partPath s
 	}
 	defer f.Close()
 
-	written, err := io.Copy(f, resp.Body)
+	reader := io.Reader(resp.Body)
+	if onProgress != nil {
+		reader = progressReader{Reader: resp.Body, onProgress: onProgress}
+	}
+	written, err := io.Copy(f, reader)
 	return written, err
+}
+
+type progressReader struct {
+	io.Reader
+	onProgress func(int64)
+}
+
+func (r progressReader) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	if n > 0 {
+		r.onProgress(int64(n))
+	}
+	return n, err
 }
 
 func validContentRange(value string, offset int64) bool {

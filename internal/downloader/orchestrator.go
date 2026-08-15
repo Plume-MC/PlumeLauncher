@@ -53,9 +53,14 @@ func (o *Orchestrator) DownloadPlan(ctx context.Context, plan *metadata.Artifact
 			Path: fullPath,
 			SHA1: artifact.Sha1,
 			Size: artifact.Size,
-			OnComplete: func() {
-				o.progress.Increment(artifact.Size, artifact.Size)
+			OnComplete: func(cached bool) {
+				if cached {
+					o.progress.Increment(artifact.Size, artifact.Size)
+				} else {
+					o.progress.Complete()
+				}
 			},
+			OnProgress: o.progress.Advance,
 		})
 	}
 
@@ -142,9 +147,14 @@ func (o *Orchestrator) DownloadAssets(ctx context.Context, detail metadata.Versi
 			Path: path,
 			SHA1: obj.Hash,
 			Size: int64(obj.Size),
-			OnComplete: func() {
-				o.progress.Increment(int64(obj.Size), int64(obj.Size))
+			OnComplete: func(cached bool) {
+				if cached {
+					o.progress.Increment(int64(obj.Size), int64(obj.Size))
+				} else {
+					o.progress.Complete()
+				}
 			},
+			OnProgress: o.progress.Advance,
 		})
 	}
 

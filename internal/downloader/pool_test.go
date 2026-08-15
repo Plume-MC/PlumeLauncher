@@ -129,7 +129,7 @@ func TestPoolOnComplete(t *testing.T) {
 	pool.Submit(downloader.Task{
 		URL:  server.URL + "/file",
 		Path: filepath.Join(dir, "file.txt"),
-		OnComplete: func() {
+		OnComplete: func(bool) {
 			called.Store(true)
 		},
 	})

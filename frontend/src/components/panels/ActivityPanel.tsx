@@ -29,11 +29,12 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
     window.addEventListener('keydown', closeOnEscape);
 
     const unsubs = [
-       Events.On('log-line', (data: any) => {
-         setConsoleLines((prev) => [...prev.slice(-199), `${data?.level === 'error' ? '[ERR] ' : ''}${data?.message ?? ''}`]);
-       }),
-       Events.On('download-progress', (data: any) => {
-         setDownload(data as DownloadProgress);
+       Events.On('log-line', (event: any) => {
+          const data = event.data;
+          setConsoleLines((prev) => [...prev.slice(-199), `${data?.level === 'error' ? '[ERR] ' : ''}${data?.message ?? ''}`]);
+        }),
+       Events.On('download-progress', (event: any) => {
+          setDownload(event.data as DownloadProgress);
       }),
     ];
 

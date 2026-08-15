@@ -7,13 +7,13 @@ import (
 
 // ProgressTracker provides thread-safe download progress tracking.
 type ProgressTracker struct {
-	mu            sync.Mutex
-	totalFiles    int
-	totalBytes    int64
+	mu             sync.Mutex
+	totalFiles     int
+	totalBytes     int64
 	completedFiles int
 	completedBytes int64
-	networkBytes  int64
-	startTime     time.Time
+	networkBytes   int64
+	startTime      time.Time
 }
 
 // NewProgressTracker creates a tracker for the given number of files.
@@ -39,6 +39,21 @@ func (p *ProgressTracker) Increment(size int64, networkBytes int64) {
 	p.completedFiles++
 	p.completedBytes += size
 	p.networkBytes += networkBytes
+}
+
+// Advance records bytes received while an artifact is still downloading.
+func (p *ProgressTracker) Advance(bytes int64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.completedBytes += bytes
+	p.networkBytes += bytes
+}
+
+// Complete marks a streamed artifact as complete without counting its bytes twice.
+func (p *ProgressTracker) Complete() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.completedFiles++
 }
 
 // ProgressSnapshot is a point-in-time copy of progress state.

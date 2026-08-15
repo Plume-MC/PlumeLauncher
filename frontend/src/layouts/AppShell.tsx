@@ -16,8 +16,8 @@ export function AppShell({ children }: AppShellProps) {
 
   useEffect(() => {
     const unsubs = [
-      Events.On('download-progress', (data: any) => setActivityCount(data?.status === 'completed' || data?.status === 'failed' ? 0 : 1)),
-      Events.On('launch-state', (data: any) => setActivityCount(data?.state === 'stopped' || data?.state === 'failed' ? 0 : 1)),
+      Events.On('download-progress', (event: any) => setActivityCount(event.data?.status === 'completed' || event.data?.status === 'failed' ? 0 : 1)),
+      Events.On('launch-state', (event: any) => setActivityCount(event.data?.state === 'stopped' || event.data?.state === 'failed' ? 0 : 1)),
     ];
     return () => unsubs.forEach((unsubscribe) => unsubscribe());
   }, []);
