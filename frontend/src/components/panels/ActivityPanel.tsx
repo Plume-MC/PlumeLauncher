@@ -23,6 +23,11 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
   useEffect(() => {
     if (!isOpen) return;
 
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+
     const unsubs = [
        Events.On('log-line', (data: any) => {
          setConsoleLines((prev) => [...prev.slice(-199), `${data?.level === 'error' ? '[ERR] ' : ''}${data?.message ?? ''}`]);
@@ -33,9 +38,10 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
     ];
 
     return () => {
+      window.removeEventListener('keydown', closeOnEscape);
       for (const unsub of unsubs) unsub();
     };
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

@@ -4,7 +4,7 @@ import { AppShell } from '@/layouts/AppShell'
 import { Home } from '@/screens/Home'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { AccountService, HomeService } from '../bindings/plumelauncher/internal/services/index.js'
+import { AccountService, HomeService, SystemService } from '../bindings/plumelauncher/internal/services/index.js'
 import type { Account } from '../bindings/plumelauncher/internal/services/models.js'
 import type { Instance } from '../bindings/plumelauncher/internal/instances/models.js'
 
@@ -22,8 +22,9 @@ function App() {
   }
 
   useEffect(() => {
-    document.documentElement.classList.add('dark')
-    refresh().catch(() => setSetup(true)).finally(() => setLoading(false))
+    Promise.all([SystemService.GetSettings(), refresh()]).then(([settings]) => {
+      document.documentElement.classList.toggle('dark', settings.theme !== 'light')
+    }).catch(() => setSetup(true)).finally(() => setLoading(false))
   }, [])
 
   if (loading) {
