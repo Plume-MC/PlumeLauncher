@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"plumelauncher/internal/metadata"
 )
@@ -18,6 +19,7 @@ type Orchestrator struct {
 	workers  int
 	pool     *Pool
 	progress *ProgressTracker
+	client   *http.Client
 }
 
 // NewOrchestrator creates a download orchestrator for the given data root.
@@ -25,6 +27,7 @@ func NewOrchestrator(dataRoot string, workers int) *Orchestrator {
 	return &Orchestrator{
 		dataRoot: dataRoot,
 		workers:  workers,
+		client:   &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -91,7 +94,7 @@ func (o *Orchestrator) DownloadAssets(ctx context.Context, detail metadata.Versi
 		if err != nil {
 			return err
 		}
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := o.client.Do(req)
 		if err != nil {
 			return fmt.Errorf("fetch asset index: %w", err)
 		}
@@ -164,7 +167,7 @@ func (o *Orchestrator) downloadTasks(ctx context.Context, tasks []Task) error {
 		return err
 	}
 
-	o.pool = NewPool(o.workers, &http.Client{})
+	o.pool = NewPool(o.workers, o.client)
 	o.pool.Start(ctx, filepath.Join(o.dataRoot, "cache"))
 	for _, task := range tasks {
 		if !o.pool.Submit(task) {

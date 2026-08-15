@@ -76,7 +76,14 @@ func (s *HomeService) InstallInstance(id string) error {
 		return err
 	}
 	orch := downloader.NewOrchestrator(s.DataRoot, 10)
-	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "downloading"})
+	var totalBytes int64
+	for _, artifact := range plan.Artifacts {
+		totalBytes += artifact.Size
+	}
+	emit(s.App, EventDownloadProgress, DownloadProgressEvent{
+		OperationID: id, InstanceID: id, Status: "downloading",
+		TotalFiles: len(plan.Artifacts), TotalBytes: totalBytes,
+	})
 	stopProgress := make(chan struct{})
 	go func() {
 		ticker := time.NewTicker(250 * time.Millisecond)
