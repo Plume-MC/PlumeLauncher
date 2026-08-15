@@ -56,8 +56,28 @@ func ResolvePlan(detail VersionDetail, sys SystemInfo) *ArtifactPlan {
 	// 5. Asset objects (from asset index ID, not fetched here)
 	// Assets require fetching the asset index JSON — that's a runtime concern.
 	// The plan stores the asset index path; the downloader resolves objects.
+	plan.dedupeArtifacts()
 
 	return plan
+}
+
+// dedupeArtifacts ensures one downloader task owns each destination path.
+// Inherited metadata can describe the same Maven artifact more than once.
+func (p *ArtifactPlan) dedupeArtifacts() {
+	seen := make(map[string]struct{}, len(p.Artifacts))
+	unique := p.Artifacts[:0]
+	for _, artifact := range p.Artifacts {
+		if artifact.Path == "" {
+			unique = append(unique, artifact)
+			continue
+		}
+		if _, ok := seen[artifact.Path]; ok {
+			continue
+		}
+		seen[artifact.Path] = struct{}{}
+		unique = append(unique, artifact)
+	}
+	p.Artifacts = unique
 }
 
 func (p *ArtifactPlan) addClient(detail VersionDetail) {

@@ -195,6 +195,28 @@ func TestResolvePlanRuleFiltering(t *testing.T) {
 	}
 }
 
+func TestResolvePlanDeduplicatesArtifactPaths(t *testing.T) {
+	detail := metadata.VersionDetail{
+		ID:         "1.18.2",
+		AssetIndex: metadata.AssetIndex{ID: "1.18", URL: "http://example.com/assets"},
+		Libraries: []metadata.Library{
+			{Name: "org.lwjgl:lwjgl:3.2.2", Downloads: &metadata.LibraryDownloads{Artifact: metadata.DownloadInfo{URL: "http://example.com/lwjgl.jar", Path: "org/lwjgl/lwjgl/3.2.2/lwjgl-3.2.2.jar", SHA1: "same", Size: 10}}},
+			{Name: "org.lwjgl:lwjgl:3.2.2", Downloads: &metadata.LibraryDownloads{Artifact: metadata.DownloadInfo{URL: "http://example.com/lwjgl.jar", Path: "org/lwjgl/lwjgl/3.2.2/lwjgl-3.2.2.jar", SHA1: "same", Size: 10}}},
+		},
+	}
+
+	plan := metadata.ResolvePlan(detail, metadata.SystemInfo{OS: "windows", Arch: "x64"})
+	count := 0
+	for _, artifact := range plan.Artifacts {
+		if artifact.Path == "org/lwjgl/lwjgl/3.2.2/lwjgl-3.2.2.jar" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("LWJGL artifact count = %d, want 1", count)
+	}
+}
+
 func TestResolvePlanPathContainment(t *testing.T) {
 	detail := metadata.VersionDetail{
 		ID:         "1.0",
