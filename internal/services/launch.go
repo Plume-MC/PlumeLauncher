@@ -6,6 +6,7 @@ import (
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/launch"
 	"plumelauncher/internal/metadata"
+	"strings"
 	"sync"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -87,10 +88,18 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	}()
 
 	// Monitor (blocks until exit)
+	var stderr []string
+	var stderrMu sync.Mutex
 	err = launch.Monitor(cmd, func(line string, isStderr bool) {
 		level := "info"
 		if isStderr {
 			level = "error"
+			stderrMu.Lock()
+			stderr = append(stderr, line)
+			if len(stderr) > 20 {
+				stderr = stderr[1:]
+			}
+			stderrMu.Unlock()
 		}
 		emit(s.App, EventLogLine, LogLineEvent{Level: level, Message: line, InstanceID: opts.VersionID})
 	})
@@ -99,6 +108,9 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 
 	if err != nil {
 		emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "failed"})
+		if len(stderr) > 0 {
+			return NewInternalError("game process error: " + strings.Join(stderr, "\n"))
+		}
 		return NewInternalError("game process error: " + err.Error())
 	}
 
