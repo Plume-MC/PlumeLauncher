@@ -109,6 +109,8 @@ func TestBuildArgumentsLegacy1Point0(t *testing.T) {
 		"net.minecraft.client.Minecraft",
 		"Steve",
 		"1.0",
+		"--accessToken",
+		"--assetIndex",
 	}
 
 	for _, expected := range checkArgs {

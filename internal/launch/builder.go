@@ -133,6 +133,16 @@ func buildGameArgs(version metadata.VersionDetail, opts Options) []string {
 			args = append(args, resolved)
 		}
 	}
+	// Legacy metadata occasionally omits required launcher arguments after inheritance.
+	// Supply only absent values so modern metadata keeps its original command line.
+	args = ensureGameOption(args, "--username", opts.PlayerName)
+	args = ensureGameOption(args, "--version", version.ID)
+	args = ensureGameOption(args, "--gameDir", opts.GameDir)
+	args = ensureGameOption(args, "--assetsDir", opts.AssetsDir)
+	args = ensureGameOption(args, "--assetIndex", version.AssetIndex.ID)
+	args = ensureGameOption(args, "--uuid", opts.UUID)
+	args = ensureGameOption(args, "--accessToken", opts.AccessToken)
+	args = ensureGameOption(args, "--userType", mapUserType(opts.UserType))
 
 	// Append resolution if not already present and > 0
 	hasWidth := false
@@ -159,6 +169,15 @@ func buildGameArgs(version metadata.VersionDetail, opts Options) []string {
 	}
 
 	return args
+}
+
+func ensureGameOption(args []string, option, value string) []string {
+	for i, arg := range args {
+		if arg == option && i+1 < len(args) && args[i+1] != "" {
+			return args
+		}
+	}
+	return append(args, option, value)
 }
 
 func splitLegacyArguments(value string) []string {
