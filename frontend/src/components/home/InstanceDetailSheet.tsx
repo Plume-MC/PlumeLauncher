@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, FolderOpen, Shield, Wrench, Trash2 } from 'lucide-react';
+import { Dialog } from '@base-ui/react/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -100,12 +101,13 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="instance-detail-title">
-      <div className="absolute inset-0 bg-black/40" onClick={close} />
-      <div className="relative flex h-[min(650px,90vh)] w-[min(520px,92vw)] flex-col rounded-lg border border-border bg-background shadow-xl">
+    <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) close(); }}>
+      <Dialog.Portal>
+      <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/40" />
+      <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 flex h-[min(650px,90vh)] w-[min(520px,92vw)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-background shadow-xl">
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 id="instance-detail-title" className="text-sm font-semibold">{instance.name}</h2>
+            <Dialog.Title className="text-sm font-semibold">{instance.name}</Dialog.Title>
             <p className="mt-0.5 font-mono text-xs text-muted-foreground">MC {instance.mcVersion} · <span className="capitalize">{instance.loader}</span></p>
           </div>
           <Button variant="ghost" size="icon-xs" onClick={close} aria-label="Close detail"><X className="size-4" /></Button>
@@ -135,7 +137,8 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
           <div className="flex items-center gap-1.5"><Button variant="ghost" size="icon-sm" disabled={!!busy} onClick={() => void action('verify')} aria-label="Verify"><Shield className="size-3.5" /></Button><Button variant="ghost" size="icon-sm" disabled={!!busy} onClick={() => void action('repair')} aria-label="Repair"><Wrench className="size-3.5" /></Button><Button variant="ghost" size="icon-sm" disabled={!!busy} className="text-destructive" aria-label="Delete" onClick={onDelete}><Trash2 className="size-3.5" /></Button></div>
           <Button size="sm" disabled={!dirty || !!busy} onClick={() => void save()}>{busy === 'save' ? 'Saving...' : 'Save'}</Button>
         </div>
-      </div>
-    </div>
+      </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
