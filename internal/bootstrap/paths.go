@@ -1,9 +1,12 @@
 package bootstrap
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"plumelauncher/internal/storage"
 )
 
 func dataRootEnvName() string {
@@ -37,6 +40,13 @@ func ResolveDataRoot(customRoot string) (string, error) {
 		root = os.Getenv(dataRootEnvName())
 	}
 	if root == "" {
+		if configured, err := configuredDataRoot(); err != nil {
+			return "", err
+		} else {
+			root = configured
+		}
+	}
+	if root == "" {
 		root = defaultDataRoot()
 	}
 
@@ -45,6 +55,40 @@ func ResolveDataRoot(customRoot string) (string, error) {
 	}
 
 	return root, nil
+}
+
+type rootConfig struct {
+	storage.Document
+	DataRoot string `json:"dataRoot"`
+}
+
+func configuredDataRoot() (string, error) {
+	var config rootConfig
+	if err := storage.ReadJSON(filepath.Join(defaultDataRoot(), "bootstrap.json"), &config); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", nil
+		}
+		return "", err
+	}
+	return config.DataRoot, nil
+}
+
+// SetDataRoot stores the root to use on the next app start without moving data.
+func SetDataRoot(root string) error {
+	if root == "" {
+		return os.ErrInvalid
+	}
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(absolute, 0o755); err != nil {
+		return err
+	}
+	return storage.WriteJSON(filepath.Join(defaultDataRoot(), "bootstrap.json"), rootConfig{
+		Document: storage.Document{SchemaVersion: 1},
+		DataRoot: absolute,
+	})
 }
 
 // ResolveLogDir returns the log directory path and ensures it exists.

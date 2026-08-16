@@ -70,3 +70,23 @@ func TestInitializeEnvOverride(t *testing.T) {
 		t.Errorf("DataRoot = %q, want %q", cfg.DataRoot, envRoot)
 	}
 }
+
+func TestSetDataRootAppliesOnNextInitialize(t *testing.T) {
+	base := t.TempDir()
+	t.Setenv("LOCALAPPDATA", base)
+	t.Setenv("USERPROFILE", base)
+	t.Setenv("XDG_DATA_HOME", base)
+	t.Setenv("PLUME_DATA_ROOT", "")
+	target := filepath.Join(t.TempDir(), "next-root")
+
+	if err := bootstrap.SetDataRoot(target); err != nil {
+		t.Fatalf("SetDataRoot: %v", err)
+	}
+	config, err := bootstrap.Initialize("")
+	if err != nil {
+		t.Fatalf("Initialize: %v", err)
+	}
+	if config.DataRoot != target {
+		t.Errorf("DataRoot = %q, want %q", config.DataRoot, target)
+	}
+}

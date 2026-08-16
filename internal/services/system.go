@@ -1,8 +1,10 @@
 package services
 
 import (
+	"plumelauncher/internal/bootstrap"
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
+	"plumelauncher/internal/platform"
 	"strings"
 )
 
@@ -55,6 +57,25 @@ func WrapperArgs(value string) []string {
 // GetDataRoot returns the data root path.
 func (s *SystemService) GetDataRoot() string {
 	return s.DataRoot
+}
+
+// UpdateDataRoot stores a new root to use after the launcher restarts.
+func (s *SystemService) UpdateDataRoot(path string) error {
+	if path == "" {
+		return NewValidationError("data root is required", "dataRoot")
+	}
+	if err := bootstrap.SetDataRoot(path); err != nil {
+		return NewValidationError("invalid data root: "+err.Error(), "dataRoot")
+	}
+	return nil
+}
+
+// OpenLogFolder opens the active data root's log directory.
+func (s *SystemService) OpenLogFolder() error {
+	if err := platform.OpenFileManager(s.DataRoot + "/logs"); err != nil {
+		return NewInternalError("open log folder: " + err.Error())
+	}
+	return nil
 }
 
 // ScanJava detects installed Java installations.

@@ -140,6 +140,13 @@ func TestSystemServiceUpdateSettings(t *testing.T) {
 	}
 }
 
+func TestSystemServiceUpdateDataRootRejectsEmptyPath(t *testing.T) {
+	svc := &services.SystemService{DataRoot: t.TempDir()}
+	if err := svc.UpdateDataRoot(""); err == nil {
+		t.Fatal("expected validation error")
+	}
+}
+
 func TestSystemServiceScanJava(t *testing.T) {
 	svc := &services.SystemService{}
 	installs, err := svc.ScanJava()

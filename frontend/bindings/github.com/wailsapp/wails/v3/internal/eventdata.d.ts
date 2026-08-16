@@ -5,9 +5,16 @@
 // @ts-ignore: Unused imports
 import type { Events } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import type * as services$0 from "../../../../../plumelauncher/internal/services/models.js";
+
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
+            "download-progress": services$0.DownloadProgressEvent;
+            "launch-state": services$0.LaunchStateEvent;
+            "log-line": services$0.LogLineEvent;
             "time": string;
         }
     }

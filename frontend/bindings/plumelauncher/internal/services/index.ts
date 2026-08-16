@@ -17,5 +17,8 @@ export {
 };
 
 export {
-    Account
+    Account,
+    DownloadProgressEvent,
+    LaunchStateEvent,
+    LogLineEvent
 } from "./models.js";

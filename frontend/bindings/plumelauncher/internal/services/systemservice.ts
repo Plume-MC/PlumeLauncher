@@ -34,12 +34,26 @@ export function GetSettings(): $CancellablePromise<instances$0.LauncherDefaults>
 }
 
 /**
+ * OpenLogFolder opens the active data root's log directory.
+ */
+export function OpenLogFolder(): $CancellablePromise<void> {
+    return $Call.ByID(739377113);
+}
+
+/**
  * ScanJava detects installed Java installations.
  */
 export function ScanJava(): $CancellablePromise<java$0.JavaInfo[]> {
     return $Call.ByID(4149514100).then(($result: any) => {
         return $$createType2($result);
     });
+}
+
+/**
+ * UpdateDataRoot stores a new root to use after the launcher restarts.
+ */
+export function UpdateDataRoot(path: string): $CancellablePromise<void> {
+    return $Call.ByID(3859935312, path);
 }
 
 /**

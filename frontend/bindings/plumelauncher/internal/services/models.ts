@@ -37,3 +37,119 @@ export class Account {
         return new Account($$parsedSource as Partial<Account>);
     }
 }
+
+/**
+ * DownloadProgressEvent is emitted during download operations.
+ */
+export class DownloadProgressEvent {
+    "operationId": string;
+    "instanceId": string;
+    "status": string;
+    "fileProgress": number;
+    "totalFiles": number;
+    "byteProgress": number;
+    "totalBytes": number;
+    "speed": number;
+    "eta": number;
+    "error"?: string;
+
+    /** Creates a new DownloadProgressEvent instance. */
+    constructor($$source: Partial<DownloadProgressEvent> = {}) {
+        if (!("operationId" in $$source)) {
+            this["operationId"] = "";
+        }
+        if (!("instanceId" in $$source)) {
+            this["instanceId"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("fileProgress" in $$source)) {
+            this["fileProgress"] = 0;
+        }
+        if (!("totalFiles" in $$source)) {
+            this["totalFiles"] = 0;
+        }
+        if (!("byteProgress" in $$source)) {
+            this["byteProgress"] = 0;
+        }
+        if (!("totalBytes" in $$source)) {
+            this["totalBytes"] = 0;
+        }
+        if (!("speed" in $$source)) {
+            this["speed"] = 0;
+        }
+        if (!("eta" in $$source)) {
+            this["eta"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DownloadProgressEvent instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DownloadProgressEvent {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DownloadProgressEvent($$parsedSource as Partial<DownloadProgressEvent>);
+    }
+}
+
+/**
+ * LaunchStateEvent is emitted during launch lifecycle.
+ */
+export class LaunchStateEvent {
+    "instanceId": string;
+    "state": string;
+    "exitCode"?: number | null;
+
+    /** Creates a new LaunchStateEvent instance. */
+    constructor($$source: Partial<LaunchStateEvent> = {}) {
+        if (!("instanceId" in $$source)) {
+            this["instanceId"] = "";
+        }
+        if (!("state" in $$source)) {
+            this["state"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LaunchStateEvent instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LaunchStateEvent {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LaunchStateEvent($$parsedSource as Partial<LaunchStateEvent>);
+    }
+}
+
+/**
+ * LogLineEvent is emitted for console/log output.
+ */
+export class LogLineEvent {
+    "level": string;
+    "message": string;
+    "operationId"?: string;
+    "instanceId"?: string;
+
+    /** Creates a new LogLineEvent instance. */
+    constructor($$source: Partial<LogLineEvent> = {}) {
+        if (!("level" in $$source)) {
+            this["level"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LogLineEvent instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LogLineEvent {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LogLineEvent($$parsedSource as Partial<LogLineEvent>);
+    }
+}
