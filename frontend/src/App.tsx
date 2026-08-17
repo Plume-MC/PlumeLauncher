@@ -10,13 +10,15 @@ import type { Instance } from '../bindings/plumelauncher/internal/instances/mode
 
 function App() {
   const [account, setAccount] = useState<Account | null>(null)
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [instances, setInstances] = useState<Instance[]>([])
   const [setup, setSetup] = useState(true)
   const [loading, setLoading] = useState(true)
 
   const refresh = async () => {
     const accounts = await AccountService.ListAccounts()
-    setAccount(accounts[0] ?? null)
+    setAccounts(accounts)
+    setAccount(accounts.find((item) => item.selected) ?? accounts[0] ?? null)
     setInstances((await HomeService.ListInstances()) ?? [])
     setSetup(accounts.length === 0)
   }
@@ -37,13 +39,15 @@ function App() {
 
   return (
     <AppShell>
-      <Home account={account} instances={instances} onRefresh={refresh} />
+      <Home account={account} accounts={accounts} instances={instances} onRefresh={refresh} />
     </AppShell>
   )
 }
 
 function SetupGate({ onComplete }: { onComplete: () => void }) {
   const [username, setUsername] = useState('Player')
+  const [type, setType] = useState<'offline' | 'ely.by'>('offline')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -51,7 +55,8 @@ function SetupGate({ onComplete }: { onComplete: () => void }) {
     setSaving(true)
     setError('')
     try {
-      await AccountService.CreateOffline(username.trim())
+      if (type === 'offline') await AccountService.CreateOffline(username.trim())
+      else await AccountService.LoginElyBy(username.trim(), password)
       await onComplete()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account')
@@ -66,14 +71,16 @@ function SetupGate({ onComplete }: { onComplete: () => void }) {
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-primary">Plume Launcher</p>
           <h1 id="setup-title" className="mt-2 text-2xl font-semibold tracking-tight">Set up your launcher</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Create an offline account to start managing isolated Minecraft instances.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Choose an offline profile or sign in with Ely.by.</p>
         </div>
+        <div className="flex gap-2"><Button type="button" size="sm" variant={type === 'offline' ? 'default' : 'ghost'} onClick={() => setType('offline')}>Offline</Button><Button type="button" size="sm" variant={type === 'ely.by' ? 'default' : 'ghost'} onClick={() => setType('ely.by')}>Ely.by</Button></div>
         <div className="space-y-2">
-          <label htmlFor="offline-username" className="text-sm font-medium">Offline username</label>
-          <Input id="offline-username" value={username} maxLength={16} onChange={(event) => setUsername(event.target.value)} autoFocus />
+          <label htmlFor="offline-username" className="text-sm font-medium">Username</label>
+          <Input id="offline-username" value={username} maxLength={type === 'offline' ? 16 : undefined} onChange={(event) => setUsername(event.target.value)} autoFocus />
         </div>
+        {type === 'ely.by' && <div className="space-y-2"><label htmlFor="ely-password" className="text-sm font-medium">Password</label><Input id="ely-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" /></div>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <Button className="w-full" onClick={createAccount} disabled={saving || !username.trim()}>
+        <Button className="w-full" onClick={createAccount} disabled={saving || !username.trim() || (type === 'ely.by' && !password)}>
           {saving ? 'Creating account...' : 'Continue'}
         </Button>
       </section>

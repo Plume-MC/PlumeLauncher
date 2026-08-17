@@ -13,6 +13,7 @@ export class Account {
     "username": string;
     "type": string;
     "displayName"?: string;
+    "selected"?: boolean;
 
     /** Creates a new Account instance. */
     constructor($$source: Partial<Account> = {}) {

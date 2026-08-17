@@ -39,6 +39,11 @@ export class Options {
     "JavaPath": string;
     "JVMArgs": string[];
 
+    /**
+     * verified authlib-injector JAR for Ely.by accounts
+     */
+    "AuthlibInjector": string;
+
     /** Creates a new Options instance. */
     constructor($$source: Partial<Options> = {}) {
         if (!("PlayerName" in $$source)) {
@@ -91,6 +96,9 @@ export class Options {
         }
         if (!("JVMArgs" in $$source)) {
             this["JVMArgs"] = [];
+        }
+        if (!("AuthlibInjector" in $$source)) {
+            this["AuthlibInjector"] = "";
         }
 
         Object.assign(this, $$source);

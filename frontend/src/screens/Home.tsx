@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { Plus, Search, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ContextStrip } from '@/components/home/ContextStrip';
@@ -7,6 +7,7 @@ import { InstanceCard } from '@/components/home/InstanceCard';
 import { InstanceDetailSheet } from '@/components/home/InstanceDetailSheet';
 import { CreateInstanceDialog } from '@/components/home/CreateInstanceDialog';
 import { DeleteInstanceDialog } from '@/components/home/DeleteInstanceDialog';
+import { AccountDialog } from '@/components/home/AccountDialog';
 import { HomeService } from '../../bindings/plumelauncher/internal/services/index.js';
 import { toast } from '@/components/ui/toast';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
@@ -14,11 +15,12 @@ import type { Instance } from '../../bindings/plumelauncher/internal/instances/m
 
 interface HomeProps {
   account: Account | null;
+  accounts: Account[];
   instances: Instance[];
   onRefresh: () => Promise<void>;
 }
 
-export function Home({ account, instances, onRefresh }: HomeProps) {
+export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
   const [search, setSearch] = useState('');
   const [loaderFilter, setLoaderFilter] = useState<'all' | 'vanilla' | 'fabric' | 'quilt'>('all');
   const [sort, setSort] = useState<'newest' | 'oldest' | 'name'>('newest');
@@ -27,6 +29,7 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState('');
+  const [accountsOpen, setAccountsOpen] = useState(false);
 
   const visibleInstances = [...instances]
     .filter((instance) => loaderFilter === 'all' || instance.loader === loaderFilter)
@@ -80,7 +83,8 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
          <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
           <Plus className="size-3.5" />
           New Instance
-        </Button>
+         </Button>
+         <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => setAccountsOpen(true)}><UserRound className="size-3.5" />Accounts</Button>
       </div>
 
       {/* Card grid */}
@@ -97,7 +101,8 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
 
        <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} instance={detailInstance} onChanged={onRefresh} onDelete={() => { setDetailOpen(false); setDeleteId(detailInstance?.id ?? null); }} />
       <CreateInstanceDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={onRefresh} />
-      <DeleteInstanceDialog instanceId={deleteId} instanceName={detailInstance?.name} onOpenChange={(open) => { if (!open) setDeleteId(null); }} onDeleted={onRefresh} />
+       <DeleteInstanceDialog instanceId={deleteId} instanceName={detailInstance?.name} onOpenChange={(open) => { if (!open) setDeleteId(null); }} onDeleted={onRefresh} />
+       <AccountDialog open={accountsOpen} onOpenChange={setAccountsOpen} accounts={accounts} onChanged={onRefresh} />
     </div>
   );
 }

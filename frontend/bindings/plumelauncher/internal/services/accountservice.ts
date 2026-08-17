@@ -32,6 +32,26 @@ export function ListAccounts(): $CancellablePromise<$models.Account[]> {
     });
 }
 
+export function LoginElyBy(username: string, password: string): $CancellablePromise<$models.Account | null> {
+    return $Call.ByID(2579944023, username, password).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+export function LogoutElyBy(accountUUID: string): $CancellablePromise<void> {
+    return $Call.ByID(3666026168, accountUUID);
+}
+
+export function RefreshElyBy(accountUUID: string): $CancellablePromise<$models.Account | null> {
+    return $Call.ByID(24394337, accountUUID).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+export function SelectAccount(accountUUID: string): $CancellablePromise<void> {
+    return $Call.ByID(3495478380, accountUUID);
+}
+
 // Private type creation functions
 const $$createType0 = $models.Account.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
