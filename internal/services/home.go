@@ -25,6 +25,7 @@ type HomeService struct {
 	Instances *instances.Manager
 	Registry  *instances.Registry
 	Launch    *LaunchService
+	Accounts  *AccountService
 	App       *application.App
 }
 
@@ -209,11 +210,18 @@ func (s *HomeService) LaunchInstance(id string) error {
 	if launcher == nil {
 		launcher = &LaunchService{Registry: s.Registry}
 	}
-	return launcher.Launch(*detail, launch.Options{
-		PlayerName:    "Player",
-		UUID:          auth.OfflineUUID("Player"),
-		AccessToken:   "0",
-		UserType:      "offline",
+	if s.Accounts == nil {
+		return NewInternalError("account service is unavailable")
+	}
+	account, accessToken, err := s.Accounts.selectedAccount()
+	if err != nil {
+		return err
+	}
+	options := launch.Options{
+		PlayerName:    account.Username,
+		UUID:          account.UUID,
+		AccessToken:   accessToken,
+		UserType:      account.Type,
 		VersionID:     id,
 		GameDir:       filepath.Join(s.DataRoot, "instances", id, ".minecraft"),
 		ClasspathRoot: s.DataRoot,
@@ -223,7 +231,15 @@ func (s *HomeService) LaunchInstance(id string) error {
 		Width:         settings.ResolutionW,
 		Height:        settings.ResolutionH,
 		JavaPath:      javaPath,
-	})
+	}
+	if account.Type == "ely.by" {
+		injector, err := auth.EnsureAuthlibInjector(context.Background(), filepath.Join(s.DataRoot, "cache"), nil)
+		if err != nil {
+			return NewIntegrityError("authlib-injector: " + err.Error())
+		}
+		options.AuthlibInjector = injector
+	}
+	return launcher.Launch(*detail, options)
 }
 
 func (s *HomeService) StopInstance(id string) error {

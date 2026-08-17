@@ -101,7 +101,7 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 			}
 			stderrMu.Unlock()
 		}
-		emit(s.App, EventLogLine, LogLineEvent{Level: level, Message: line, InstanceID: opts.VersionID})
+		emit(s.App, EventLogLine, LogLineEvent{Level: level, Message: launch.Redact(line, opts.AccessToken), InstanceID: opts.VersionID})
 	})
 
 	s.Registry.Complete(opts.VersionID)
@@ -109,7 +109,7 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	if err != nil {
 		emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "failed"})
 		if len(stderr) > 0 {
-			return NewInternalError("game process error: " + strings.Join(stderr, "\n"))
+			return NewInternalError("game process error: " + launch.Redact(strings.Join(stderr, "\n"), opts.AccessToken))
 		}
 		return NewInternalError("game process error: " + err.Error())
 	}

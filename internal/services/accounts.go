@@ -26,7 +26,7 @@ func (s *AccountService) LoginElyBy(username, password string) (*Account, error)
 	if err != nil {
 		return nil, NewUpstreamError("Ely.by authentication failed")
 	}
-	account := Account{UUID: session.SelectedProfile.ID, Username: session.SelectedProfile.Name, DisplayName: session.SelectedProfile.Name, Type: "ely.by"}
+	account := Account{UUID: session.SelectedProfile.ID, Username: session.SelectedProfile.Name, DisplayName: session.SelectedProfile.Name, Type: "ely.by", Selected: true}
 	if err := s.tokenStore().Set(auth.SessionKey(account.UUID), session.AccessToken); err != nil {
 		return nil, NewUpstreamError("secure session storage is unavailable; please retry after fixing your OS keyring")
 	}
@@ -36,12 +36,18 @@ func (s *AccountService) LoginElyBy(username, password string) (*Account, error)
 	}
 	for i, existing := range accounts {
 		if existing.UUID == account.UUID {
+			for j := range accounts {
+				accounts[j].Selected = false
+			}
 			accounts[i] = account
 			if err := s.saveAccounts(accounts); err != nil {
 				return nil, NewInternalError("failed to save account")
 			}
 			return &account, nil
 		}
+	}
+	for i := range accounts {
+		accounts[i].Selected = false
 	}
 	accounts = append(accounts, account)
 	if err := s.saveAccounts(accounts); err != nil {
@@ -117,12 +123,53 @@ func (s *AccountService) tokenStore() auth.Keyring {
 	return auth.OSKeyring{}
 }
 
+func (s *AccountService) SelectAccount(accountUUID string) error {
+	accounts, err := s.loadAccounts()
+	if err != nil {
+		return NewInternalError("failed to load accounts")
+	}
+	found := false
+	for i := range accounts {
+		accounts[i].Selected = accounts[i].UUID == accountUUID
+		found = found || accounts[i].Selected
+	}
+	if !found {
+		return NewNotFoundError("account not found")
+	}
+	if err := s.saveAccounts(accounts); err != nil {
+		return NewInternalError("failed to save account")
+	}
+	return nil
+}
+
+func (s *AccountService) selectedAccount() (Account, string, error) {
+	accounts, err := s.loadAccounts()
+	if err != nil {
+		return Account{}, "", NewInternalError("failed to load accounts")
+	}
+	for _, account := range accounts {
+		if !account.Selected {
+			continue
+		}
+		if account.Type != "ely.by" {
+			return account, "0", nil
+		}
+		token, err := s.tokenStore().Get(auth.SessionKey(account.UUID))
+		if err != nil {
+			return Account{}, "", NewUpstreamError("Ely.by session expired; please sign in again")
+		}
+		return account, token, nil
+	}
+	return Account{}, "", NewNotFoundError("no account selected")
+}
+
 // Account represents a user account.
 type Account struct {
 	UUID        string `json:"uuid"`
 	Username    string `json:"username"`
 	Type        string `json:"type"`
 	DisplayName string `json:"displayName,omitempty"`
+	Selected    bool   `json:"selected,omitempty"`
 }
 
 // accountsFile is the JSON structure for accounts.json.
@@ -151,6 +198,9 @@ func (s *AccountService) CreateOffline(username string) (*Account, error) {
 
 	// Load existing accounts
 	accounts, _ := s.loadAccounts()
+	if len(accounts) == 0 {
+		acc.Selected = true
+	}
 
 	// Check for duplicate
 	for _, a := range accounts {

@@ -44,6 +44,7 @@ func main() {
 		log.Fatal(err)
 	}
 	registry := instances.NewRegistry()
+	accountService := &services.AccountService{DataRoot: config.DataRoot}
 	launchService := &services.LaunchService{DataRoot: config.DataRoot, Registry: registry}
 	instanceService := &services.InstanceService{
 		DataRoot: config.DataRoot,
@@ -59,7 +60,7 @@ func main() {
 		Name:        "Plume Launcher",
 		Description: "A compact Minecraft launcher and instance manager",
 		Services: []application.Service{
-			application.NewService(&services.AccountService{DataRoot: config.DataRoot}),
+			application.NewService(accountService),
 			application.NewService(instanceService),
 			application.NewService(&services.DownloadService{DataRoot: config.DataRoot}),
 			application.NewService(launchService),
@@ -79,6 +80,7 @@ func main() {
 		Instances: instances.NewManager(config.DataRoot, defaults),
 		Registry:  registry,
 		Launch:    launchService,
+		Accounts:  accountService,
 		App:       app,
 	}))
 
