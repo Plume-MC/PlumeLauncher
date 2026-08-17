@@ -71,7 +71,7 @@ func BuildCommand(javaPath string, javaArgs []string, wrapper []string) (string,
 func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {
 	var args []string
 	if opts.AuthlibInjector != "" {
-		args = append(args, "-javaagent:"+opts.AuthlibInjector)
+		args = append(args, "-javaagent:"+opts.AuthlibInjector+"=https://authserver.ely.by")
 	}
 
 	// Memory

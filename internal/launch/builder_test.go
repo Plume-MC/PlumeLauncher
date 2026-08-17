@@ -205,7 +205,7 @@ func TestBuildArgumentsAddsVerifiedInjector(t *testing.T) {
 		t.Fatalf("BuildArguments: %v", err)
 	}
 	for _, arg := range args {
-		if arg == "-javaagent:C:/cache/authlib-injector.jar" {
+		if arg == "-javaagent:C:/cache/authlib-injector.jar=https://authserver.ely.by" {
 			return
 		}
 	}
