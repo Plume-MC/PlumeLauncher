@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -11,7 +12,109 @@ import (
 
 // AccountService manages user accounts.
 type AccountService struct {
-	DataRoot string
+	DataRoot   string
+	HTTPClient *http.Client
+	ElyByURL   string
+	Keyring    auth.Keyring
+}
+
+func (s *AccountService) LoginElyBy(username, password string) (*Account, error) {
+	if username == "" || password == "" {
+		return nil, NewValidationError("username and password are required", "username", "password")
+	}
+	session, err := (auth.ElyByClient{HTTPClient: s.HTTPClient, BaseURL: s.ElyByURL}).Authenticate(username, password)
+	if err != nil {
+		return nil, NewUpstreamError("Ely.by authentication failed")
+	}
+	account := Account{UUID: session.SelectedProfile.ID, Username: session.SelectedProfile.Name, DisplayName: session.SelectedProfile.Name, Type: "ely.by"}
+	if err := s.tokenStore().Set(auth.SessionKey(account.UUID), session.AccessToken); err != nil {
+		return nil, NewUpstreamError("secure session storage is unavailable; please retry after fixing your OS keyring")
+	}
+	accounts, err := s.loadAccounts()
+	if err != nil {
+		return nil, NewInternalError("failed to load accounts")
+	}
+	for i, existing := range accounts {
+		if existing.UUID == account.UUID {
+			accounts[i] = account
+			if err := s.saveAccounts(accounts); err != nil {
+				return nil, NewInternalError("failed to save account")
+			}
+			return &account, nil
+		}
+	}
+	accounts = append(accounts, account)
+	if err := s.saveAccounts(accounts); err != nil {
+		return nil, NewInternalError("failed to save account")
+	}
+	return &account, nil
+}
+
+func (s *AccountService) RefreshElyBy(accountUUID string) (*Account, error) {
+	account, err := s.elyByAccount(accountUUID)
+	if err != nil {
+		return nil, err
+	}
+	token, err := s.tokenStore().Get(auth.SessionKey(account.UUID))
+	if err != nil {
+		return nil, NewUpstreamError("Ely.by session expired; please sign in again")
+	}
+	session, err := (auth.ElyByClient{HTTPClient: s.HTTPClient, BaseURL: s.ElyByURL}).Refresh(token)
+	if err != nil {
+		return nil, NewUpstreamError("Ely.by session refresh failed; please sign in again")
+	}
+	if err := s.tokenStore().Set(auth.SessionKey(account.UUID), session.AccessToken); err != nil {
+		return nil, NewUpstreamError("secure session storage is unavailable")
+	}
+	return &account, nil
+}
+
+func (s *AccountService) LogoutElyBy(accountUUID string) error {
+	account, err := s.elyByAccount(accountUUID)
+	if err != nil {
+		return err
+	}
+	token, tokenErr := s.tokenStore().Get(auth.SessionKey(account.UUID))
+	if tokenErr == nil {
+		_ = (auth.ElyByClient{HTTPClient: s.HTTPClient, BaseURL: s.ElyByURL}).Invalidate(token)
+	}
+	if err := s.tokenStore().Delete(auth.SessionKey(account.UUID)); err != nil {
+		return NewUpstreamError("secure session storage is unavailable")
+	}
+	accounts, err := s.loadAccounts()
+	if err != nil {
+		return NewInternalError("failed to load accounts")
+	}
+	for i := range accounts {
+		if accounts[i].UUID == accountUUID {
+			accounts = append(accounts[:i], accounts[i+1:]...)
+			break
+		}
+	}
+	if err := s.saveAccounts(accounts); err != nil {
+		return NewInternalError("failed to save account")
+	}
+	return nil
+}
+
+func (s *AccountService) elyByAccount(uuid string) (Account, error) {
+	accounts, err := s.loadAccounts()
+	if err != nil {
+		return Account{}, NewInternalError("failed to load accounts")
+	}
+	for _, account := range accounts {
+		if account.UUID == uuid && account.Type == "ely.by" {
+			return account, nil
+		}
+	}
+	return Account{}, NewNotFoundError("Ely.by account not found")
+}
+
+func (s *AccountService) tokenStore() auth.Keyring {
+	if s.Keyring != nil {
+		return s.Keyring
+	}
+	return auth.OSKeyring{}
 }
 
 // Account represents a user account.

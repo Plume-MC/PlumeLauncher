@@ -1,11 +1,26 @@
 package services_test
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/services"
 )
+
+type memoryKeyring map[string]string
+
+func (k memoryKeyring) Set(key, value string) error { k[key] = value; return nil }
+func (k memoryKeyring) Get(key string) (string, error) {
+	value, ok := k[key]
+	if !ok {
+		return "", fmt.Errorf("not found")
+	}
+	return value, nil
+}
+func (k memoryKeyring) Delete(key string) error { delete(k, key); return nil }
 
 func TestAccountServiceCreateOffline(t *testing.T) {
 	dir := t.TempDir()
@@ -50,6 +65,35 @@ func TestAccountServiceListAccounts(t *testing.T) {
 	}
 	if len(accounts) != 2 {
 		t.Errorf("ListAccounts len = %d, want 2", len(accounts))
+	}
+}
+
+func TestAccountServiceElyByLifecycle(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/auth/invalidate" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		_, _ = w.Write([]byte(`{"accessToken":"session-token","selectedProfile":{"id":"ely-uuid","name":"ElyPlayer"}}`))
+	}))
+	defer server.Close()
+	keyring := memoryKeyring{}
+	svc := &services.AccountService{DataRoot: t.TempDir(), HTTPClient: server.Client(), ElyByURL: server.URL + "/auth/", Keyring: keyring}
+	account, err := svc.LoginElyBy("player", "password")
+	if err != nil {
+		t.Fatalf("LoginElyBy: %v", err)
+	}
+	if account.Type != "ely.by" || keyring["ely.by:ely-uuid"] != "session-token" {
+		t.Fatalf("unexpected account or token: %#v, %#v", account, keyring)
+	}
+	if _, err := svc.RefreshElyBy(account.UUID); err != nil {
+		t.Fatalf("RefreshElyBy: %v", err)
+	}
+	if err := svc.LogoutElyBy(account.UUID); err != nil {
+		t.Fatalf("LogoutElyBy: %v", err)
+	}
+	if len(keyring) != 0 {
+		t.Fatal("logout left token in keyring")
 	}
 }
 
