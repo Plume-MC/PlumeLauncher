@@ -198,3 +198,16 @@ func TestBuildArgumentsFullscreen(t *testing.T) {
 		t.Error("missing --fullscreen")
 	}
 }
+
+func TestBuildArgumentsAddsVerifiedInjector(t *testing.T) {
+	args, err := launch.BuildArguments(metadata.VersionDetail{ID: "test", MainClass: "main"}, launch.Options{GameDir: "test", NativesDir: "test/natives", AuthlibInjector: "C:/cache/authlib-injector.jar"})
+	if err != nil {
+		t.Fatalf("BuildArguments: %v", err)
+	}
+	for _, arg := range args {
+		if arg == "-javaagent:C:/cache/authlib-injector.jar" {
+			return
+		}
+	}
+	t.Fatal("missing authlib injector argument")
+}

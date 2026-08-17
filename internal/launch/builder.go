@@ -11,23 +11,24 @@ import (
 
 // Options holds launch configuration for a Minecraft instance.
 type Options struct {
-	PlayerName    string
-	UUID          string
-	AccessToken   string
-	UserType      string // "offline", "ely.by", "microsoft"
-	VersionID     string
-	GameDir       string
-	ClasspathRoot string
-	AssetsDir     string
-	NativesDir    string
-	RamMB         int
-	Width         int
-	Height        int
-	Fullscreen    bool
-	GPU           string   // "auto", "discrete", "integrated"
-	Wrapper       []string // validated argv prefix
-	JavaPath      string
-	JVMArgs       []string
+	PlayerName      string
+	UUID            string
+	AccessToken     string
+	UserType        string // "offline", "ely.by", "microsoft"
+	VersionID       string
+	GameDir         string
+	ClasspathRoot   string
+	AssetsDir       string
+	NativesDir      string
+	RamMB           int
+	Width           int
+	Height          int
+	Fullscreen      bool
+	GPU             string   // "auto", "discrete", "integrated"
+	Wrapper         []string // validated argv prefix
+	JavaPath        string
+	JVMArgs         []string
+	AuthlibInjector string // verified authlib-injector JAR for Ely.by accounts
 }
 
 // BuildArguments constructs the full Java command line for launching Minecraft.
@@ -69,6 +70,9 @@ func BuildCommand(javaPath string, javaArgs []string, wrapper []string) (string,
 
 func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {
 	var args []string
+	if opts.AuthlibInjector != "" {
+		args = append(args, "-javaagent:"+opts.AuthlibInjector)
+	}
 
 	// Memory
 	if opts.RamMB > 0 {
