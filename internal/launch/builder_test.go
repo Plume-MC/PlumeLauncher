@@ -1,6 +1,7 @@
 package launch_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"plumelauncher/internal/launch"
@@ -210,4 +211,20 @@ func TestBuildArgumentsAddsVerifiedInjector(t *testing.T) {
 		}
 	}
 	t.Fatal("missing authlib injector argument")
+}
+
+func TestBuildArgumentsUsesLoaderParentJar(t *testing.T) {
+	args, err := launch.BuildArguments(metadata.VersionDetail{ID: "fabric-loader-0.16.0-1.20.1", Jar: "1.20.1", MainClass: "main"}, launch.Options{ClasspathRoot: "test", GameDir: "test", NativesDir: "test/natives"})
+	if err != nil {
+		t.Fatalf("BuildArguments: %v", err)
+	}
+	for i, arg := range args {
+		if arg == "-cp" && i+1 < len(args) {
+			if filepath.Base(args[i+1]) != "1.20.1.jar" {
+				t.Fatalf("classpath client jar = %q", args[i+1])
+			}
+			return
+		}
+	}
+	t.Fatal("missing classpath")
 }

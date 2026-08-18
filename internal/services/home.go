@@ -172,7 +172,7 @@ func (s *HomeService) LaunchInstance(id string) error {
 	if inst.State != instances.StateReady && inst.State != instances.StateStopped {
 		return NewConflictError("instance is not ready; install or repair it first")
 	}
-	detail, err := metadata.NewClient(s.DataRoot).ResolveVersionChain(context.Background(), inst.MCVersion)
+	detail, err := s.resolveInstanceDetail(context.Background(), inst)
 	if err != nil {
 		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
 	}

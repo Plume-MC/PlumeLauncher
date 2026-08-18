@@ -289,8 +289,12 @@ func buildClasspath(version metadata.VersionDetail, opts Options) string {
 	}
 	root, _ = filepath.Abs(root)
 
-	// Add client jar
-	clientPath := filepath.Join(root, "versions", version.ID, version.ID+".jar")
+	// Loader metadata inherits the Minecraft client JAR from its base version.
+	clientVersion := version.ID
+	if version.Jar != "" {
+		clientVersion = version.Jar
+	}
+	clientPath := filepath.Join(root, "versions", clientVersion, clientVersion+".jar")
 	paths = append(paths, clientPath)
 
 	// Add allowed libraries
