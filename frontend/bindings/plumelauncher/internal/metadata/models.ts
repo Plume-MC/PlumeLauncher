@@ -585,6 +585,7 @@ export class VersionDetail {
     "complianceLevel"?: number | null;
     "downloads": Downloads;
     "id": string;
+    "jar"?: string;
     "javaVersion": JavaVersion;
     "libraries": Library[];
     "logging"?: Logging | null;
@@ -642,9 +643,9 @@ export class VersionDetail {
         const $$createField0_0 = $$createType22;
         const $$createField1_0 = $$createType23;
         const $$createField4_0 = $$createType24;
-        const $$createField6_0 = $$createType25;
-        const $$createField7_0 = $$createType27;
-        const $$createField8_0 = $$createType29;
+        const $$createField7_0 = $$createType25;
+        const $$createField8_0 = $$createType27;
+        const $$createField9_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("arguments" in $$parsedSource) {
             $$parsedSource["arguments"] = $$createField0_0($$parsedSource["arguments"]);
@@ -656,13 +657,13 @@ export class VersionDetail {
             $$parsedSource["downloads"] = $$createField4_0($$parsedSource["downloads"]);
         }
         if ("javaVersion" in $$parsedSource) {
-            $$parsedSource["javaVersion"] = $$createField6_0($$parsedSource["javaVersion"]);
+            $$parsedSource["javaVersion"] = $$createField7_0($$parsedSource["javaVersion"]);
         }
         if ("libraries" in $$parsedSource) {
-            $$parsedSource["libraries"] = $$createField7_0($$parsedSource["libraries"]);
+            $$parsedSource["libraries"] = $$createField8_0($$parsedSource["libraries"]);
         }
         if ("logging" in $$parsedSource) {
-            $$parsedSource["logging"] = $$createField8_0($$parsedSource["logging"]);
+            $$parsedSource["logging"] = $$createField9_0($$parsedSource["logging"]);
         }
         return new VersionDetail($$parsedSource as Partial<VersionDetail>);
     }

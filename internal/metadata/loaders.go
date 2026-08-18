@@ -57,6 +57,32 @@ func (c *Client) ResolveQuilt(ctx context.Context, gameVersion string) (*Version
 }
 
 func (c *Client) resolveLoader(ctx context.Context, loader, gameVersion, endpoint, mavenURL string) (*VersionDetail, error) {
+	versions, err := c.loaderMetadata(ctx, loader, gameVersion, endpoint)
+	if err != nil {
+		return nil, err
+	}
+	base, err := c.ResolveVersionChain(ctx, gameVersion)
+	if err != nil {
+		return nil, err
+	}
+	return MergeVersions(loaderVersion(loader, gameVersion, versions[0], mavenURL), base), nil
+}
+
+// SupportsLoaderVersion reports whether the official loader metadata lists a game version.
+func (c *Client) SupportsLoaderVersion(ctx context.Context, loader, gameVersion string) (bool, error) {
+	switch loader {
+	case "fabric":
+		_, err := c.loaderMetadata(ctx, loader, gameVersion, fabricLoaderURL)
+		return err == nil, err
+	case "quilt":
+		_, err := c.loaderMetadata(ctx, loader, gameVersion, quiltLoaderURL)
+		return err == nil, err
+	default:
+		return false, fmt.Errorf("unsupported loader %q", loader)
+	}
+}
+
+func (c *Client) loaderMetadata(ctx context.Context, loader, gameVersion, endpoint string) ([]loaderMetadata, error) {
 	if gameVersion == "" || strings.ContainsAny(gameVersion, `/\\`) {
 		return nil, fmt.Errorf("invalid game version %q", gameVersion)
 	}
@@ -76,11 +102,7 @@ func (c *Client) resolveLoader(ctx context.Context, loader, gameVersion, endpoin
 	if len(versions) == 0 {
 		return nil, fmt.Errorf("%s does not support Minecraft %s", loader, gameVersion)
 	}
-	base, err := c.ResolveVersionChain(ctx, gameVersion)
-	if err != nil {
-		return nil, err
-	}
-	return MergeVersions(loaderVersion(loader, gameVersion, versions[0], mavenURL), base), nil
+	return versions, nil
 }
 
 func loaderVersion(loader, gameVersion string, source loaderMetadata, mavenURL string) *VersionDetail {

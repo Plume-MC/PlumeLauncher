@@ -61,11 +61,20 @@ export function StopInstance(id: string): $CancellablePromise<void> {
 }
 
 /**
+ * SupportedVersions returns only versions listed by the selected loader's metadata.
+ */
+export function SupportedVersions(loader: string): $CancellablePromise<string[]> {
+    return $Call.ByID(3952459278, loader).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * VerifyInstance checks the persisted artifact plan for an instance.
  */
 export function VerifyInstance(id: string): $CancellablePromise<downloader$0.VerifyStatus[]> {
     return $Call.ByID(2734969665, id).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -73,5 +82,6 @@ export function VerifyInstance(id: string): $CancellablePromise<downloader$0.Ver
 const $$createType0 = instances$0.Instance.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $Create.Array($$createType0);
-const $$createType3 = downloader$0.VerifyStatus.createFrom;
-const $$createType4 = $Create.Array($$createType3);
+const $$createType3 = $Create.Array($Create.Any);
+const $$createType4 = downloader$0.VerifyStatus.createFrom;
+const $$createType5 = $Create.Array($$createType4);

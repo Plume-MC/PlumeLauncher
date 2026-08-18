@@ -42,3 +42,9 @@ func TestLoaderPlanIncludesLoaderArtifacts(t *testing.T) {
 		}
 	}
 }
+
+func TestLoaderMetadataRejectsUnsupportedLoader(t *testing.T) {
+	if _, err := NewClient(t.TempDir()).SupportsLoaderVersion(t.Context(), "forge", "1.20.1"); err == nil {
+		t.Fatal("expected unsupported loader error")
+	}
+}
