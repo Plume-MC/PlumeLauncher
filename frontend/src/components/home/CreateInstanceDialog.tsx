@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ interface CreateInstanceDialogProps {
 export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateInstanceDialogProps) {
   const [name, setName] = useState('');
   const [version, setVersion] = useState('1.21.4');
+  const [versions, setVersions] = useState<string[]>([]);
   const [loader, setLoader] = useState('vanilla');
   const [error, setError] = useState('');
 
@@ -29,6 +30,19 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
     }
   };
 
+  useEffect(() => {
+    let cancelled = false;
+    setError('');
+    void HomeService.SupportedVersions(loader).then((supported) => {
+      if (cancelled) return;
+      setVersions(supported);
+      setVersion((current) => supported.includes(current) ? current : supported[0] ?? '');
+    }).catch((err) => {
+      if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load supported versions');
+    });
+    return () => { cancelled = true; };
+  }, [loader]);
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -40,7 +54,7 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
             <div className="space-y-2"><label htmlFor="instance-name" className="text-sm font-medium">Name</label><Input id="instance-name" value={name} maxLength={48} onChange={(event) => setName(event.target.value)} autoFocus required /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2"><label htmlFor="instance-loader" className="text-sm font-medium">Loader</label><select id="instance-loader" value={loader} onChange={(event) => setLoader(event.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"><option value="vanilla">Vanilla</option><option value="fabric">Fabric</option><option value="quilt">Quilt</option></select></div>
-              <div className="space-y-2"><label htmlFor="instance-version" className="text-sm font-medium">Version</label><select id="instance-version" value={version} onChange={(event) => setVersion(event.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"><option>1.21.4</option><option>1.20.4</option><option>1.18.2</option><option>1.16.5</option><option>1.12.2</option><option>1.8.9</option><option>1.7.10</option></select></div>
+              <div className="space-y-2"><label htmlFor="instance-version" className="text-sm font-medium">Version</label><select id="instance-version" value={version} onChange={(event) => setVersion(event.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm" disabled={!versions.length}>{versions.map((supported) => <option key={supported} value={supported}>{supported}</option>)}</select></div>
             </div>
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <div className="flex justify-end gap-2"><Dialog.Close render={<Button type="button" variant="ghost" />}>Cancel</Dialog.Close><Button type="submit" disabled={!name.trim()}>Create</Button></div>
