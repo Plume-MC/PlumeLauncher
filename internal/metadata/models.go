@@ -19,33 +19,34 @@ type Latest struct {
 
 // VersionEntry is a single entry in the version manifest.
 type VersionEntry struct {
-	ID           string `json:"id"`
-	Type         string `json:"type"`
-	URL          string `json:"url"`
-	Time         string `json:"time"`
-	ReleaseTime  string `json:"releaseTime"`
-	SHA1         string `json:"sha1"`
-	ComplianceLevel *int `json:"complianceLevel,omitempty"`
+	ID              string `json:"id"`
+	Type            string `json:"type"`
+	URL             string `json:"url"`
+	Time            string `json:"time"`
+	ReleaseTime     string `json:"releaseTime"`
+	SHA1            string `json:"sha1"`
+	ComplianceLevel *int   `json:"complianceLevel,omitempty"`
 }
 
 // VersionDetail is the full metadata for a single Minecraft version.
 type VersionDetail struct {
-	Arguments            *Arguments       `json:"arguments,omitempty"`
-	AssetIndex           AssetIndex       `json:"assetIndex"`
-	Assets               string           `json:"assets"`
-	ComplianceLevel      *int             `json:"complianceLevel,omitempty"`
-	Downloads            Downloads        `json:"downloads"`
-	ID                   string           `json:"id"`
-	JavaVersion          JavaVersion      `json:"javaVersion"`
-	Libraries            []Library        `json:"libraries"`
-	Logging              *Logging         `json:"logging,omitempty"`
-	MainClass           string          `json:"mainClass"`
-	MinecraftArguments  json.RawMessage `json:"minecraftArguments,omitempty"`
-	MinimumLauncherVersion int            `json:"minimumLauncherVersion"`
-	InheritsFrom         string           `json:"inheritsFrom,omitempty"`
-	ReleaseTime          string           `json:"releaseTime"`
-	Time                 string           `json:"time"`
-	Type                 string           `json:"type"`
+	Arguments              *Arguments      `json:"arguments,omitempty"`
+	AssetIndex             AssetIndex      `json:"assetIndex"`
+	Assets                 string          `json:"assets"`
+	ComplianceLevel        *int            `json:"complianceLevel,omitempty"`
+	Downloads              Downloads       `json:"downloads"`
+	ID                     string          `json:"id"`
+	Jar                    string          `json:"jar,omitempty"`
+	JavaVersion            JavaVersion     `json:"javaVersion"`
+	Libraries              []Library       `json:"libraries"`
+	Logging                *Logging        `json:"logging,omitempty"`
+	MainClass              string          `json:"mainClass"`
+	MinecraftArguments     json.RawMessage `json:"minecraftArguments,omitempty"`
+	MinimumLauncherVersion int             `json:"minimumLauncherVersion"`
+	InheritsFrom           string          `json:"inheritsFrom,omitempty"`
+	ReleaseTime            string          `json:"releaseTime"`
+	Time                   string          `json:"time"`
+	Type                   string          `json:"type"`
 }
 
 // Arguments holds game and JVM arguments.
@@ -62,8 +63,8 @@ type Argument struct {
 
 // ConditionalArgument represents a conditional argument with rules.
 type ConditionalArgument struct {
-	Rules []Rule           `json:"rules"`
-	Value json.RawMessage  `json:"value"`
+	Rules []Rule          `json:"rules"`
+	Value json.RawMessage `json:"value"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler for Argument.
@@ -112,7 +113,7 @@ type OSRule struct {
 
 // FeatureRule matches against feature flags.
 type FeatureRule struct {
-	IsDemoUser     *bool `json:"is_demo_user,omitempty"`
+	IsDemoUser          *bool `json:"is_demo_user,omitempty"`
 	HasCustomResolution *bool `json:"has_custom_resolution,omitempty"`
 }
 
@@ -127,41 +128,41 @@ type AssetIndex struct {
 
 // Downloads holds download info for client, server, and mappings.
 type Downloads struct {
-	Client          *DownloadInfo `json:"client,omitempty"`
-	Server          *DownloadInfo `json:"server,omitempty"`
-	ClientMappings  *DownloadInfo `json:"client_mappings,omitempty"`
-	ServerMappings  *DownloadInfo `json:"server_mappings,omitempty"`
+	Client         *DownloadInfo `json:"client,omitempty"`
+	Server         *DownloadInfo `json:"server,omitempty"`
+	ClientMappings *DownloadInfo `json:"client_mappings,omitempty"`
+	ServerMappings *DownloadInfo `json:"server_mappings,omitempty"`
 }
 
 // DownloadInfo describes a single downloadable artifact.
 type DownloadInfo struct {
-	SHA1    string `json:"sha1"`
-	Size    int64  `json:"size"`
-	URL     string `json:"url"`
-	Path    string `json:"path,omitempty"`
+	SHA1 string `json:"sha1"`
+	Size int64  `json:"size"`
+	URL  string `json:"url"`
+	Path string `json:"path,omitempty"`
 }
 
 // JavaVersion specifies which Java version is required.
 type JavaVersion struct {
-	Component   string `json:"component"`
-	MajorVersion int   `json:"majorVersion"`
+	Component    string `json:"component"`
+	MajorVersion int    `json:"majorVersion"`
 }
 
 // Library is a Minecraft dependency library.
 type Library struct {
-	Downloads  *LibraryDownloads `json:"downloads,omitempty"`
-	Name       string            `json:"name"`
-	URL        string            `json:"url,omitempty"`
-	Natives    map[string]string `json:"natives,omitempty"`
-	Extract    *ExtractRule      `json:"extract,omitempty"`
-	Rules      []Rule            `json:"rules,omitempty"`
+	Downloads   *LibraryDownloads       `json:"downloads,omitempty"`
+	Name        string                  `json:"name"`
+	URL         string                  `json:"url,omitempty"`
+	Natives     map[string]string       `json:"natives,omitempty"`
+	Extract     *ExtractRule            `json:"extract,omitempty"`
+	Rules       []Rule                  `json:"rules,omitempty"`
 	Classifiers map[string]DownloadInfo `json:"classifiers,omitempty"`
 }
 
 // LibraryDownloads holds the main artifact and optional classifiers.
 type LibraryDownloads struct {
-	Artifact    DownloadInfo             `json:"artifact"`
-	Classifiers map[string]DownloadInfo  `json:"classifiers,omitempty"`
+	Artifact    DownloadInfo            `json:"artifact"`
+	Classifiers map[string]DownloadInfo `json:"classifiers,omitempty"`
 }
 
 // ExtractRule defines which files to exclude during native extraction.
