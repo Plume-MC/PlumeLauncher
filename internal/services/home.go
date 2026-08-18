@@ -64,8 +64,7 @@ func (s *HomeService) InstallInstance(id string) error {
 		}
 	}()
 
-	client := metadata.NewClient(s.DataRoot)
-	detail, err := client.ResolveVersionChain(context.Background(), inst.MCVersion)
+	detail, err := s.resolveInstanceDetail(context.Background(), inst)
 	if err != nil {
 		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
 	}
@@ -131,7 +130,7 @@ func (s *HomeService) VerifyInstance(id string) ([]downloader.VerifyStatus, erro
 	if err != nil {
 		return nil, NewNotFoundError("instance not found")
 	}
-	detail, err := metadata.NewClient(s.DataRoot).ResolveVersionChain(context.Background(), inst.MCVersion)
+	detail, err := s.resolveInstanceDetail(context.Background(), inst)
 	if err != nil {
 		return nil, NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
 	}
@@ -148,7 +147,7 @@ func (s *HomeService) RepairInstance(id string) error {
 	if s.Registry.IsActive(id) {
 		return NewConflictError("instance already has an active operation")
 	}
-	detail, err := metadata.NewClient(s.DataRoot).ResolveVersionChain(context.Background(), inst.MCVersion)
+	detail, err := s.resolveInstanceDetail(context.Background(), inst)
 	if err != nil {
 		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
 	}
@@ -260,5 +259,17 @@ func parseLoader(value string) (instances.LoaderType, error) {
 		return instances.LoaderQuilt, nil
 	default:
 		return "", NewValidationError("invalid loader", "loader")
+	}
+}
+
+func (s *HomeService) resolveInstanceDetail(ctx context.Context, inst *instances.Instance) (*metadata.VersionDetail, error) {
+	client := metadata.NewClient(s.DataRoot)
+	switch inst.Loader {
+	case instances.LoaderFabric:
+		return client.ResolveFabric(ctx, inst.MCVersion)
+	case instances.LoaderQuilt:
+		return client.ResolveQuilt(ctx, inst.MCVersion)
+	default:
+		return client.ResolveVersionChain(ctx, inst.MCVersion)
 	}
 }

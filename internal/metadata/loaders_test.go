@@ -25,3 +25,20 @@ func TestLoaderVersionUsesAuthoritativeClientLibraries(t *testing.T) {
 		t.Fatal("client library URL was not derived from authoritative metadata")
 	}
 }
+
+func TestLoaderPlanIncludesLoaderArtifacts(t *testing.T) {
+	detail := loaderVersion("quilt", "1.20.1", loaderMetadata{
+		Loader:       loaderArtifact{Maven: "org.quiltmc:quilt-loader:0.21.0", Version: "0.21.0", FileSize: 12},
+		Intermediary: loaderArtifact{Maven: "net.fabricmc:intermediary:1.20.1"},
+		Hashed:       loaderArtifact{Maven: "org.quiltmc:hashed:1.20.1", FileSize: 9},
+	}, quiltMavenURL)
+	plan := ResolvePlan(*detail, SystemInfo{OS: "windows", Arch: "x64"})
+	if len(plan.Artifacts) != 3 {
+		t.Fatalf("artifacts = %d, want loader, intermediary, hashed", len(plan.Artifacts))
+	}
+	for _, artifact := range plan.Artifacts {
+		if artifact.Role != RoleLibrary || artifact.URL == "" || artifact.Path == "" {
+			t.Fatalf("invalid loader artifact: %#v", artifact)
+		}
+	}
+}
