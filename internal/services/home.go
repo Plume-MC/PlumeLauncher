@@ -59,12 +59,27 @@ func (s *HomeService) SupportedVersions(loader string) ([]string, error) {
 	return versions, nil
 }
 
-func (s *HomeService) CreateInstance(name, version, loader string) (*instances.Instance, error) {
+// LoaderVersions returns versions of the selected Fabric or Quilt loader.
+func (s *HomeService) LoaderVersions(loader, gameVersion string) ([]string, error) {
+	if loader != "fabric" && loader != "quilt" {
+		return nil, NewValidationError("loader versions are unavailable for this loader", "loader")
+	}
+	versions, err := metadata.NewClient(s.DataRoot).LoaderVersions(context.Background(), loader, gameVersion)
+	if err != nil {
+		return nil, NewUpstreamError(fmt.Sprintf("resolve %s loader versions: %v", loader, err))
+	}
+	return versions, nil
+}
+
+func (s *HomeService) CreateInstance(name, version, loader, loaderVersion string) (*instances.Instance, error) {
 	loaderType, err := parseLoader(loader)
 	if err != nil {
 		return nil, err
 	}
-	return s.Instances.Create(name, version, loaderType)
+	if loaderType != instances.LoaderVanilla && loaderVersion == "" {
+		return nil, NewValidationError("loaderVersion is required", "loaderVersion")
+	}
+	return s.Instances.CreateWithLoaderVersion(name, version, loaderType, loaderVersion)
 }
 
 func (s *HomeService) DeleteInstance(id string) error {
@@ -292,9 +307,9 @@ func (s *HomeService) resolveInstanceDetail(ctx context.Context, inst *instances
 	client := metadata.NewClient(s.DataRoot)
 	switch inst.Loader {
 	case instances.LoaderFabric:
-		return client.ResolveFabric(ctx, inst.MCVersion)
+		return client.ResolveFabric(ctx, inst.MCVersion, inst.LoaderVersion)
 	case instances.LoaderQuilt:
-		return client.ResolveQuilt(ctx, inst.MCVersion)
+		return client.ResolveQuilt(ctx, inst.MCVersion, inst.LoaderVersion)
 	default:
 		return client.ResolveVersionChain(ctx, inst.MCVersion)
 	}

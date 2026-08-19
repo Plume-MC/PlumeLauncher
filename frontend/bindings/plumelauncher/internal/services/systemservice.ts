@@ -8,7 +8,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -28,9 +28,7 @@ export function GetDataRoot(): $CancellablePromise<string> {
  * GetSettings returns the current launcher settings.
  */
 export function GetSettings(): $CancellablePromise<instances$0.LauncherDefaults> {
-    return $Call.ByID(3632610702).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(3632610702);
 }
 
 /**
@@ -43,10 +41,8 @@ export function OpenLogFolder(): $CancellablePromise<void> {
 /**
  * ScanJava detects installed Java installations.
  */
-export function ScanJava(): $CancellablePromise<java$0.JavaInfo[]> {
-    return $Call.ByID(4149514100).then(($result: any) => {
-        return $$createType2($result);
-    });
+export function ScanJava(): $CancellablePromise<java$0.JavaInfo[] | null> {
+    return $Call.ByID(4149514100);
 }
 
 /**
@@ -67,13 +63,5 @@ export function UpdateSettings(settings: instances$0.LauncherDefaults): $Cancell
  * ValidateJavaPath checks if a Java path is valid and compatible.
  */
 export function ValidateJavaPath(path: string, requiredMajor: number): $CancellablePromise<java$0.JavaInfo | null> {
-    return $Call.ByID(4219157576, path, requiredMajor).then(($result: any) => {
-        return $$createType3($result);
-    });
+    return $Call.ByID(4219157576, path, requiredMajor);
 }
-
-// Private type creation functions
-const $$createType0 = instances$0.LauncherDefaults.createFrom;
-const $$createType1 = java$0.JavaInfo.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $Create.Nullable($$createType1);

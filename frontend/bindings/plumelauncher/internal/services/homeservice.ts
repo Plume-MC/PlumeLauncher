@@ -9,7 +9,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -25,10 +25,8 @@ export function CancelInstance(id: string): $CancellablePromise<void> {
     return $Call.ByID(909256986, id);
 }
 
-export function CreateInstance(name: string, version: string, loader: string): $CancellablePromise<instances$0.Instance | null> {
-    return $Call.ByID(2514643128, name, version, loader).then(($result: any) => {
-        return $$createType1($result);
-    });
+export function CreateInstance(name: string, version: string, loader: string, loaderVersion: string): $CancellablePromise<instances$0.Instance | null> {
+    return $Call.ByID(2514643128, name, version, loader, loaderVersion);
 }
 
 export function DeleteInstance(id: string): $CancellablePromise<void> {
@@ -43,10 +41,15 @@ export function LaunchInstance(id: string): $CancellablePromise<void> {
     return $Call.ByID(1169192303, id);
 }
 
-export function ListInstances(): $CancellablePromise<instances$0.Instance[]> {
-    return $Call.ByID(3323204425).then(($result: any) => {
-        return $$createType2($result);
-    });
+export function ListInstances(): $CancellablePromise<instances$0.Instance[] | null> {
+    return $Call.ByID(3323204425);
+}
+
+/**
+ * LoaderVersions returns versions of the selected Fabric or Quilt loader.
+ */
+export function LoaderVersions(loader: string, gameVersion: string): $CancellablePromise<string[] | null> {
+    return $Call.ByID(314266773, loader, gameVersion);
 }
 
 /**
@@ -61,27 +64,15 @@ export function StopInstance(id: string): $CancellablePromise<void> {
 }
 
 /**
- * SupportedVersions returns only versions listed by the selected loader's metadata.
+ * SupportedVersions returns stable releases listed by the selected metadata source.
  */
-export function SupportedVersions(loader: string): $CancellablePromise<string[]> {
-    return $Call.ByID(3952459278, loader).then(($result: any) => {
-        return $$createType3($result);
-    });
+export function SupportedVersions(loader: string): $CancellablePromise<string[] | null> {
+    return $Call.ByID(3952459278, loader);
 }
 
 /**
  * VerifyInstance checks the persisted artifact plan for an instance.
  */
-export function VerifyInstance(id: string): $CancellablePromise<downloader$0.VerifyStatus[]> {
-    return $Call.ByID(2734969665, id).then(($result: any) => {
-        return $$createType5($result);
-    });
+export function VerifyInstance(id: string): $CancellablePromise<downloader$0.VerifyStatus[] | null> {
+    return $Call.ByID(2734969665, id);
 }
-
-// Private type creation functions
-const $$createType0 = instances$0.Instance.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $Create.Array($$createType0);
-const $$createType3 = $Create.Array($Create.Any);
-const $$createType4 = downloader$0.VerifyStatus.createFrom;
-const $$createType5 = $Create.Array($$createType4);

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -39,6 +41,21 @@ func TestStableLoaderVersionPrefersStableEntry(t *testing.T) {
 	version := stableLoaderVersion([]loaderMetadata{{Loader: loaderArtifact{Version: "0.19.2"}}, {Loader: loaderArtifact{Version: "0.19.3", Stable: true}}})
 	if version.Loader.Version != "0.19.3" {
 		t.Fatalf("version = %q", version.Loader.Version)
+	}
+}
+
+func TestLoaderVersionsReturnsAvailableLoaderVersions(t *testing.T) {
+	client := NewClient(t.TempDir())
+	data := []byte(`[{"loader":{"version":"0.19.3","stable":true}},{"loader":{"version":"0.19.2"}}]`)
+	if err := os.WriteFile(filepath.Join(client.cacheDir, "fabric-1.21.6.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	versions, err := client.LoaderVersions(t.Context(), "fabric", "1.21.6")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(versions) != 2 || versions[0] != "0.19.3" || versions[1] != "0.19.2" {
+		t.Fatalf("versions = %#v", versions)
 	}
 }
 

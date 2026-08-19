@@ -72,13 +72,42 @@ type loaderLibrary struct {
 }
 
 // ResolveFabric merges the current Fabric launcher metadata with Mojang metadata.
-func (c *Client) ResolveFabric(ctx context.Context, gameVersion string) (*VersionDetail, error) {
-	return c.resolveLoader(ctx, "fabric", gameVersion, fabricLoaderURL, fabricMavenURL)
+func (c *Client) ResolveFabric(ctx context.Context, gameVersion, loaderVersion string) (*VersionDetail, error) {
+	return c.resolveLoader(ctx, "fabric", gameVersion, loaderVersion, fabricLoaderURL, fabricMavenURL)
 }
 
 // ResolveQuilt merges the current Quilt launcher metadata with Mojang metadata.
-func (c *Client) ResolveQuilt(ctx context.Context, gameVersion string) (*VersionDetail, error) {
-	return c.resolveLoader(ctx, "quilt", gameVersion, quiltLoaderURL, quiltMavenURL)
+func (c *Client) ResolveQuilt(ctx context.Context, gameVersion, loaderVersion string) (*VersionDetail, error) {
+	return c.resolveLoader(ctx, "quilt", gameVersion, loaderVersion, quiltLoaderURL, quiltMavenURL)
+}
+
+// LoaderVersions returns the loader versions available for a Minecraft release.
+func (c *Client) LoaderVersions(ctx context.Context, loader, gameVersion string) ([]string, error) {
+	var endpoint string
+	switch loader {
+	case "fabric":
+		endpoint = fabricLoaderURL
+	case "quilt":
+		endpoint = quiltLoaderURL
+	default:
+		return nil, fmt.Errorf("unsupported loader %q", loader)
+	}
+	metadata, err := c.loaderMetadata(ctx, loader, gameVersion, endpoint)
+	if err != nil {
+		return nil, err
+	}
+	versions := make([]string, 0, len(metadata))
+	seen := make(map[string]struct{}, len(metadata))
+	for _, source := range metadata {
+		if source.Loader.Version == "" {
+			continue
+		}
+		if _, ok := seen[source.Loader.Version]; !ok {
+			versions = append(versions, source.Loader.Version)
+			seen[source.Loader.Version] = struct{}{}
+		}
+	}
+	return versions, nil
 }
 
 // SupportedLoaderVersions returns stable Minecraft releases published by the loader itself.
@@ -116,7 +145,7 @@ func (c *Client) loaderGameVersions(ctx context.Context, loader, endpoint string
 	return versions, nil
 }
 
-func (c *Client) resolveLoader(ctx context.Context, loader, gameVersion, endpoint, mavenURL string) (*VersionDetail, error) {
+func (c *Client) resolveLoader(ctx context.Context, loader, gameVersion, requestedVersion, endpoint, mavenURL string) (*VersionDetail, error) {
 	versions, err := c.loaderMetadata(ctx, loader, gameVersion, endpoint)
 	if err != nil {
 		return nil, err
@@ -126,6 +155,19 @@ func (c *Client) resolveLoader(ctx context.Context, loader, gameVersion, endpoin
 		return nil, err
 	}
 	source := stableLoaderVersion(versions)
+	if requestedVersion != "" {
+		found := false
+		for _, version := range versions {
+			if version.Loader.Version == requestedVersion {
+				source = version
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("%s loader %s is unavailable for Minecraft %s", loader, requestedVersion, gameVersion)
+		}
+	}
 	detail := loaderVersion(loader, gameVersion, source, mavenURL)
 	for i := range detail.Libraries[:2] {
 		if err := c.resolveArtifactSHA1(ctx, &detail.Libraries[i]); err != nil {

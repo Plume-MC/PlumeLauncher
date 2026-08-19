@@ -15,13 +15,15 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
   const [version, setVersion] = useState('1.21.4');
   const [versions, setVersions] = useState<string[]>([]);
   const [loader, setLoader] = useState('vanilla');
+  const [loaderVersion, setLoaderVersion] = useState('');
+  const [loaderVersions, setLoaderVersions] = useState<string[]>([]);
   const [error, setError] = useState('');
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
     try {
-      await HomeService.CreateInstance(name.trim(), version, loader);
+      await HomeService.CreateInstance(name.trim(), version, loader, loaderVersion);
       setName('');
       onOpenChange(false);
       await onCreated();
@@ -49,6 +51,21 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
     return () => { cancelled = true; };
   }, [loader]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setLoaderVersion('');
+    setLoaderVersions([]);
+    if (loader === 'vanilla' || !version) return;
+    void HomeService.LoaderVersions(loader, version).then((supported) => {
+      if (cancelled) return;
+      setLoaderVersions(supported);
+      setLoaderVersion(supported[0] ?? '');
+    }).catch((err) => {
+      if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load loader versions');
+    });
+    return () => { cancelled = true; };
+  }, [loader, version]);
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -60,10 +77,11 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
             <div className="space-y-2"><label htmlFor="instance-name" className="text-sm font-medium">Name</label><Input id="instance-name" value={name} maxLength={48} onChange={(event) => setName(event.target.value)} autoFocus required /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2"><label htmlFor="instance-loader" className="text-sm font-medium">Loader</label><select id="instance-loader" value={loader} onChange={(event) => setLoader(event.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"><option value="vanilla">Vanilla</option><option value="fabric">Fabric</option><option value="quilt">Quilt</option></select></div>
-              <div className="space-y-2"><label htmlFor="instance-version" className="text-sm font-medium">Version</label><select id="instance-version" value={version} onChange={(event) => setVersion(event.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm" disabled={!versions.length}>{versions.map((supported) => <option key={supported} value={supported}>{supported}</option>)}</select></div>
+              <div className="space-y-2"><label htmlFor="instance-version" className="text-sm font-medium">Minecraft version</label><select id="instance-version" value={version} onChange={(event) => setVersion(event.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm" disabled={!versions.length}>{versions.map((supported) => <option key={supported} value={supported}>{supported}</option>)}</select></div>
             </div>
+            {loader !== 'vanilla' && <div className="space-y-2"><label htmlFor="instance-loader-version" className="text-sm font-medium">{loader === 'fabric' ? 'Fabric' : 'Quilt'} loader version</label><select id="instance-loader-version" value={loaderVersion} onChange={(event) => setLoaderVersion(event.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm" disabled={!loaderVersions.length}>{loaderVersions.map((supported) => <option key={supported} value={supported}>{supported}</option>)}</select></div>}
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-            <div className="flex justify-end gap-2"><Dialog.Close render={<Button type="button" variant="ghost" />}>Cancel</Dialog.Close><Button type="submit" disabled={!name.trim() || !version || !!error}>Create</Button></div>
+            <div className="flex justify-end gap-2"><Dialog.Close render={<Button type="button" variant="ghost" />}>Cancel</Dialog.Close><Button type="submit" disabled={!name.trim() || !version || (loader !== 'vanilla' && !loaderVersion) || !!error}>Create</Button></div>
           </form>
         </Dialog.Popup>
       </Dialog.Portal>

@@ -57,14 +57,15 @@ func Transition(current InstanceState, next InstanceState) (InstanceState, error
 
 // Instance represents a Minecraft instance.
 type Instance struct {
-	ID        string        `json:"id"`
-	Name      string        `json:"name"`
-	MCVersion string        `json:"mcVersion"`
-	Loader    LoaderType    `json:"loader"`
-	State     InstanceState `json:"state"`
-	Settings  Settings      `json:"settings"`
-	CreatedAt time.Time     `json:"createdAt"`
-	UpdatedAt time.Time     `json:"updatedAt"`
+	ID            string        `json:"id"`
+	Name          string        `json:"name"`
+	MCVersion     string        `json:"mcVersion"`
+	Loader        LoaderType    `json:"loader"`
+	LoaderVersion string        `json:"loaderVersion,omitempty"`
+	State         InstanceState `json:"state"`
+	Settings      Settings      `json:"settings"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	UpdatedAt     time.Time     `json:"updatedAt"`
 }
 
 // LoaderType identifies the mod loader.
@@ -78,13 +79,13 @@ const (
 
 // Settings holds per-instance launch settings.
 type Settings struct {
-	MinRamMB     *int    `json:"minRamMB,omitempty"`
-	MaxRamMB     *int    `json:"maxRamMB,omitempty"`
-	ResolutionW  *int    `json:"resolutionW,omitempty"`
-	ResolutionH  *int    `json:"resolutionH,omitempty"`
-	JavaPath     *string `json:"javaPath,omitempty"`
-	JVMArgs      *string `json:"jvmArgs,omitempty"`
-	WindowMode   *string `json:"windowMode,omitempty"`
-	GPUPreference *string `json:"gpuPreference,omitempty"`
+	MinRamMB       *int    `json:"minRamMB,omitempty"`
+	MaxRamMB       *int    `json:"maxRamMB,omitempty"`
+	ResolutionW    *int    `json:"resolutionW,omitempty"`
+	ResolutionH    *int    `json:"resolutionH,omitempty"`
+	JavaPath       *string `json:"javaPath,omitempty"`
+	JVMArgs        *string `json:"jvmArgs,omitempty"`
+	WindowMode     *string `json:"windowMode,omitempty"`
+	GPUPreference  *string `json:"gpuPreference,omitempty"`
 	WrapperCommand *string `json:"wrapperCommand,omitempty"`
 }

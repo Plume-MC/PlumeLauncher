@@ -16,7 +16,7 @@ export {
     SystemService
 };
 
-export {
+export type {
     Account,
     DownloadProgressEvent,
     LaunchStateEvent,

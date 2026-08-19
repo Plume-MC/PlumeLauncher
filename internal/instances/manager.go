@@ -27,6 +27,11 @@ func NewManager(dataRoot string, defaults LauncherDefaults) *Manager {
 
 // Create creates a new instance with default settings.
 func (m *Manager) Create(name, mcVersion string, loader LoaderType) (*Instance, error) {
+	return m.CreateWithLoaderVersion(name, mcVersion, loader, "")
+}
+
+// CreateWithLoaderVersion creates a new instance with an explicitly selected loader version.
+func (m *Manager) CreateWithLoaderVersion(name, mcVersion string, loader LoaderType, loaderVersion string) (*Instance, error) {
 	if name == "" {
 		return nil, fmt.Errorf("instance name is required")
 	}
@@ -38,14 +43,15 @@ func (m *Manager) Create(name, mcVersion string, loader LoaderType) (*Instance, 
 	now := time.Now()
 
 	inst := &Instance{
-		ID:        id,
-		Name:      name,
-		MCVersion: mcVersion,
-		Loader:    loader,
-		State:     StateNotInstalled,
-		Settings:  Settings{},
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:            id,
+		Name:          name,
+		MCVersion:     mcVersion,
+		Loader:        loader,
+		LoaderVersion: loaderVersion,
+		State:         StateNotInstalled,
+		Settings:      Settings{},
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 
 	// Create the instance root and its isolated Minecraft working directory.
