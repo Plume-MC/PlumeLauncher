@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -33,6 +34,7 @@ type loaderGameVersion struct {
 type loaderArtifact struct {
 	Maven    string `json:"maven"`
 	Version  string `json:"version"`
+	Stable   bool   `json:"stable"`
 	FileSize int64  `json:"file_size"`
 	Hashes   struct {
 		SHA1 string `json:"sha1"`
@@ -123,7 +125,47 @@ func (c *Client) resolveLoader(ctx context.Context, loader, gameVersion, endpoin
 	if err != nil {
 		return nil, err
 	}
-	return MergeVersions(loaderVersion(loader, gameVersion, versions[0], mavenURL), base), nil
+	source := stableLoaderVersion(versions)
+	detail := loaderVersion(loader, gameVersion, source, mavenURL)
+	for i := range detail.Libraries[:2] {
+		if err := c.resolveArtifactSHA1(ctx, &detail.Libraries[i]); err != nil {
+			return nil, err
+		}
+	}
+	if source.Hashed.Maven != "" {
+		if err := c.resolveArtifactSHA1(ctx, &detail.Libraries[2]); err != nil {
+			return nil, err
+		}
+	}
+	return MergeVersions(detail, base), nil
+}
+
+func (c *Client) resolveArtifactSHA1(ctx context.Context, library *Library) error {
+	if library.Downloads == nil || library.Downloads.Artifact.URL == "" {
+		return nil
+	}
+	sha1, err := c.fetchText(ctx, library.Downloads.Artifact.URL+".sha1")
+	if err != nil {
+		return fmt.Errorf("fetch %s checksum: %w", library.Name, err)
+	}
+	sha1 = strings.TrimSpace(sha1)
+	if len(sha1) != 40 {
+		return fmt.Errorf("invalid SHA-1 for %s", library.Name)
+	}
+	if _, err := hex.DecodeString(sha1); err != nil {
+		return fmt.Errorf("invalid SHA-1 for %s", library.Name)
+	}
+	library.Downloads.Artifact.SHA1 = sha1
+	return nil
+}
+
+func stableLoaderVersion(versions []loaderMetadata) loaderMetadata {
+	for _, version := range versions {
+		if version.Loader.Stable {
+			return version
+		}
+	}
+	return versions[0]
 }
 
 // SupportsLoaderVersion reports whether the official loader metadata lists a game version.
@@ -168,7 +210,7 @@ func loaderVersion(loader, gameVersion string, source loaderMetadata, mavenURL s
 		ID:        loader + "-loader-" + source.Loader.Version + "-" + gameVersion,
 		Jar:       gameVersion,
 		MainClass: source.LauncherMeta.MainClass.Client,
-		Libraries: []Library{loaderLibraryArtifact(source.Loader, mavenURL), loaderLibraryArtifact(source.Intermediary, mavenURL)},
+		Libraries: []Library{loaderLibraryArtifact(source.Loader, mavenURL), loaderLibraryArtifact(source.Intermediary, fabricMavenURL)},
 	}
 	if source.Hashed.Maven != "" {
 		version.Libraries = append(version.Libraries, loaderLibraryArtifact(source.Hashed, mavenURL))

@@ -35,6 +35,44 @@ func TestLoaderGameVersionsOnlyReturnsStableReleases(t *testing.T) {
 	}
 }
 
+func TestStableLoaderVersionPrefersStableEntry(t *testing.T) {
+	version := stableLoaderVersion([]loaderMetadata{{Loader: loaderArtifact{Version: "0.19.2"}}, {Loader: loaderArtifact{Version: "0.19.3", Stable: true}}})
+	if version.Loader.Version != "0.19.3" {
+		t.Fatalf("version = %q", version.Loader.Version)
+	}
+}
+
+func TestLoaderVersionUsesFabricMavenForQuiltIntermediary(t *testing.T) {
+	detail := loaderVersion("quilt", "1.21.11", loaderMetadata{
+		Loader:       loaderArtifact{Maven: "org.quiltmc:quilt-loader:0.25.0"},
+		Intermediary: loaderArtifact{Maven: "net.fabricmc:intermediary:1.21.11"},
+		Hashed:       loaderArtifact{Maven: "org.quiltmc:hashed:1.21.11"},
+	}, quiltMavenURL)
+	if got, want := detail.Libraries[1].Downloads.Artifact.URL, "https://maven.fabricmc.net/net/fabricmc/intermediary/1.21.11/intermediary-1.21.11.jar"; got != want {
+		t.Fatalf("intermediary URL = %q, want %q", got, want)
+	}
+}
+
+func TestResolveArtifactSHA1UsesMavenSidecar(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/artifact.jar.sha1" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte("56aa2b39b149ce19c6ea86324198e4829e09a4c6\n"))
+	}))
+	defer server.Close()
+	client := NewClient(t.TempDir())
+	client.httpClient = server.Client()
+	library := Library{Name: "example:artifact:1", Downloads: &LibraryDownloads{Artifact: DownloadInfo{URL: server.URL + "/artifact.jar", SHA1: "stale"}}}
+	if err := client.resolveArtifactSHA1(t.Context(), &library); err != nil {
+		t.Fatal(err)
+	}
+	if library.Downloads.Artifact.SHA1 != "56aa2b39b149ce19c6ea86324198e4829e09a4c6" {
+		t.Fatalf("SHA1 = %q", library.Downloads.Artifact.SHA1)
+	}
+}
+
 func TestLoaderVersionUsesAuthoritativeClientLibraries(t *testing.T) {
 	source := loaderMetadata{
 		Loader:       loaderArtifact{Maven: "net.fabricmc:fabric-loader:0.16.0", Version: "0.16.0"},

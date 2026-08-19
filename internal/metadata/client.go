@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,13 +12,13 @@ import (
 )
 
 const (
-	manifestURL     = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
-	cacheTTL        = 30 * time.Minute
+	manifestURL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+	cacheTTL    = 30 * time.Minute
 )
 
 // Client fetches and caches Mojang version metadata.
 type Client struct {
-	cacheDir  string
+	cacheDir   string
 	httpClient *http.Client
 }
 
@@ -26,7 +27,7 @@ func NewClient(dataRoot string) *Client {
 	cacheDir := filepath.Join(dataRoot, "versions")
 	os.MkdirAll(cacheDir, 0o755)
 	return &Client{
-		cacheDir: cacheDir,
+		cacheDir:   cacheDir,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 }
@@ -152,4 +153,24 @@ func (c *Client) fetchURL(ctx context.Context, url string) ([]byte, error) {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 	return buf, nil
+}
+
+func (c *Client) fetchText(ctx context.Context, url string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, url)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
