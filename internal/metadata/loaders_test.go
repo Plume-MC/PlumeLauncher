@@ -1,6 +1,21 @@
 package metadata
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
+
+func TestLoaderMainClassAcceptsFabricAndQuiltShapes(t *testing.T) {
+	for _, payload := range []string{`{"mainClass":"net.fabricmc.loader.impl.launch.knot.KnotClient"}`, `{"mainClass":{"client":"org.quiltmc.loader.impl.launch.knot.KnotClient"}}`} {
+		var metadata loaderLauncherMeta
+		if err := json.Unmarshal([]byte(payload), &metadata); err != nil {
+			t.Fatal(err)
+		}
+		if metadata.MainClass.Client == "" {
+			t.Fatal("missing client main class")
+		}
+	}
+}
 
 func TestLoaderVersionUsesAuthoritativeClientLibraries(t *testing.T) {
 	source := loaderMetadata{

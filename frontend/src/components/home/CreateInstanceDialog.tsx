@@ -33,12 +33,18 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
   useEffect(() => {
     let cancelled = false;
     setError('');
+    setVersions([]);
+    setVersion('');
     void HomeService.SupportedVersions(loader).then((supported) => {
       if (cancelled) return;
       setVersions(supported);
       setVersion((current) => supported.includes(current) ? current : supported[0] ?? '');
     }).catch((err) => {
-      if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load supported versions');
+      if (!cancelled) {
+        setVersions([]);
+        setVersion('');
+        setError(err instanceof Error ? err.message : 'Unable to load supported versions');
+      }
     });
     return () => { cancelled = true; };
   }, [loader]);
@@ -57,7 +63,7 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
               <div className="space-y-2"><label htmlFor="instance-version" className="text-sm font-medium">Version</label><select id="instance-version" value={version} onChange={(event) => setVersion(event.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm" disabled={!versions.length}>{versions.map((supported) => <option key={supported} value={supported}>{supported}</option>)}</select></div>
             </div>
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-            <div className="flex justify-end gap-2"><Dialog.Close render={<Button type="button" variant="ghost" />}>Cancel</Dialog.Close><Button type="submit" disabled={!name.trim()}>Create</Button></div>
+            <div className="flex justify-end gap-2"><Dialog.Close render={<Button type="button" variant="ghost" />}>Cancel</Dialog.Close><Button type="submit" disabled={!name.trim() || !version || !!error}>Create</Button></div>
           </form>
         </Dialog.Popup>
       </Dialog.Portal>

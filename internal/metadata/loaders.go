@@ -34,9 +34,25 @@ type loaderArtifact struct {
 
 type loaderLauncherMeta struct {
 	Libraries map[string][]loaderLibrary `json:"libraries"`
-	MainClass struct {
+	MainClass loaderMainClass            `json:"mainClass"`
+}
+
+type loaderMainClass struct{ Client string }
+
+func (m *loaderMainClass) UnmarshalJSON(data []byte) error {
+	var client string
+	if err := json.Unmarshal(data, &client); err == nil {
+		m.Client = client
+		return nil
+	}
+	var classes struct {
 		Client string `json:"client"`
-	} `json:"mainClass"`
+	}
+	if err := json.Unmarshal(data, &classes); err != nil {
+		return err
+	}
+	m.Client = classes.Client
+	return nil
 }
 
 type loaderLibrary struct {
