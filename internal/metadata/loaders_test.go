@@ -2,6 +2,8 @@ package metadata
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -14,6 +16,22 @@ func TestLoaderMainClassAcceptsFabricAndQuiltShapes(t *testing.T) {
 		if metadata.MainClass.Client == "" {
 			t.Fatal("missing client main class")
 		}
+	}
+}
+
+func TestLoaderGameVersionsOnlyReturnsStableReleases(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`[{"version":"1.21.4","stable":true},{"version":"24w46a","stable":false},{"version":"1.20.4","stable":true}]`))
+	}))
+	defer server.Close()
+	client := NewClient(t.TempDir())
+	client.httpClient = server.Client()
+	versions, err := client.loaderGameVersions(t.Context(), "fabric", server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(versions) != 2 || versions[0] != "1.21.4" || versions[1] != "1.20.4" {
+		t.Fatalf("versions = %#v", versions)
 	}
 }
 

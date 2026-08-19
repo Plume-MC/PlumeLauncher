@@ -29,30 +29,32 @@ type HomeService struct {
 	App       *application.App
 }
 
-var selectableVersions = []string{"1.21.4", "1.20.4", "1.18.2", "1.16.5", "1.12.2", "1.8.9", "1.7.10"}
-
 func (s *HomeService) ListInstances() ([]instances.Instance, error) {
 	return s.Instances.List()
 }
 
-// SupportedVersions returns only versions listed by the selected loader's metadata.
+// SupportedVersions returns stable releases listed by the selected metadata source.
 func (s *HomeService) SupportedVersions(loader string) ([]string, error) {
+	client := metadata.NewClient(s.DataRoot)
 	if loader == "" || loader == "vanilla" {
-		return selectableVersions, nil
+		manifest, err := client.FetchManifest(context.Background())
+		if err != nil {
+			return nil, NewUpstreamError(fmt.Sprintf("resolve vanilla metadata: %v", err))
+		}
+		versions := make([]string, 0, len(manifest.Versions))
+		for _, version := range manifest.Versions {
+			if version.Type == "release" {
+				versions = append(versions, version.ID)
+			}
+		}
+		return versions, nil
 	}
 	if loader != "fabric" && loader != "quilt" {
 		return nil, NewValidationError("invalid loader", "loader")
 	}
-	client := metadata.NewClient(s.DataRoot)
-	versions := make([]string, 0, len(selectableVersions))
-	for _, version := range selectableVersions {
-		supported, err := client.SupportsLoaderVersion(context.Background(), loader, version)
-		if err != nil {
-			return nil, NewUpstreamError(fmt.Sprintf("resolve %s metadata: %v", loader, err))
-		}
-		if supported {
-			versions = append(versions, version)
-		}
+	versions, err := client.SupportedLoaderVersions(context.Background(), loader)
+	if err != nil {
+		return nil, NewUpstreamError(fmt.Sprintf("resolve %s metadata: %v", loader, err))
 	}
 	return versions, nil
 }

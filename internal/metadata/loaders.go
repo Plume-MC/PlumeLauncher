@@ -12,6 +12,8 @@ import (
 const (
 	fabricLoaderURL = "https://meta.fabricmc.net/v2/versions/loader/"
 	quiltLoaderURL  = "https://meta.quiltmc.org/v3/versions/loader/"
+	fabricGameURL   = "https://meta.fabricmc.net/v2/versions/game"
+	quiltGameURL    = "https://meta.quiltmc.org/v3/versions/game"
 	fabricMavenURL  = "https://maven.fabricmc.net/"
 	quiltMavenURL   = "https://maven.quiltmc.org/repository/release/"
 )
@@ -21,6 +23,11 @@ type loaderMetadata struct {
 	Intermediary loaderArtifact     `json:"intermediary"`
 	Hashed       loaderArtifact     `json:"hashed"`
 	LauncherMeta loaderLauncherMeta `json:"launcherMeta"`
+}
+
+type loaderGameVersion struct {
+	Version string `json:"version"`
+	Stable  bool   `json:"stable"`
 }
 
 type loaderArtifact struct {
@@ -70,6 +77,41 @@ func (c *Client) ResolveFabric(ctx context.Context, gameVersion string) (*Versio
 // ResolveQuilt merges the current Quilt launcher metadata with Mojang metadata.
 func (c *Client) ResolveQuilt(ctx context.Context, gameVersion string) (*VersionDetail, error) {
 	return c.resolveLoader(ctx, "quilt", gameVersion, quiltLoaderURL, quiltMavenURL)
+}
+
+// SupportedLoaderVersions returns stable Minecraft releases published by the loader itself.
+func (c *Client) SupportedLoaderVersions(ctx context.Context, loader string) ([]string, error) {
+	switch loader {
+	case "fabric":
+		return c.loaderGameVersions(ctx, loader, fabricGameURL)
+	case "quilt":
+		return c.loaderGameVersions(ctx, loader, quiltGameURL)
+	default:
+		return nil, fmt.Errorf("unsupported loader %q", loader)
+	}
+}
+
+func (c *Client) loaderGameVersions(ctx context.Context, loader, endpoint string) ([]string, error) {
+	cachePath := filepath.Join(c.cacheDir, loader+"-game-versions.json")
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		data, err = c.fetchURL(ctx, endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("fetch %s game versions: %w", loader, err)
+		}
+		_ = os.WriteFile(cachePath, data, 0o644)
+	}
+	var games []loaderGameVersion
+	if err := json.Unmarshal(data, &games); err != nil {
+		return nil, fmt.Errorf("unmarshal %s game versions: %w", loader, err)
+	}
+	versions := make([]string, 0, len(games))
+	for _, game := range games {
+		if game.Stable {
+			versions = append(versions, game.Version)
+		}
+	}
+	return versions, nil
 }
 
 func (c *Client) resolveLoader(ctx context.Context, loader, gameVersion, endpoint, mavenURL string) (*VersionDetail, error) {
