@@ -263,6 +263,17 @@ func TestResolvePlanEmptyLibraries(t *testing.T) {
 	}
 }
 
+func TestResolvePlanStoresInheritedClientJarUnderGameVersion(t *testing.T) {
+	plan := metadata.ResolvePlan(metadata.VersionDetail{
+		ID:        "fabric-loader-0.19.3-26.2",
+		Jar:       "26.2",
+		Downloads: metadata.Downloads{Client: &metadata.DownloadInfo{URL: "http://example.com/client.jar"}},
+	}, metadata.SystemInfo{OS: "windows", Arch: "x64"})
+	if plan.Artifacts[0].Path != "versions/26.2/26.2.jar" {
+		t.Fatalf("client path = %q", plan.Artifacts[0].Path)
+	}
+}
+
 func TestPlanSummary(t *testing.T) {
 	plan := &metadata.ArtifactPlan{
 		VersionID: "1.0",

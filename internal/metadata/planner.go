@@ -87,7 +87,11 @@ func (p *ArtifactPlan) addClient(detail VersionDetail) {
 	dl := detail.Downloads.Client
 	path := dl.Path
 	if path == "" {
-		path = "versions/" + detail.ID + "/" + detail.ID + ".jar"
+		versionID := detail.ID
+		if detail.Jar != "" {
+			versionID = detail.Jar
+		}
+		path = "versions/" + versionID + "/" + versionID + ".jar"
 	}
 	if err := ValidatePath(path); err != nil {
 		return // skip invalid paths
