@@ -156,10 +156,6 @@ func (s *HomeService) InstallInstance(id string) error {
 		_ = s.Instances.UpdateState(id, instances.StateFailed)
 		return err
 	}
-	if err := orch.DownloadAssets(op.CancelContext, *detail); err != nil {
-		_ = s.Instances.UpdateState(id, instances.StateFailed)
-		return err
-	}
 	if err := s.Instances.UpdateState(id, instances.StateVerifying); err != nil {
 		return err
 	}
@@ -311,12 +307,23 @@ func parseLoader(value string) (instances.LoaderType, error) {
 
 func (s *HomeService) resolveInstanceDetail(ctx context.Context, inst *instances.Instance) (*metadata.VersionDetail, error) {
 	client := metadata.NewClient(s.DataRoot)
+	var detail *metadata.VersionDetail
+	var err error
 	switch inst.Loader {
 	case instances.LoaderFabric:
-		return client.ResolveFabric(ctx, inst.MCVersion, inst.LoaderVersion)
+		detail, err = client.ResolveFabric(ctx, inst.MCVersion, inst.LoaderVersion)
 	case instances.LoaderQuilt:
-		return client.ResolveQuilt(ctx, inst.MCVersion, inst.LoaderVersion)
+		detail, err = client.ResolveQuilt(ctx, inst.MCVersion, inst.LoaderVersion)
 	default:
-		return client.ResolveVersionChain(ctx, inst.MCVersion)
+		detail, err = client.ResolveVersionChain(ctx, inst.MCVersion)
 	}
+	if err != nil || detail == nil || detail.AssetIndex.URL == "" {
+		return detail, err
+	}
+	objects, err := client.FetchAssetObjects(ctx, detail.AssetIndex)
+	if err != nil {
+		return nil, err
+	}
+	detail.AssetIndex.Objects = objects
+	return detail, nil
 }

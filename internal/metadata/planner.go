@@ -53,9 +53,12 @@ func ResolvePlan(detail VersionDetail, sys SystemInfo) *ArtifactPlan {
 	// 4. Asset index
 	plan.addAssetIndex(detail)
 
-	// 5. Asset objects (from asset index ID, not fetched here)
-	// Assets require fetching the asset index JSON — that's a runtime concern.
-	// The plan stores the asset index path; the downloader resolves objects.
+	// 5. Asset objects loaded from the asset index
+	plan.addAssetObjects(detail)
+
+	// 6. Normalized legacy resources, when supplied by an old metadata adapter
+	plan.addLegacyResources(detail)
+
 	plan.dedupeArtifacts()
 
 	return plan
@@ -195,6 +198,47 @@ func (p *ArtifactPlan) addAssetIndex(detail VersionDetail) {
 		Sha1:     detail.AssetIndex.SHA1,
 		Required: true,
 	})
+}
+
+func (p *ArtifactPlan) addAssetObjects(detail VersionDetail) {
+	for _, object := range detail.AssetIndex.Objects {
+		if len(object.Hash) != 40 || !isHexHash(object.Hash) || object.Size < 0 {
+			continue
+		}
+		p.Artifacts = append(p.Artifacts, Artifact{
+			Role:     RoleAsset,
+			URL:      "https://resources.download.minecraft.net/" + object.Hash[:2] + "/" + object.Hash,
+			Path:     "assets/objects/" + object.Hash[:2] + "/" + object.Hash,
+			Size:     object.Size,
+			Sha1:     object.Hash,
+			Required: true,
+		})
+	}
+}
+
+func (p *ArtifactPlan) addLegacyResources(detail VersionDetail) {
+	for resourcePath, resource := range detail.LegacyResources {
+		if err := ValidatePath(resourcePath); err != nil || resource.URL == "" {
+			continue
+		}
+		p.Artifacts = append(p.Artifacts, Artifact{
+			Role:     RoleLegacyResource,
+			URL:      resource.URL,
+			Path:     resourcePath,
+			Size:     resource.Size,
+			Sha1:     resource.SHA1,
+			Required: true,
+		})
+	}
+}
+
+func isHexHash(value string) bool {
+	for _, char := range value {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') && (char < 'A' || char > 'F') {
+			return false
+		}
+	}
+	return true
 }
 
 // ValidatePath checks that a path has no traversal or absolute components.

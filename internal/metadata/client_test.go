@@ -117,3 +117,25 @@ func TestFetchVersionDetailRejectsPathTraversal(t *testing.T) {
 		}
 	}
 }
+
+func TestFetchAssetObjectsUsesCachedIndex(t *testing.T) {
+	dir := t.TempDir()
+	cachePath := filepath.Join(dir, "assets", "indexes", "1.0.json")
+	if err := os.MkdirAll(filepath.Dir(cachePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	hash := "0123456789abcdef0123456789abcdef01234567"
+	if err := os.WriteFile(cachePath, []byte(`{"objects":{"minecraft/lang/en_us.lang":{"hash":"`+hash+`","size":12}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	objects, err := metadata.NewClient(dir).FetchAssetObjects(context.Background(), metadata.AssetIndex{
+		ID:  "1.0",
+		URL: "https://piston-meta.mojang.com/assets.json",
+	})
+	if err != nil {
+		t.Fatalf("FetchAssetObjects: %v", err)
+	}
+	if objects["minecraft/lang/en_us.lang"].Hash != hash {
+		t.Fatal("cached asset object was not loaded")
+	}
+}

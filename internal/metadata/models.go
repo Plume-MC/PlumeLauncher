@@ -30,23 +30,24 @@ type VersionEntry struct {
 
 // VersionDetail is the full metadata for a single Minecraft version.
 type VersionDetail struct {
-	Arguments              *Arguments      `json:"arguments,omitempty"`
-	AssetIndex             AssetIndex      `json:"assetIndex"`
-	Assets                 string          `json:"assets"`
-	ComplianceLevel        *int            `json:"complianceLevel,omitempty"`
-	Downloads              Downloads       `json:"downloads"`
-	ID                     string          `json:"id"`
-	Jar                    string          `json:"jar,omitempty"`
-	JavaVersion            JavaVersion     `json:"javaVersion"`
-	Libraries              []Library       `json:"libraries"`
-	Logging                *Logging        `json:"logging,omitempty"`
-	MainClass              string          `json:"mainClass"`
-	MinecraftArguments     json.RawMessage `json:"minecraftArguments,omitempty"`
-	MinimumLauncherVersion int             `json:"minimumLauncherVersion"`
-	InheritsFrom           string          `json:"inheritsFrom,omitempty"`
-	ReleaseTime            string          `json:"releaseTime"`
-	Time                   string          `json:"time"`
-	Type                   string          `json:"type"`
+	Arguments              *Arguments              `json:"arguments,omitempty"`
+	AssetIndex             AssetIndex              `json:"assetIndex"`
+	Assets                 string                  `json:"assets"`
+	ComplianceLevel        *int                    `json:"complianceLevel,omitempty"`
+	Downloads              Downloads               `json:"downloads"`
+	ID                     string                  `json:"id"`
+	Jar                    string                  `json:"jar,omitempty"`
+	JavaVersion            JavaVersion             `json:"javaVersion"`
+	Libraries              []Library               `json:"libraries"`
+	Logging                *Logging                `json:"logging,omitempty"`
+	MainClass              string                  `json:"mainClass"`
+	MinecraftArguments     json.RawMessage         `json:"minecraftArguments,omitempty"`
+	MinimumLauncherVersion int                     `json:"minimumLauncherVersion"`
+	InheritsFrom           string                  `json:"inheritsFrom,omitempty"`
+	LegacyResources        map[string]DownloadInfo `json:"legacyResources,omitempty"`
+	ReleaseTime            string                  `json:"releaseTime"`
+	Time                   string                  `json:"time"`
+	Type                   string                  `json:"type"`
 }
 
 // Arguments holds game and JVM arguments.
@@ -119,11 +120,18 @@ type FeatureRule struct {
 
 // AssetIndex points to the asset index JSON file.
 type AssetIndex struct {
-	ID        string `json:"id"`
-	SHA1      string `json:"sha1"`
-	Size      int64  `json:"size"`
-	TotalSize int64  `json:"totalSize"`
-	URL       string `json:"url"`
+	ID        string                 `json:"id"`
+	SHA1      string                 `json:"sha1"`
+	Size      int64                  `json:"size"`
+	TotalSize int64                  `json:"totalSize"`
+	URL       string                 `json:"url"`
+	Objects   map[string]AssetObject `json:"objects,omitempty"`
+}
+
+// AssetObject identifies one content-addressed asset file.
+type AssetObject struct {
+	Hash string `json:"hash"`
+	Size int64  `json:"size"`
 }
 
 // Downloads holds download info for client, server, and mappings.

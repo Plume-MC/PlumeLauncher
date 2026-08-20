@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"plumelauncher/internal/security"
 )
 
 const (
@@ -19,6 +21,7 @@ const (
 
 // Client fetches and caches Mojang version metadata.
 type Client struct {
+	dataRoot   string
 	cacheDir   string
 	httpClient *http.Client
 }
@@ -28,9 +31,46 @@ func NewClient(dataRoot string) *Client {
 	cacheDir := filepath.Join(dataRoot, "versions")
 	os.MkdirAll(cacheDir, 0o755)
 	return &Client{
+		dataRoot:   dataRoot,
 		cacheDir:   cacheDir,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
+}
+
+// FetchAssetObjects loads and caches the content-addressed asset index.
+func (c *Client) FetchAssetObjects(ctx context.Context, index AssetIndex) (map[string]AssetObject, error) {
+	if index.URL == "" {
+		return nil, nil
+	}
+	if err := security.ValidateArtifactURL(index.URL); err != nil {
+		return nil, err
+	}
+	cachePath := filepath.Join(c.dataRoot, "assets", "indexes", index.ID+".json")
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		data, err = c.fetchURL(ctx, index.URL)
+		if err != nil {
+			return nil, fmt.Errorf("fetch asset index: %w", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(cachePath), 0o755); err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(cachePath, data, 0o644); err != nil {
+			return nil, err
+		}
+	}
+	var payload struct {
+		Objects map[string]AssetObject `json:"objects"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return nil, fmt.Errorf("unmarshal asset index: %w", err)
+	}
+	for name, object := range payload.Objects {
+		if len(object.Hash) != 40 || !isHexHash(object.Hash) || object.Size < 0 {
+			return nil, fmt.Errorf("invalid asset object %q", name)
+		}
+	}
+	return payload.Objects, nil
 }
 
 // FetchManifest returns the version manifest, using disk cache when fresh.

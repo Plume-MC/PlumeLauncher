@@ -195,6 +195,35 @@ func TestResolvePlanRuleFiltering(t *testing.T) {
 	}
 }
 
+func TestResolvePlanIncludesAssetObjectsAndLegacyResources(t *testing.T) {
+	hash := "0123456789abcdef0123456789abcdef01234567"
+	detail := metadata.VersionDetail{
+		ID: "1.0",
+		AssetIndex: metadata.AssetIndex{
+			ID:  "1.0",
+			URL: "https://piston-meta.mojang.com/assets.json",
+			Objects: map[string]metadata.AssetObject{
+				"minecraft/lang/en_us.lang": {Hash: hash, Size: 12},
+			},
+		},
+		LegacyResources: map[string]metadata.DownloadInfo{
+			"resources/sounds/test.ogg": {URL: "https://libraries.minecraft.net/test.ogg", Size: 4, SHA1: hash},
+		},
+	}
+
+	plan := metadata.ResolvePlan(detail, metadata.SystemInfo{OS: "windows", Arch: "x64"})
+	roles := map[metadata.ArtifactRole]int{}
+	for _, artifact := range plan.Artifacts {
+		roles[artifact.Role]++
+	}
+	if roles[metadata.RoleAsset] != 2 {
+		t.Errorf("asset artifacts = %d, want 2", roles[metadata.RoleAsset])
+	}
+	if roles[metadata.RoleLegacyResource] != 1 {
+		t.Errorf("legacy resources = %d, want 1", roles[metadata.RoleLegacyResource])
+	}
+}
+
 func TestResolvePlanDeduplicatesArtifactPaths(t *testing.T) {
 	detail := metadata.VersionDetail{
 		ID:         "1.18.2",
