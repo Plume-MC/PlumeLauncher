@@ -35,11 +35,22 @@ func ensureAuthlibInjector(ctx context.Context, cacheRoot string, client *http.C
 	if client == nil {
 		client = http.DefaultClient
 	}
+	clientCopy := *client
+	previousRedirect := clientCopy.CheckRedirect
+	clientCopy.CheckRedirect = func(request *http.Request, via []*http.Request) error {
+		if request.URL.Scheme != "https" || !trustedAuthlibHost(request.URL.Hostname()) {
+			return fmt.Errorf("untrusted authlib-injector redirect")
+		}
+		if previousRedirect != nil {
+			return previousRedirect(request, via)
+		}
+		return nil
+	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, source, nil)
 	if err != nil {
 		return "", err
 	}
-	response, err := client.Do(request)
+	response, err := clientCopy.Do(request)
 	if err != nil {
 		return "", fmt.Errorf("download authlib-injector: %w", err)
 	}
@@ -67,6 +78,15 @@ func ensureAuthlibInjector(ctx context.Context, cacheRoot string, client *http.C
 		return "", err
 	}
 	return path, nil
+}
+
+func trustedAuthlibHost(host string) bool {
+	switch host {
+	case "github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com":
+		return true
+	default:
+		return false
+	}
 }
 
 func verifySHA256(path, expected string) error {

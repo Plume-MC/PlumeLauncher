@@ -5,6 +5,7 @@ import (
 
 	"plumelauncher/internal/downloader"
 	"plumelauncher/internal/metadata"
+	"plumelauncher/internal/security"
 )
 
 // DownloadService manages artifact downloads.
@@ -14,6 +15,11 @@ type DownloadService struct {
 
 // DownloadPlan starts downloading all artifacts in the plan.
 func (s *DownloadService) DownloadPlan(ctx context.Context, plan *metadata.ArtifactPlan) error {
+	for _, artifact := range plan.Artifacts {
+		if err := security.ValidateArtifactURL(artifact.URL); err != nil {
+			return err
+		}
+	}
 	orch := downloader.NewOrchestrator(s.DataRoot, 10)
 	return orch.DownloadPlan(ctx, plan)
 }

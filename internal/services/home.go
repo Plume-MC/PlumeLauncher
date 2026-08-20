@@ -13,6 +13,7 @@ import (
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/launch"
 	"plumelauncher/internal/metadata"
+	"plumelauncher/internal/security"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -110,6 +111,11 @@ func (s *HomeService) InstallInstance(id string) error {
 		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
 	}
 	plan := metadata.ResolvePlan(*detail, metadata.CurrentSystem())
+	for _, artifact := range plan.Artifacts {
+		if err := security.ValidateArtifactURL(artifact.URL); err != nil {
+			return NewValidationError(err.Error(), "artifact.url")
+		}
+	}
 	if err := s.Instances.UpdateState(id, instances.StatePlanning); err != nil {
 		return err
 	}

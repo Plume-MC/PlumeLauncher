@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"plumelauncher/internal/metadata"
+	"plumelauncher/internal/security"
 )
 
 // Orchestrator downloads artifacts from an ArtifactPlan.
@@ -44,10 +45,10 @@ func (o *Orchestrator) DownloadPlan(ctx context.Context, plan *metadata.Artifact
 
 	tasks := make([]Task, 0, len(plan.Artifacts))
 	for _, artifact := range plan.Artifacts {
-		if err := metadata.ValidatePath(artifact.Path); err != nil {
+		fullPath, err := security.ResolveUnderRoot(o.dataRoot, artifact.Path)
+		if err != nil {
 			return err
 		}
-		fullPath := filepath.Join(o.dataRoot, artifact.Path)
 		tasks = append(tasks, Task{
 			URL:  artifact.URL,
 			Path: fullPath,
@@ -84,6 +85,9 @@ func (o *Orchestrator) WaitForDownloads() error {
 func (o *Orchestrator) DownloadAssets(ctx context.Context, detail metadata.VersionDetail) error {
 	if detail.AssetIndex.URL == "" {
 		return nil
+	}
+	if err := security.ValidateArtifactURL(detail.AssetIndex.URL); err != nil {
+		return err
 	}
 
 	// Fetch asset index
@@ -137,7 +141,7 @@ func (o *Orchestrator) DownloadAssets(ctx context.Context, detail metadata.Versi
 
 	var tasks []Task
 	for _, obj := range indexObj.Objects {
-		if len(obj.Hash) != 40 {
+		if len(obj.Hash) != 40 || !isHexHash(obj.Hash) {
 			return fmt.Errorf("invalid asset hash %q", obj.Hash)
 		}
 		path := filepath.Join(objectsDir, obj.Hash[:2], obj.Hash)
@@ -170,6 +174,15 @@ func (o *Orchestrator) DownloadAssets(ctx context.Context, detail metadata.Versi
 	o.progress.AddTotal(len(tasks), totalSize)
 
 	return o.downloadTasks(ctx, tasks)
+}
+
+func isHexHash(value string) bool {
+	for _, char := range value {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') && (char < 'A' || char > 'F') {
+			return false
+		}
+	}
+	return true
 }
 
 func (o *Orchestrator) downloadTasks(ctx context.Context, tasks []Task) error {

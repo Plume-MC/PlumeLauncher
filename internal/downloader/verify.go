@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"plumelauncher/internal/metadata"
+	"plumelauncher/internal/security"
 )
 
 // VerifyStatus is the result of verifying a single artifact.
@@ -23,7 +23,11 @@ func VerifyPlan(dataRoot string, plan *metadata.ArtifactPlan) []VerifyStatus {
 	results := make([]VerifyStatus, 0, len(plan.Artifacts))
 
 	for _, artifact := range plan.Artifacts {
-		fullPath := filepath.Join(dataRoot, artifact.Path)
+		fullPath, err := security.ResolveUnderRoot(dataRoot, artifact.Path)
+		if err != nil {
+			results = append(results, VerifyStatus{Artifact: artifact, Corrupt: true, Error: err})
+			continue
+		}
 		status := VerifyArtifact(fullPath, artifact)
 		results = append(results, status)
 	}

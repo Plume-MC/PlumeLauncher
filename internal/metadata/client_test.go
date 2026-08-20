@@ -108,3 +108,12 @@ func TestFetchVersionDetailNotFound(t *testing.T) {
 		t.Fatal("expected error for nonexistent version")
 	}
 }
+
+func TestFetchVersionDetailRejectsPathTraversal(t *testing.T) {
+	c := metadata.NewClient(t.TempDir())
+	for _, id := range []string{"../outside", `..\outside`, "/outside"} {
+		if _, err := c.FetchVersionDetail(context.Background(), id); err == nil {
+			t.Errorf("FetchVersionDetail(%q) accepted traversal", id)
+		}
+	}
+}

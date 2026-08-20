@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -63,6 +64,9 @@ func (c *Client) FetchManifest(ctx context.Context) (*VersionManifest, error) {
 // FetchVersionDetail returns version metadata, using disk cache when fresh.
 // It does NOT resolve inheritsFrom — use ResolveVersionChain for that.
 func (c *Client) FetchVersionDetail(ctx context.Context, id string) (*VersionDetail, error) {
+	if id == "" || strings.ContainsAny(id, `/\`) || filepath.Base(id) != id {
+		return nil, fmt.Errorf("invalid version id %q", id)
+	}
 	cachePath := filepath.Join(c.cacheDir, id+".json")
 
 	// Try disk cache
