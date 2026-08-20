@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 )
+
+const CurrentSchemaVersion = 1
 
 // Document is embedded in all JSON root objects for version tracking.
 type Document struct {
@@ -20,34 +23,34 @@ func WriteJSON(path string, v any) error {
 		return fmt.Errorf("create dir: %w", err)
 	}
 
-	tmpPath := path + ".tmp"
-	f, err := os.Create(tmpPath)
+	f, err := os.CreateTemp(dir, "."+filepath.Base(path)+"-*.tmp")
 	if err != nil {
 		return fmt.Errorf("create tmp: %w", err)
 	}
+	tmpPath := f.Name()
+	defer os.Remove(tmpPath)
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(v); err != nil {
 		f.Close()
-		os.Remove(tmpPath)
 		return fmt.Errorf("encode: %w", err)
 	}
 
 	if err := f.Sync(); err != nil {
 		f.Close()
-		os.Remove(tmpPath)
 		return fmt.Errorf("sync: %w", err)
 	}
 
 	if err := f.Close(); err != nil {
-		os.Remove(tmpPath)
 		return fmt.Errorf("close: %w", err)
 	}
 
 	if err := os.Rename(tmpPath, path); err != nil {
-		os.Remove(tmpPath)
 		return fmt.Errorf("rename: %w", err)
+	}
+	if err := syncDirectory(dir); err != nil {
+		return fmt.Errorf("sync dir: %w", err)
 	}
 
 	return nil
@@ -73,9 +76,30 @@ func ReadJSON(path string, v any) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("validate: %w", err)
 	}
-	if _, ok := raw["schemaVersion"]; !ok {
+	rawVersion, ok := raw["schemaVersion"]
+	if !ok {
 		return fmt.Errorf("missing required field: schemaVersion")
+	}
+	var schemaVersion int
+	if err := json.Unmarshal(rawVersion, &schemaVersion); err != nil || schemaVersion < 1 || schemaVersion > CurrentSchemaVersion {
+		return fmt.Errorf("unsupported schemaVersion")
 	}
 
 	return nil
+}
+
+func syncDirectory(path string) error {
+	dir, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	err = dir.Sync()
+	closeErr := dir.Close()
+	if err == nil {
+		err = closeErr
+	}
+	if runtime.GOOS == "windows" && err != nil {
+		return nil
+	}
+	return err
 }

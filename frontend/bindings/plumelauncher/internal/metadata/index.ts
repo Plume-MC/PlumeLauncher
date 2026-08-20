@@ -6,22 +6,8 @@ export {
 } from "./models.js";
 
 export type {
-    Argument,
-    Arguments,
     Artifact,
-    ArtifactPlan,
-    AssetIndex,
-    DownloadInfo,
-    Downloads,
-    ExtractRule,
     FeatureRule,
-    JavaVersion,
-    Library,
-    LibraryDownloads,
-    LogFileInfo,
-    Logging,
-    LoggingConfig,
     OSRule,
-    Rule,
-    VersionDetail
+    Rule
 } from "./models.js";

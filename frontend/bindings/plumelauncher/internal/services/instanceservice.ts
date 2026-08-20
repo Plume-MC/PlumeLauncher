@@ -50,13 +50,6 @@ export function OpenInstanceFolder(id: string): $CancellablePromise<void> {
 }
 
 /**
- * TransitionState performs a state transition on an instance.
- */
-export function TransitionState(id: string, newState: string): $CancellablePromise<void> {
-    return $Call.ByID(3706498609, id, newState);
-}
-
-/**
  * UpdateInstanceSettings updates instance settings.
  */
 export function UpdateInstanceSettings(id: string, settings: instances$0.Settings): $CancellablePromise<void> {

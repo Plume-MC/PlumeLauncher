@@ -105,3 +105,30 @@ func TestReadJSONRequiresNonEmpty(t *testing.T) {
 		t.Fatal("expected error for empty file")
 	}
 }
+
+func TestReadJSONRejectsUnsupportedSchemaVersion(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "future.json")
+	if err := os.WriteFile(path, []byte(`{"schemaVersion":2,"name":"future"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var loaded testDoc
+	if err := storage.ReadJSON(path, &loaded); err == nil {
+		t.Fatal("expected unsupported schemaVersion error")
+	}
+}
+
+func TestWriteJSONUsesUniqueTemporaryFiles(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.json")
+	if err := storage.WriteJSON(path, &testDoc{Document: storage.Document{SchemaVersion: 1}, Name: "ok"}); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "test.json" {
+		t.Fatalf("unexpected leftover files: %#v", entries)
+	}
+}

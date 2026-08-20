@@ -39,6 +39,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	dataRootLock, err := bootstrap.AcquireDataRootLock(config.DataRoot)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer dataRootLock.Release()
 	defaults, err := instances.LoadConfig(config.DataRoot)
 	if err != nil {
 		log.Fatal(err)
