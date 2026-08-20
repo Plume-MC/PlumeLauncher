@@ -62,8 +62,6 @@ func main() {
 		Services: []application.Service{
 			application.NewService(accountService),
 			application.NewService(instanceService),
-			application.NewService(&services.DownloadService{DataRoot: config.DataRoot}),
-			application.NewService(launchService),
 			application.NewService(&services.SystemService{DataRoot: config.DataRoot, Defaults: defaults}),
 		},
 		Assets: application.AssetOptions{

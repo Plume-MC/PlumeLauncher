@@ -114,25 +114,3 @@ func (s *InstanceService) DeleteInstance(id string) error {
 	}
 	return nil
 }
-
-// TransitionState performs a state transition on an instance.
-func (s *InstanceService) TransitionState(id string, newState string) error {
-	if id == "" {
-		return NewValidationError("id is required", "id")
-	}
-
-	state := instances.InstanceState(newState)
-	if !instances.CanTransition("", state) && newState != string(instances.StateNotInstalled) {
-		// Validate target state exists
-		switch state {
-		case instances.StatePlanning, instances.StateDownloading, instances.StateVerifying,
-			instances.StateReady, instances.StateRunning, instances.StateStopped,
-			instances.StateCrashed, instances.StateFailed:
-			// valid target states
-		default:
-			return NewValidationError("invalid state: "+newState, "state")
-		}
-	}
-
-	return s.Manager.UpdateState(id, state)
-}
