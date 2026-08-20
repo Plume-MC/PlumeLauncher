@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -152,7 +153,11 @@ func (s *HomeService) InstallInstance(id string) error {
 	}()
 	defer close(stopProgress)
 	if err := orch.DownloadPlan(op.CancelContext, plan); err != nil {
-		emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "failed", Error: err.Error()})
+		status := "failed"
+		if errors.Is(err, context.Canceled) || s.Registry.Get(id).Status == instances.OpStatusCancelled {
+			status = "cancelled"
+		}
+		emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: status, Error: err.Error()})
 		_ = s.Instances.UpdateState(id, instances.StateFailed)
 		return err
 	}
@@ -165,6 +170,18 @@ func (s *HomeService) InstallInstance(id string) error {
 	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "completed", FileProgress: len(plan.Artifacts), TotalFiles: len(plan.Artifacts)})
 	s.Registry.Complete(id)
 	return nil
+}
+
+// RetryInstance retries installation or repair for a failed instance.
+func (s *HomeService) RetryInstance(id string) error {
+	inst, err := s.Instances.Get(id)
+	if err != nil {
+		return NewNotFoundError("instance not found")
+	}
+	if inst.State != instances.StateFailed && inst.State != instances.StateCrashed {
+		return NewConflictError("instance has no failed operation to retry")
+	}
+	return s.InstallInstance(id)
 }
 
 // VerifyInstance checks the persisted artifact plan for an instance.

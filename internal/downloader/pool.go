@@ -88,6 +88,10 @@ func (p *Pool) Errors() []error {
 
 func (p *Pool) worker(ctx context.Context, cacheDir string) {
 	for task := range p.tasks {
+		if ctx.Err() != nil {
+			p.wg.Done()
+			continue
+		}
 		p.process(ctx, task, cacheDir)
 		p.wg.Done()
 	}

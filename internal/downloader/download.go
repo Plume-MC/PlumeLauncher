@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // DownloadWithResume downloads a URL to partPath with HTTP Range resume support.
@@ -19,7 +20,7 @@ func DownloadWithResume(ctx context.Context, client *http.Client, url string, pa
 
 // DownloadWithResumeProgress reports byte chunks as they are written.
 func DownloadWithResumeProgress(ctx context.Context, client *http.Client, url string, partPath string, onProgress func(int64)) (int64, error) {
-	const maxAttempts = 2
+	const maxAttempts = 3
 
 	var offset int64
 
@@ -38,7 +39,12 @@ func DownloadWithResumeProgress(ctx context.Context, client *http.Client, url st
 
 		// If server returned 416 (Range Not Satisfiable), reset and retry
 		if err == errRangeNotSatisfiable {
-			os.Remove(partPath)
+			_ = os.Remove(partPath)
+			offset = 0
+			continue
+		}
+		if err == errInvalidContentRange {
+			_ = os.Remove(partPath)
 			offset = 0
 			continue
 		}
@@ -47,12 +53,20 @@ func DownloadWithResumeProgress(ctx context.Context, client *http.Client, url st
 		if info, statErr := os.Stat(partPath); statErr == nil {
 			offset = info.Size()
 		}
+		if attempt+1 < maxAttempts {
+			select {
+			case <-ctx.Done():
+				return 0, ctx.Err()
+			case <-time.After(time.Duration(attempt+1) * 100 * time.Millisecond):
+			}
+		}
 	}
 
 	return 0, fmt.Errorf("download failed after %d attempts: %w", maxAttempts, lastErr)
 }
 
 var errRangeNotSatisfiable = fmt.Errorf("416 Range Not Satisfiable")
+var errInvalidContentRange = fmt.Errorf("invalid Content-Range")
 
 func doDownload(ctx context.Context, client *http.Client, url string, partPath string, offset int64, onProgress func(int64)) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -77,7 +91,7 @@ func doDownload(ctx context.Context, client *http.Client, url string, partPath s
 		os.Remove(partPath)
 	case http.StatusPartialContent:
 		if !validContentRange(resp.Header.Get("Content-Range"), offset) {
-			return 0, fmt.Errorf("invalid Content-Range for offset %d", offset)
+			return 0, errInvalidContentRange
 		}
 	case http.StatusRequestedRangeNotSatisfiable:
 		return 0, errRangeNotSatisfiable
@@ -137,5 +151,18 @@ func validContentRange(value string, offset int64) bool {
 	}
 
 	start, err := strconv.ParseInt(rangeParts[0], 10, 64)
-	return err == nil && start == offset
+	if err != nil || start != offset {
+		return false
+	}
+	end, err := strconv.ParseInt(rangeParts[1], 10, 64)
+	if err != nil || end < start {
+		return false
+	}
+	if parts[1] != "*" {
+		total, totalErr := strconv.ParseInt(parts[1], 10, 64)
+		if totalErr != nil || total <= end {
+			return false
+		}
+	}
+	return true
 }

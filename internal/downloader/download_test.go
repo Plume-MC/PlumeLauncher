@@ -101,6 +101,38 @@ func TestDownloadWithResumeRangeNotSatisfiable(t *testing.T) {
 	}
 }
 
+func TestDownloadWithResumeInvalidContentRangeRestarts(t *testing.T) {
+	var requests int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if requests == 1 {
+			w.Header().Set("Content-Range", "bytes 2-4/5")
+			w.WriteHeader(http.StatusPartialContent)
+			_, _ = w.Write([]byte("bad"))
+			return
+		}
+		w.Header().Set("Content-Length", "5")
+		_, _ = w.Write([]byte("hello"))
+	}))
+	defer server.Close()
+
+	partPath := filepath.Join(t.TempDir(), "test.txt.part")
+	if err := os.WriteFile(partPath, []byte("stale"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	written, err := downloader.DownloadWithResume(context.Background(), &http.Client{}, server.URL, partPath)
+	if err != nil {
+		t.Fatalf("DownloadWithResume: %v", err)
+	}
+	if written != 5 {
+		t.Fatalf("written = %d, want 5", written)
+	}
+	data, _ := os.ReadFile(partPath)
+	if string(data) != "hello" {
+		t.Fatalf("content = %q, want hello", data)
+	}
+}
+
 func TestDownloadWithResumeCancellation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", "1000")
