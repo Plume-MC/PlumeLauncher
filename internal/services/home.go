@@ -13,6 +13,7 @@ import (
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/launch"
+	"plumelauncher/internal/logging"
 	"plumelauncher/internal/metadata"
 	"plumelauncher/internal/security"
 
@@ -29,6 +30,7 @@ type HomeService struct {
 	Launch    *LaunchService
 	Accounts  *AccountService
 	App       *application.App
+	Logger    *logging.Logger
 }
 
 func (s *HomeService) ListInstances() ([]instances.Instance, error) {
@@ -101,6 +103,9 @@ func (s *HomeService) InstallInstance(id string) error {
 	if err != nil {
 		return NewConflictError(err.Error())
 	}
+	if s.Logger != nil {
+		s.Logger.Info("install_requested", "instanceId", id, "operationId", op.ID)
+	}
 	defer func() {
 		if current := s.Registry.Get(id); current != nil && current.Status == instances.OpStatusRunning {
 			s.Registry.Fail(id)
@@ -153,6 +158,9 @@ func (s *HomeService) InstallInstance(id string) error {
 	}()
 	defer close(stopProgress)
 	if err := orch.DownloadPlan(op.CancelContext, plan); err != nil {
+		if s.Logger != nil {
+			s.Logger.Error("install_failed", "instanceId", id, "operationId", op.ID, "error", err.Error())
+		}
 		status := "failed"
 		if errors.Is(err, context.Canceled) || s.Registry.Get(id).Status == instances.OpStatusCancelled {
 			status = "cancelled"
@@ -169,6 +177,9 @@ func (s *HomeService) InstallInstance(id string) error {
 	}
 	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "completed", FileProgress: len(plan.Artifacts), TotalFiles: len(plan.Artifacts)})
 	s.Registry.Complete(id)
+	if s.Logger != nil {
+		s.Logger.Info("install_completed", "instanceId", id, "operationId", op.ID)
+	}
 	return nil
 }
 

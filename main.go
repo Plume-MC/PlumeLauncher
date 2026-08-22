@@ -8,6 +8,7 @@ import (
 
 	"plumelauncher/internal/bootstrap"
 	"plumelauncher/internal/instances"
+	"plumelauncher/internal/logging"
 	"plumelauncher/internal/services"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -39,6 +40,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	logger, err := logging.New(config.DataRoot)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer logger.Close()
+	logger.Info("launcher_started", "dataRoot", config.DataRoot)
 	dataRootLock, err := bootstrap.AcquireDataRootLock(config.DataRoot)
 	if err != nil {
 		log.Fatal(err)
@@ -51,7 +58,7 @@ func main() {
 	registry := instances.NewRegistry()
 	accountService := &services.AccountService{DataRoot: config.DataRoot}
 	instanceManager := instances.NewManager(config.DataRoot, defaults)
-	launchService := &services.LaunchService{DataRoot: config.DataRoot, Registry: registry, Instances: instanceManager}
+	launchService := &services.LaunchService{DataRoot: config.DataRoot, Registry: registry, Instances: instanceManager, Logger: logger}
 	instanceService := &services.InstanceService{
 		DataRoot: config.DataRoot,
 		Manager:  instanceManager,
@@ -86,6 +93,7 @@ func main() {
 		Launch:    launchService,
 		Accounts:  accountService,
 		App:       app,
+		Logger:    logger,
 	}))
 
 	// Create a new window with the necessary options.

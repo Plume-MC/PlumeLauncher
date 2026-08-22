@@ -6,6 +6,7 @@ import (
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/launch"
+	"plumelauncher/internal/logging"
 	"plumelauncher/internal/metadata"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ type LaunchService struct {
 	DataRoot  string
 	Registry  *instances.Registry
 	Instances *instances.Manager
+	Logger    *logging.Logger
 	App       *application.App
 	mu        sync.Mutex
 	processes map[string]*exec.Cmd
@@ -34,6 +36,10 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	op, err := s.Registry.Start(opts.VersionID, instances.OpLaunch)
 	if err != nil {
 		return NewConflictError(err.Error())
+	}
+	if s.Logger != nil {
+		s.Logger.AddSecrets(opts.AccessToken)
+		s.Logger.Info("launch_requested", "instanceId", opts.VersionID, "operationId", op.ID)
 	}
 	defer func() {
 		if op.Status == instances.OpStatusRunning {
@@ -100,6 +106,9 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 			stderrMu.Unlock()
 		}
 		emit(s.App, EventLogLine, LogLineEvent{Level: level, Message: launch.Redact(line, opts.AccessToken), InstanceID: opts.VersionID})
+		if s.Logger != nil {
+			s.Logger.Info("game_output", "instanceId", opts.VersionID, "level", level, "message", line)
+		}
 	}, func() {
 		started = true
 		s.mu.Lock()
@@ -115,6 +124,9 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	})
 
 	if err != nil {
+		if s.Logger != nil {
+			s.Logger.Error("launch_failed", "instanceId", opts.VersionID, "error", launch.Redact(err.Error(), opts.AccessToken))
+		}
 		if !started {
 			s.Registry.Fail(opts.VersionID)
 			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "failed"})
@@ -151,6 +163,9 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 		_ = s.Instances.UpdateState(opts.VersionID, instances.StateStopped)
 	}
 	s.Registry.Complete(opts.VersionID)
+	if s.Logger != nil {
+		s.Logger.Info("launch_stopped", "instanceId", opts.VersionID, "operationId", op.ID)
+	}
 	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "stopped"})
 	return nil
 }
