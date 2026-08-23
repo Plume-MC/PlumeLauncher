@@ -59,6 +59,13 @@ export function RepairInstance(id: string): $CancellablePromise<void> {
     return $Call.ByID(27060533, id);
 }
 
+/**
+ * RetryInstance retries installation or repair for a failed instance.
+ */
+export function RetryInstance(id: string): $CancellablePromise<void> {
+    return $Call.ByID(365696912, id);
+}
+
 export function StopInstance(id: string): $CancellablePromise<void> {
     return $Call.ByID(4014632784, id);
 }

@@ -35,10 +35,10 @@ func createTestJar(t *testing.T, dir string, files map[string]string) string {
 func TestExtractNativesBasic(t *testing.T) {
 	dir := t.TempDir()
 	jarPath := createTestJar(t, dir, map[string]string{
-		"lib.dll":        "binary",
-		"lib.so":         "binary",
+		"lib.dll":              "binary",
+		"lib.so":               "binary",
 		"META-INF/MANIFEST.MF": "Manifest-Version: 1.0",
-		"readme.txt":     "text",
+		"readme.txt":           "text",
 	})
 
 	targetDir := filepath.Join(dir, "natives")
@@ -73,6 +73,42 @@ func TestExtractNativesPathTraversal(t *testing.T) {
 	err := launch.ExtractNatives(jarPath, targetDir)
 	if err == nil {
 		t.Fatal("expected path traversal error")
+	}
+	escaped := filepath.Join(dir, "..", "etc", "passwd")
+	if _, statErr := os.Stat(escaped); !os.IsNotExist(statErr) {
+		t.Fatalf("path traversal created outside file: %s", escaped)
+	}
+}
+
+func TestExtractNativesMetadataExclusions(t *testing.T) {
+	dir := t.TempDir()
+	jarPath := createTestJar(t, dir, map[string]string{
+		"native.dll":        "binary",
+		"META-INF/MANIFEST": "manifest",
+		"config/keep.txt":   "keep",
+		"config/drop.bin":   "drop",
+	})
+	targetDir := filepath.Join(dir, "natives")
+	if err := launch.ExtractNatives(jarPath, targetDir, []string{"config/drop.bin"}); err != nil {
+		t.Fatalf("ExtractNatives: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "native.dll")); err != nil {
+		t.Fatal("native was not extracted")
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "config", "drop.bin")); !os.IsNotExist(err) {
+		t.Fatal("excluded file was extracted")
+	}
+}
+
+func TestExtractNativesEntryLimit(t *testing.T) {
+	dir := t.TempDir()
+	files := make(map[string]string, 4097)
+	for i := 0; i < 4097; i++ {
+		files["native/"+string(rune('a'+i%26))+"/"+string(rune(i))+".dll"] = "x"
+	}
+	jarPath := createTestJar(t, dir, files)
+	if err := launch.ExtractNatives(jarPath, filepath.Join(dir, "natives")); err == nil {
+		t.Fatal("expected entry limit error")
 	}
 }
 

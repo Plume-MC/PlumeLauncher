@@ -261,7 +261,11 @@ func (s *HomeService) LaunchInstance(id string) error {
 		if !ok {
 			continue
 		}
-		if err := launch.ExtractNatives(filepath.Join(s.DataRoot, nativePath), nativesDir); err != nil {
+		excludes := []string(nil)
+		if library.Extract != nil {
+			excludes = library.Extract.Exclude
+		}
+		if err := launch.ExtractNatives(filepath.Join(s.DataRoot, nativePath), nativesDir, excludes); err != nil {
 			return NewIntegrityError("extract natives: " + err.Error())
 		}
 	}

@@ -7,11 +7,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"plumelauncher/internal/security"
+)
+
+const (
+	maxNativeEntries    = 4096
+	maxNativeFileBytes  = 64 << 20
+	maxNativeTotalBytes = 256 << 20
 )
 
 // ExtractNatives extracts native JAR archives into targetDir.
 // Rejects paths that attempt directory traversal.
-func ExtractNatives(jarPath string, targetDir string) error {
+func ExtractNatives(jarPath string, targetDir string, excludes ...[]string) error {
 	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		return err
 	}
@@ -21,6 +29,14 @@ func ExtractNatives(jarPath string, targetDir string) error {
 		return err
 	}
 	defer r.Close()
+	if len(r.File) > maxNativeEntries {
+		return fmt.Errorf("native archive has too many entries: %d", len(r.File))
+	}
+	var totalBytes uint64
+	var excluded []string
+	if len(excludes) > 0 {
+		excluded = excludes[0]
+	}
 
 	for _, f := range r.File {
 		if f.FileInfo().IsDir() {
@@ -30,12 +46,15 @@ func ExtractNatives(jarPath string, targetDir string) error {
 			return fmt.Errorf("symlink entry not allowed: %s", f.Name)
 		}
 
-		name := f.Name
+		name := filepath.ToSlash(f.Name)
 
-		// Skip META-INF
-		if strings.HasPrefix(name, "META-INF/") {
+		if isExcludedNative(name, excluded) {
 			continue
 		}
+		if f.UncompressedSize64 > maxNativeFileBytes || totalBytes > maxNativeTotalBytes-f.UncompressedSize64 {
+			return fmt.Errorf("native archive exceeds extraction limit: %s", name)
+		}
+		totalBytes += f.UncompressedSize64
 
 		// Skip non-binary files
 		if strings.HasSuffix(name, ".sha1") ||
@@ -44,12 +63,12 @@ func ExtractNatives(jarPath string, targetDir string) error {
 			continue
 		}
 
-		destPath := filepath.Join(targetDir, name)
-
-		// Path traversal rejection
-		rel, err := filepath.Rel(targetDir, destPath)
-		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
+		destPath, err := security.ResolveUnderRoot(targetDir, name)
+		if err != nil {
 			return fmt.Errorf("path traversal detected: %s", name)
+		}
+		if info, statErr := os.Lstat(destPath); statErr == nil && info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("destination symlink not allowed: %s", name)
 		}
 
 		if err := extractFile(f, destPath); err != nil {
@@ -58,6 +77,23 @@ func ExtractNatives(jarPath string, targetDir string) error {
 	}
 
 	return nil
+}
+
+func isExcludedNative(name string, excludes []string) bool {
+	all := append([]string{"META-INF/", ".sha1", ".md5", ".txt"}, excludes...)
+	for _, exclude := range all {
+		exclude = strings.TrimPrefix(filepath.ToSlash(exclude), "./")
+		if strings.HasSuffix(exclude, "/") {
+			if strings.HasPrefix(name, exclude) {
+				return true
+			}
+			continue
+		}
+		if name == exclude || strings.HasPrefix(name, exclude+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 func extractFile(f *zip.File, destPath string) error {
@@ -78,6 +114,6 @@ func extractFile(f *zip.File, destPath string) error {
 	}
 	defer rc.Close()
 
-	_, err = io.Copy(outFile, rc)
+	_, err = io.Copy(outFile, io.LimitReader(rc, maxNativeFileBytes+1))
 	return err
 }
