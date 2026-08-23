@@ -1,6 +1,7 @@
 package launch_test
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"testing"
 
@@ -140,6 +141,28 @@ func TestBuildArgumentsLegacyQuotedValue(t *testing.T) {
 		}
 	}
 	t.Fatal("quoted legacy value was split")
+}
+
+func TestBuildArgumentsLegacyJSONString(t *testing.T) {
+	legacy, err := json.Marshal(`--username "Player Name" --version ${version_name}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	version := metadata.VersionDetail{
+		ID:                 "1.0",
+		MainClass:          "net.minecraft.client.Minecraft",
+		MinecraftArguments: legacy,
+	}
+	args, err := launch.BuildArguments(version, launch.Options{PlayerName: "Player", VersionID: "1.0", GameDir: "test", NativesDir: "test/natives"})
+	if err != nil {
+		t.Fatalf("BuildArguments: %v", err)
+	}
+	for i, arg := range args {
+		if arg == "--username" && i+1 < len(args) && args[i+1] == "Player Name" {
+			return
+		}
+	}
+	t.Fatal("JSON legacy argument string was not tokenized correctly")
 }
 
 func TestMapUserType(t *testing.T) {

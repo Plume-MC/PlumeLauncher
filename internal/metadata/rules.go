@@ -2,15 +2,17 @@ package metadata
 
 import (
 	"encoding/json"
+	"regexp"
 	"runtime"
 	"strings"
 )
 
 // SystemInfo holds the detected host system properties.
 type SystemInfo struct {
-	OS      string // "windows", "linux", "osx"
-	Arch    string // "x64", "x86", "arm64"
-	Features map[string]bool
+	OS        string // "windows", "linux", "osx"
+	Arch      string // "x64", "x86", "arm64"
+	OSVersion string
+	Features  map[string]bool
 }
 
 // CurrentSystem detects the host OS and architecture, normalized to Mojang conventions.
@@ -68,13 +70,13 @@ func matchRule(rule Rule, sys SystemInfo) bool {
 	if rule.OS == nil && rule.Features == nil {
 		return true
 	}
-	if rule.OS != nil {
-		return matchOS(rule.OS, sys)
+	if rule.OS != nil && !matchOS(rule.OS, sys) {
+		return false
 	}
-	if rule.Features != nil {
-		return matchFeatures(rule.Features, sys)
+	if rule.Features != nil && !matchFeatures(rule.Features, sys) {
+		return false
 	}
-	return false
+	return true
 }
 
 func matchOS(osRule *OSRule, sys SystemInfo) bool {
@@ -85,9 +87,8 @@ func matchOS(osRule *OSRule, sys SystemInfo) bool {
 		return false
 	}
 	if osRule.Version != "" {
-		// Simple prefix match (Mojang uses regex like ^10\.)
-		if !strings.HasPrefix(sys.OS, osRule.Version) &&
-			osRule.Version != sys.OS {
+		matched, err := regexp.MatchString(osRule.Version, sys.OSVersion)
+		if err != nil || !matched {
 			return false
 		}
 	}

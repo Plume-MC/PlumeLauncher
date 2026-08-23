@@ -1,6 +1,7 @@
 package launch
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -132,6 +133,10 @@ func buildGameArgs(version metadata.VersionDetail, opts Options) []string {
 	} else if version.MinecraftArguments != nil {
 		// Legacy arguments are space-separated and may contain quoted values.
 		legacy := string(version.MinecraftArguments)
+		var decodedLegacy string
+		if err := json.Unmarshal(version.MinecraftArguments, &decodedLegacy); err == nil {
+			legacy = decodedLegacy
+		}
 		for _, part := range splitLegacyArguments(legacy) {
 			resolved := replaceVars(part, version, opts)
 			args = append(args, resolved)
@@ -215,32 +220,20 @@ func splitLegacyArguments(value string) []string {
 }
 
 func resolveArgument(arg metadata.Argument, version metadata.VersionDetail, opts Options) []string {
-	if arg.StringValue != "" {
-		return []string{replaceVars(arg.StringValue, version, opts)}
+	values := metadata.ResolveArgument(arg, launchSystem(opts))
+	for i := range values {
+		values[i] = replaceVars(values[i], version, opts)
 	}
-	if arg.Conditional != nil {
-		// Simple rule evaluation: check OS
-		if !metadata.ShouldDownload(arg.Conditional.Rules, metadata.CurrentSystem()) {
-			return nil
-		}
-		// Parse value as string or string array
-		val := string(arg.Conditional.Value)
-		val = strings.Trim(val, `"`)
-		if strings.HasPrefix(val, "[") {
-			// Array value - split and substitute
-			val = strings.Trim(val, `[]`)
-			parts := strings.Split(val, ",")
-			var result []string
-			for _, p := range parts {
-				p = strings.TrimSpace(p)
-				p = strings.Trim(p, `"`)
-				result = append(result, replaceVars(p, version, opts))
-			}
-			return result
-		}
-		return []string{replaceVars(val, version, opts)}
+	return values
+}
+
+func launchSystem(opts Options) metadata.SystemInfo {
+	sys := metadata.CurrentSystem()
+	if sys.Features == nil {
+		sys.Features = make(map[string]bool)
 	}
-	return nil
+	sys.Features["has_custom_resolution"] = opts.Width > 0 && opts.Height > 0
+	return sys
 }
 
 func replaceVars(s string, version metadata.VersionDetail, opts Options) string {
@@ -299,7 +292,7 @@ func buildClasspath(version metadata.VersionDetail, opts Options) string {
 
 	// Add allowed libraries
 	for _, lib := range version.Libraries {
-		if !metadata.ShouldDownload(lib.Rules, metadata.CurrentSystem()) {
+		if !metadata.ShouldDownload(lib.Rules, launchSystem(opts)) {
 			continue
 		}
 		if lib.Downloads != nil && lib.Downloads.Artifact.URL != "" {

@@ -93,6 +93,26 @@ func TestShouldDownloadFeaturesMismatch(t *testing.T) {
 	}
 }
 
+func TestShouldDownloadMatchesOSVersionRegex(t *testing.T) {
+	sys := metadata.SystemInfo{OS: "windows", Arch: "x64", OSVersion: "10.0.22631"}
+	rules := []metadata.Rule{{Action: "allow", OS: &metadata.OSRule{Name: "windows", Version: `^10\.`}}}
+	if !metadata.ShouldDownload(rules, sys) {
+		t.Fatal("expected Windows 10 rule to match")
+	}
+}
+
+func TestShouldDownloadRequiresCombinedOSAndFeatures(t *testing.T) {
+	sys := metadata.SystemInfo{OS: "windows", Arch: "x64", Features: map[string]bool{"has_custom_resolution": true}}
+	rules := []metadata.Rule{{Action: "allow", OS: &metadata.OSRule{Name: "windows"}, Features: &metadata.FeatureRule{HasCustomResolution: boolPtr(true)}}}
+	if !metadata.ShouldDownload(rules, sys) {
+		t.Fatal("expected combined rule to match")
+	}
+	sys.Features["has_custom_resolution"] = false
+	if metadata.ShouldDownload(rules, sys) {
+		t.Fatal("expected feature mismatch to reject combined rule")
+	}
+}
+
 func TestGetNativeClassifier(t *testing.T) {
 	library := metadata.Library{
 		Natives: map[string]string{
