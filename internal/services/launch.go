@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"os/exec"
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
@@ -16,6 +17,7 @@ import (
 type LaunchService struct {
 	DataRoot  string
 	Registry  *instances.Registry
+	Instances *instances.Manager
 	App       *application.App
 	mu        sync.Mutex
 	processes map[string]*exec.Cmd
@@ -74,23 +76,19 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	if err != nil {
 		return NewInternalError("failed to launch: " + err.Error())
 	}
-	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "running"})
-	s.mu.Lock()
-	if s.processes == nil {
-		s.processes = make(map[string]*exec.Cmd)
-	}
-	s.processes[opts.VersionID] = cmd
-	s.mu.Unlock()
+	started := false
 	defer func() {
 		s.mu.Lock()
-		delete(s.processes, opts.VersionID)
+		if s.processes != nil {
+			delete(s.processes, opts.VersionID)
+		}
 		s.mu.Unlock()
 	}()
 
 	// Monitor (blocks until exit)
 	var stderr []string
 	var stderrMu sync.Mutex
-	err = launch.Monitor(cmd, func(line string, isStderr bool) {
+	err = launch.MonitorWithStart(cmd, func(line string, isStderr bool) {
 		level := "info"
 		if isStderr {
 			level = "error"
@@ -102,18 +100,57 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 			stderrMu.Unlock()
 		}
 		emit(s.App, EventLogLine, LogLineEvent{Level: level, Message: launch.Redact(line, opts.AccessToken), InstanceID: opts.VersionID})
+	}, func() {
+		started = true
+		s.mu.Lock()
+		if s.processes == nil {
+			s.processes = make(map[string]*exec.Cmd)
+		}
+		s.processes[opts.VersionID] = cmd
+		s.mu.Unlock()
+		if s.Instances != nil {
+			_ = s.Instances.UpdateState(opts.VersionID, instances.StateRunning)
+		}
+		emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "running"})
 	})
 
-	s.Registry.Complete(opts.VersionID)
-
 	if err != nil {
-		emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "failed"})
+		if !started {
+			s.Registry.Fail(opts.VersionID)
+			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "failed"})
+			return NewInternalError("failed to start game: " + err.Error())
+		}
+		if op := s.Registry.Get(opts.VersionID); op != nil && op.Status == instances.OpStatusCancelled {
+			if s.Instances != nil {
+				_ = s.Instances.UpdateState(opts.VersionID, instances.StateStopped)
+			}
+			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "stopped"})
+			return nil
+		}
+		var exitErr *launch.ProcessExitError
+		if errors.As(err, &exitErr) {
+			if s.Instances != nil {
+				_ = s.Instances.UpdateState(opts.VersionID, instances.StateCrashed)
+			}
+			s.Registry.Fail(opts.VersionID)
+			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "crashed", ExitCode: &exitErr.Code})
+		} else {
+			if s.Instances != nil {
+				_ = s.Instances.UpdateState(opts.VersionID, instances.StateFailed)
+			}
+			s.Registry.Fail(opts.VersionID)
+			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "failed"})
+		}
 		if len(stderr) > 0 {
 			return NewInternalError("game process error: " + launch.Redact(strings.Join(stderr, "\n"), opts.AccessToken))
 		}
 		return NewInternalError("game process error: " + err.Error())
 	}
 
+	if s.Instances != nil {
+		_ = s.Instances.UpdateState(opts.VersionID, instances.StateStopped)
+	}
+	s.Registry.Complete(opts.VersionID)
 	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "stopped"})
 	return nil
 }

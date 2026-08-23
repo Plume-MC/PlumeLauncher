@@ -50,10 +50,11 @@ func main() {
 	}
 	registry := instances.NewRegistry()
 	accountService := &services.AccountService{DataRoot: config.DataRoot}
-	launchService := &services.LaunchService{DataRoot: config.DataRoot, Registry: registry}
+	instanceManager := instances.NewManager(config.DataRoot, defaults)
+	launchService := &services.LaunchService{DataRoot: config.DataRoot, Registry: registry, Instances: instanceManager}
 	instanceService := &services.InstanceService{
 		DataRoot: config.DataRoot,
-		Manager:  instances.NewManager(config.DataRoot, defaults),
+		Manager:  instanceManager,
 	}
 
 	// Create a new Wails application by providing the necessary options.
@@ -80,7 +81,7 @@ func main() {
 	app.RegisterService(application.NewService(&services.HomeService{
 		DataRoot:  config.DataRoot,
 		Defaults:  defaults,
-		Instances: instances.NewManager(config.DataRoot, defaults),
+		Instances: instanceManager,
 		Registry:  registry,
 		Launch:    launchService,
 		Accounts:  accountService,
