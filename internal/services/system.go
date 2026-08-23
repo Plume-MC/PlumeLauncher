@@ -4,8 +4,8 @@ import (
 	"plumelauncher/internal/bootstrap"
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
+	"plumelauncher/internal/launch"
 	"plumelauncher/internal/platform"
-	"strings"
 )
 
 // SystemService manages launcher settings and system operations.
@@ -51,7 +51,11 @@ func (s *SystemService) UpdateSettings(settings instances.LauncherDefaults) erro
 
 // WrapperArgs converts the validated persisted wrapper command to an argv prefix.
 func WrapperArgs(value string) []string {
-	return strings.Fields(value)
+	args, err := launch.ParseAndValidateWrapper(value)
+	if err != nil {
+		return nil
+	}
+	return args
 }
 
 // GetDataRoot returns the data root path.

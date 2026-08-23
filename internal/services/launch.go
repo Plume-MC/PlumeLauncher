@@ -70,7 +70,7 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	if err != nil {
 		return NewValidationError(err.Error(), "wrapper")
 	}
-	cmd, err := launch.Launch(command, commandArgs, opts.GameDir, nil)
+	cmd, err := launch.Launch(command, commandArgs, opts.GameDir, opts.Env)
 	if err != nil {
 		return NewInternalError("failed to launch: " + err.Error())
 	}

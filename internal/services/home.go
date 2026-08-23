@@ -290,10 +290,19 @@ func (s *HomeService) LaunchInstance(id string) error {
 		ClasspathRoot: s.DataRoot,
 		AssetsDir:     filepath.Join(s.DataRoot, "assets"),
 		NativesDir:    nativesDir,
+		MinRamMB:      settings.MinRamMB,
 		RamMB:         settings.MaxRamMB,
 		Width:         settings.ResolutionW,
 		Height:        settings.ResolutionH,
+		WindowMode:    settings.WindowMode,
+		GPU:           settings.GPUPreference,
+		JVMArgs:       launch.ParseArgumentString(settings.JVMArgs),
+		Env:           launch.EnvironmentForGPU(settings.GPUPreference),
 		JavaPath:      javaPath,
+	}
+	options.Wrapper, err = launch.ParseAndValidateWrapper(settings.WrapperCommand)
+	if err != nil {
+		return NewValidationError(err.Error(), "wrapper")
 	}
 	if account.Type == "ely.by" {
 		injector, err := auth.EnsureAuthlibInjector(context.Background(), filepath.Join(s.DataRoot, "cache"), nil)

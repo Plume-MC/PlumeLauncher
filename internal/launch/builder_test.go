@@ -223,6 +223,51 @@ func TestBuildArgumentsFullscreen(t *testing.T) {
 	}
 }
 
+func TestBuildArgumentsAppliesEffectiveSettings(t *testing.T) {
+	version := metadata.VersionDetail{ID: "1.21.4", MainClass: "main", AssetIndex: metadata.AssetIndex{ID: "1.21"}}
+	args, err := launch.BuildArguments(version, launch.Options{
+		MinRamMB: 1024, RamMB: 4096, Width: 1920, Height: 1080,
+		WindowMode: "Borderless", JVMArgs: []string{"-XX:+UseG1GC"},
+		GameDir: "game", NativesDir: "natives",
+	})
+	if err != nil {
+		t.Fatalf("BuildArguments: %v", err)
+	}
+	want := []string{"-Xms1024M", "-Xmx4096M", "-XX:+UseG1GC", "-Dorg.lwjgl.glfw.window.undecorated=true"}
+	for _, expected := range want {
+		found := false
+		for _, arg := range args {
+			if arg == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing effective setting argument %q", expected)
+		}
+	}
+}
+
+func TestBuildCommandRejectsShellWrapper(t *testing.T) {
+	if _, _, err := launch.BuildCommand("java", nil, []string{"sh", "-c"}); err == nil {
+		t.Fatal("shell wrapper was accepted")
+	}
+}
+
+func TestBuildCommandParsesSafeWrapper(t *testing.T) {
+	wrapper, err := launch.ParseAndValidateWrapper(`gamemoderun --`)
+	if err != nil {
+		t.Fatalf("ParseAndValidateWrapper: %v", err)
+	}
+	command, args, err := launch.BuildCommand("java", []string{"-version"}, wrapper)
+	if err != nil {
+		t.Fatalf("BuildCommand: %v", err)
+	}
+	if command != "gamemoderun" || len(args) != 3 || args[0] != "--" || args[1] != "java" || args[2] != "-version" {
+		t.Fatalf("command = %q %#v", command, args)
+	}
+}
+
 func TestBuildArgumentsAddsVerifiedInjector(t *testing.T) {
 	args, err := launch.BuildArguments(metadata.VersionDetail{ID: "test", MainClass: "main"}, launch.Options{GameDir: "test", NativesDir: "test/natives", AuthlibInjector: "C:/cache/authlib-injector.jar"})
 	if err != nil {

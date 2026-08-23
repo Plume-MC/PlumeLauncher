@@ -22,13 +22,16 @@ type Options struct {
 	AssetsDir       string
 	NativesDir      string
 	RamMB           int
+	MinRamMB        int
 	Width           int
 	Height          int
 	Fullscreen      bool
+	WindowMode      string
 	GPU             string   // "auto", "discrete", "integrated"
 	Wrapper         []string // validated argv prefix
 	JavaPath        string
 	JVMArgs         []string
+	Env             map[string]string
 	AuthlibInjector string // verified authlib-injector JAR for Ely.by accounts
 }
 
@@ -60,13 +63,58 @@ func BuildCommand(javaPath string, javaArgs []string, wrapper []string) (string,
 	if len(wrapper) == 0 {
 		return javaPath, javaArgs, nil
 	}
-	for _, arg := range wrapper {
-		if arg == "" || strings.ContainsRune(arg, 0) {
-			return "", nil, fmt.Errorf("invalid wrapper argument")
-		}
+	if err := ValidateWrapper(wrapper); err != nil {
+		return "", nil, err
 	}
 	args := append(append([]string{}, wrapper[1:]...), javaPath)
 	return wrapper[0], append(args, javaArgs...), nil
+}
+
+// ParseArgumentString tokenizes a quoted argument string without invoking a shell.
+func ParseArgumentString(value string) []string {
+	return splitLegacyArguments(value)
+}
+
+// ParseAndValidateWrapper converts stored wrapper text into a safe argv prefix.
+func ParseAndValidateWrapper(value string) ([]string, error) {
+	wrapper := ParseArgumentString(value)
+	if err := ValidateWrapper(wrapper); err != nil {
+		return nil, err
+	}
+	return wrapper, nil
+}
+
+// ValidateWrapper rejects empty, traversal-style, and shell-interpreter wrappers.
+func ValidateWrapper(wrapper []string) error {
+	if len(wrapper) == 0 {
+		return nil
+	}
+	for _, arg := range wrapper {
+		if arg == "" || strings.ContainsRune(arg, 0) || strings.Contains(arg, "..") {
+			return fmt.Errorf("invalid wrapper argument")
+		}
+	}
+	executable := strings.ToLower(filepath.Base(strings.ReplaceAll(wrapper[0], `\`, `/`)))
+	switch executable {
+	case "cmd", "cmd.exe", "powershell", "powershell.exe", "pwsh", "pwsh.exe", "sh", "bash", "zsh", "fish":
+		return fmt.Errorf("shell wrappers are not allowed")
+	default:
+		return nil
+	}
+}
+
+// EnvironmentForGPU returns platform-specific process environment overrides.
+func EnvironmentForGPU(preference string) map[string]string {
+	if runtime.GOOS != "linux" || preference == "" || preference == "auto" {
+		return nil
+	}
+	if preference == "discrete" {
+		return map[string]string{"DRI_PRIME": "1"}
+	}
+	if preference == "integrated" {
+		return map[string]string{"DRI_PRIME": "0"}
+	}
+	return nil
 }
 
 func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {
@@ -76,6 +124,9 @@ func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {
 	}
 
 	// Memory
+	if opts.MinRamMB > 0 {
+		args = append(args, fmt.Sprintf("-Xms%dM", opts.MinRamMB))
+	}
 	if opts.RamMB > 0 {
 		args = append(args, fmt.Sprintf("-Xmx%dM", opts.RamMB))
 	}
@@ -117,6 +168,10 @@ func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {
 		// Fallback: -cp <classpath>
 		cp := buildClasspath(version, opts)
 		args = append(args, "-cp", cp)
+	}
+	args = append(args, opts.JVMArgs...)
+	if strings.EqualFold(opts.WindowMode, "borderless") {
+		args = append(args, "-Dorg.lwjgl.glfw.window.undecorated=true")
 	}
 
 	return args
@@ -173,7 +228,7 @@ func buildGameArgs(version metadata.VersionDetail, opts Options) []string {
 			break
 		}
 	}
-	if !hasFullscreen && opts.Fullscreen {
+	if !hasFullscreen && (opts.Fullscreen || strings.EqualFold(opts.WindowMode, "fullscreen")) {
 		args = append(args, "--fullscreen")
 	}
 

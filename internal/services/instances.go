@@ -2,7 +2,7 @@ package services
 
 import (
 	"plumelauncher/internal/instances"
-	"strings"
+	"plumelauncher/internal/launch"
 )
 
 // InstanceService manages Minecraft instances.
@@ -99,7 +99,8 @@ func validGPUPreference(value string) bool {
 }
 
 func validWrapper(value string) bool {
-	return value == "" || (!strings.ContainsRune(value, 0) && len(strings.Fields(value)) > 0)
+	_, err := launch.ParseAndValidateWrapper(value)
+	return err == nil
 }
 
 // DeleteInstance removes an instance.
