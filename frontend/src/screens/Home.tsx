@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Events } from '@wailsio/runtime';
 import { Plus, Search, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ import { toast } from '@/components/ui/toast';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
 import type { Instance } from '../../bindings/plumelauncher/internal/instances/models.js';
 import { LoaderType } from '../../bindings/plumelauncher/internal/instances/models.js';
+import type { DownloadProgressEvent, LaunchStateEvent } from '../../bindings/plumelauncher/internal/services/models.js';
 
 interface HomeProps {
   account: Account | null;
@@ -32,6 +34,21 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState('');
   const [accountsOpen, setAccountsOpen] = useState(false);
+  const [liveStatus, setLiveStatus] = useState('');
+
+	useEffect(() => {
+	  const unsubs = [
+		Events.On('download-progress', (event) => {
+		  const data: DownloadProgressEvent = event.data;
+		  setLiveStatus(data.status === 'downloading' ? `Downloading ${data.fileProgress}/${data.totalFiles}` : data.status === 'failed' ? 'Download failed' : '');
+		}),
+		Events.On('launch-state', (event) => {
+		  const data: LaunchStateEvent = event.data;
+		  setLiveStatus(data.state === 'running' ? 'Minecraft is running' : data.state === 'crashed' ? 'Minecraft crashed' : data.state === 'failed' ? 'Launch failed' : '');
+		}),
+	  ];
+	  return () => unsubs.forEach((unsubscribe) => unsubscribe());
+	}, []);
 
   const visibleInstances = [...instances]
     .filter((instance) => loaderFilter === 'all' || instance.loader === loaderFilter)
@@ -43,7 +60,8 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
     setBusyId(id)
     try {
       if (action === 'play') await HomeService.LaunchInstance(id)
-      if (action === 'install' || action === 'repair') await HomeService.InstallInstance(id)
+       if (action === 'install') await HomeService.InstallInstance(id)
+       if (action === 'repair') await HomeService.RepairInstance(id)
       if (action === 'stop') await HomeService.StopInstance(id)
       toast.add({ type: 'success', title: action === 'play' ? 'Minecraft closed' : `${action === 'install' ? 'Install' : action === 'repair' ? 'Repair' : 'Stop'} complete` })
     } catch (error) {
@@ -59,7 +77,7 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
       {/* Header */}
       <div className="mb-4 space-y-2">
         <h1 className="text-lg font-semibold tracking-tight">Instance Library</h1>
-         <ContextStrip accountName={account?.displayName || account?.username} accountType={account?.type === 'ely.by' ? 'ely.by' : 'offline'} instanceCount={instances.length} />
+          <ContextStrip accountName={account?.displayName || account?.username} accountType={account?.type === 'ely.by' ? 'ely.by' : 'offline'} instanceCount={instances.length} liveStatus={liveStatus} />
       </div>
 
       {/* Toolbar */}

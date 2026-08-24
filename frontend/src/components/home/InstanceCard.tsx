@@ -2,7 +2,6 @@ import { Play, Download, MoreVertical } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 import { InstanceState, LoaderType } from '../../../bindings/plumelauncher/internal/instances/models.js';
 
@@ -56,13 +55,18 @@ export function InstanceCard({
   onAction,
   busy = false,
 }: InstanceCardProps) {
-  const reducedMotion = useReducedMotion();
   return (
     <Card
-      className="cursor-pointer transition-colors hover:border-primary/40"
+      className="cursor-pointer hover:border-primary/40"
       onClick={onOpenDetail}
-       role="group"
-       aria-label={`${name} instance`}
+      onKeyDown={(event) => {
+		if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+		event.preventDefault();
+		onOpenDetail?.();
+	  }}
+	  tabIndex={0}
+	  role="button"
+	  aria-label={`Open details for ${name}`}
       data-slot="instance-card"
     >
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
@@ -93,7 +97,7 @@ export function InstanceCard({
           )}
            {(state === InstanceState.StateDownloading || state === InstanceState.StatePlanning || state === InstanceState.StateVerifying) && (
             <Badge variant="outline" className="text-[10px]">
-               <Download className={`mr-1 size-3 ${reducedMotion ? '' : 'animate-pulse'}`} />
+				<Download className="mr-1 size-3" />
               Downloading
             </Badge>
           )}

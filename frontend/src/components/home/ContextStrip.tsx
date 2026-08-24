@@ -14,7 +14,7 @@ export function ContextStrip({
   liveStatus,
 }: ContextStripProps) {
   return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground" data-slot="context-strip">
+    <div className="flex items-center gap-3 text-xs text-muted-foreground" data-slot="context-strip" aria-live="polite">
       <div className="flex items-center gap-1.5">
         <User className="size-3" />
         <span>{accountName}</span>
