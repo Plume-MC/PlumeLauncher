@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"plumelauncher/internal/instances"
@@ -11,6 +14,14 @@ import (
 )
 
 type memoryKeyring map[string]string
+
+type unavailableKeyring struct{}
+
+func (unavailableKeyring) Set(string, string) error { return fmt.Errorf("keyring unavailable") }
+func (unavailableKeyring) Get(string) (string, error) {
+	return "", fmt.Errorf("keyring unavailable")
+}
+func (unavailableKeyring) Delete(string) error { return fmt.Errorf("keyring unavailable") }
 
 func (k memoryKeyring) Set(key, value string) error { k[key] = value; return nil }
 func (k memoryKeyring) Get(key string) (string, error) {
@@ -94,6 +105,40 @@ func TestAccountServiceElyByLifecycle(t *testing.T) {
 	}
 	if len(keyring) != 0 {
 		t.Fatal("logout left token in keyring")
+	}
+}
+
+func TestAccountServiceLoginRemovesTokenWhenPersistenceFails(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"accessToken":"session-token","selectedProfile":{"id":"ely-uuid","name":"ElyPlayer"}}`))
+	}))
+	defer server.Close()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "accounts.json"), []byte("not-json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	keyring := memoryKeyring{}
+	svc := &services.AccountService{DataRoot: dir, HTTPClient: server.Client(), ElyByURL: server.URL + "/auth/", Keyring: keyring}
+	if _, err := svc.LoginElyBy("player", "password"); err == nil {
+		t.Fatal("expected account persistence failure")
+	}
+	if len(keyring) != 0 {
+		t.Fatalf("orphaned token remains: %#v", keyring)
+	}
+}
+
+func TestAccountServiceFailsClosedWhenKeyringUnavailable(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"accessToken":"session-token","selectedProfile":{"id":"ely-uuid","name":"ElyPlayer"}}`))
+	}))
+	defer server.Close()
+	dir := t.TempDir()
+	svc := &services.AccountService{DataRoot: dir, HTTPClient: server.Client(), ElyByURL: server.URL + "/auth/", Keyring: unavailableKeyring{}}
+	if _, err := svc.LoginElyBy("player", "password"); err == nil || !strings.Contains(err.Error(), "secure session storage") {
+		t.Fatalf("error = %v, want secure storage failure", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "accounts.json")); !os.IsNotExist(err) {
+		t.Fatalf("accounts file exists after keyring failure: %v", err)
 	}
 }
 

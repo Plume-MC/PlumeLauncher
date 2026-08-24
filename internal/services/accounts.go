@@ -27,9 +27,17 @@ func (s *AccountService) LoginElyBy(username, password string) (*Account, error)
 		return nil, NewUpstreamError("Ely.by authentication failed")
 	}
 	account := Account{UUID: session.SelectedProfile.ID, Username: session.SelectedProfile.Name, DisplayName: session.SelectedProfile.Name, Type: "ely.by", Selected: true}
-	if err := s.tokenStore().Set(auth.SessionKey(account.UUID), session.AccessToken); err != nil {
+	key := auth.SessionKey(account.UUID)
+	store := s.tokenStore()
+	if err := store.Set(key, session.AccessToken); err != nil {
 		return nil, NewUpstreamError("secure session storage is unavailable; please retry after fixing your OS keyring")
 	}
+	keepToken := false
+	defer func() {
+		if !keepToken {
+			_ = store.Delete(key)
+		}
+	}()
 	accounts, err := s.loadAccounts()
 	if err != nil {
 		return nil, NewInternalError("failed to load accounts")
@@ -43,6 +51,7 @@ func (s *AccountService) LoginElyBy(username, password string) (*Account, error)
 			if err := s.saveAccounts(accounts); err != nil {
 				return nil, NewInternalError("failed to save account")
 			}
+			keepToken = true
 			return &account, nil
 		}
 	}
@@ -53,6 +62,7 @@ func (s *AccountService) LoginElyBy(username, password string) (*Account, error)
 	if err := s.saveAccounts(accounts); err != nil {
 		return nil, NewInternalError("failed to save account")
 	}
+	keepToken = true
 	return &account, nil
 }
 

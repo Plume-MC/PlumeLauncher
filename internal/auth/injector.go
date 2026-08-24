@@ -38,7 +38,7 @@ func ensureAuthlibInjector(ctx context.Context, cacheRoot string, client *http.C
 	clientCopy := *client
 	previousRedirect := clientCopy.CheckRedirect
 	clientCopy.CheckRedirect = func(request *http.Request, via []*http.Request) error {
-		if request.URL.Scheme != "https" || !trustedAuthlibHost(request.URL.Hostname()) {
+		if !trustedAuthlibURL(request.URL) {
 			return fmt.Errorf("untrusted authlib-injector redirect")
 		}
 		if previousRedirect != nil {
@@ -57,6 +57,9 @@ func ensureAuthlibInjector(ctx context.Context, cacheRoot string, client *http.C
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("download authlib-injector: %s", response.Status)
+	}
+	if response.Request == nil || !trustedAuthlibURL(response.Request.URL) {
+		return "", fmt.Errorf("untrusted authlib-injector final redirect")
 	}
 	temporary, err := os.CreateTemp(cacheRoot, ".authlib-injector-*.jar")
 	if err != nil {
@@ -87,6 +90,10 @@ func trustedAuthlibHost(host string) bool {
 	default:
 		return false
 	}
+}
+
+func trustedAuthlibURL(u *url.URL) bool {
+	return u != nil && u.Scheme == "https" && trustedAuthlibHost(u.Hostname())
 }
 
 func verifySHA256(path, expected string) error {

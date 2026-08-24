@@ -4,12 +4,21 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+type responseTransport func(*http.Request) (*http.Response, error)
+
+func (f responseTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
+}
 
 func TestEnsureAuthlibInjectorVerifiesCacheAndDownload(t *testing.T) {
 	contents := []byte("verified jar")
@@ -30,5 +39,21 @@ func TestEnsureAuthlibInjectorVerifiesCacheAndDownload(t *testing.T) {
 	got, err := ensureAuthlibInjector(context.Background(), cache, nil, authlibInjectorURL, fmt.Sprintf("%x", hash))
 	if err != nil || got != path {
 		t.Fatalf("verified cache = %q, %v", got, err)
+	}
+}
+
+func TestEnsureAuthlibInjectorRejectsUntrustedFinalResponseURL(t *testing.T) {
+	evil, _ := url.Parse("https://evil.example/authlib-injector.jar")
+	client := &http.Client{Transport: responseTransport(func(request *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Status:     "200 OK",
+			Body:       io.NopCloser(strings.NewReader("jar")),
+			Request:    &http.Request{URL: evil},
+		}, nil
+	})}
+	_, err := ensureAuthlibInjector(context.Background(), t.TempDir(), client, authlibInjectorURL, "00")
+	if err == nil || !strings.Contains(err.Error(), "final redirect") {
+		t.Fatalf("error = %v, want final redirect rejection", err)
 	}
 }
