@@ -1,8 +1,9 @@
-import { useState, useEffect, type KeyboardEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { Events } from '@wailsio/runtime';
 import { X, Terminal, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HomeService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { DownloadProgressEvent } from '../../../bindings/plumelauncher/internal/services/models.js';
 
@@ -45,17 +46,6 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
 
   if (!isOpen) return null;
 
-  const selectTab = (tab: Tab) => setActiveTab(tab);
-  const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const tabs: Tab[] = ['console', 'downloads'];
-    const index = tabs.indexOf(activeTab);
-    const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index - 1 + tabs.length) % tabs.length : index;
-    if (next === index && !['Home', 'End'].includes(event.key)) return;
-    event.preventDefault();
-    selectTab(tabs[next]);
-    event.currentTarget.querySelector<HTMLButtonElement>(`[data-tab="${tabs[next]}"]`)?.focus();
-  };
-
   const cancelDownload = async () => {
     if (!download?.instanceId) return;
     setCancelling(true);
@@ -70,45 +60,12 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
     >
       {/* Tab bar */}
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <div className="flex items-center gap-1" role="tablist" aria-label="Activity views" onKeyDown={handleTabKeyDown}>
-              <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'console'}
-              aria-controls="activity-console"
-              id="activity-tab-console"
-              tabIndex={activeTab === 'console' ? 0 : -1}
-              data-tab="console"
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-              activeTab === 'console'
-                ? 'bg-accent text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-             onClick={() => selectTab('console')}
-          >
-            <Terminal className="size-3.5" />
-            Console
-          </button>
-           <button
-             type="button"
-              role="tab"
-              aria-selected={activeTab === 'downloads'}
-              aria-controls="activity-downloads"
-              id="activity-tab-downloads"
-              tabIndex={activeTab === 'downloads' ? 0 : -1}
-              data-tab="downloads"
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-              activeTab === 'downloads'
-                ? 'bg-accent text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-             onClick={() => selectTab('downloads')}
-          >
-            <Download className="size-3.5" />
-            Downloads
-             {activityCount > 0 && <Badge variant="outline" className="ml-1 h-4 px-1 text-[9px]">{activityCount}</Badge>}
-          </button>
-        </div>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as Tab)}>
+          <TabsList className="border-0" aria-label="Activity views">
+            <TabsTrigger value="console"><Terminal />Console</TabsTrigger>
+            <TabsTrigger value="downloads"><Download />Downloads{activityCount > 0 && <Badge variant="outline" className="ml-1 h-4 px-1 text-[9px]">{activityCount}</Badge>}</TabsTrigger>
+          </TabsList>
+        </Tabs>
         <Button
           variant="ghost"
           size="icon-xs"
@@ -120,8 +77,9 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
       </div>
 
       {/* Content */}
-      <div id={`activity-${activeTab}`} role="tabpanel" aria-labelledby={`activity-tab-${activeTab}`} className="flex-1 overflow-auto p-3 font-mono text-xs text-muted-foreground">
-        {activeTab === 'console' && (
+      <div className="flex-1 overflow-auto p-3 font-mono text-xs text-muted-foreground">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as Tab)}>
+        <TabsContent value="console">
           <div className="space-y-1">
             {consoleLines.length === 0 ? (
               <p className="text-muted-foreground/50">No active console output.</p>
@@ -129,8 +87,8 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
               consoleLines.map((line, i) => <p key={i}>{line}</p>)
             )}
           </div>
-        )}
-        {activeTab === 'downloads' && (
+        </TabsContent>
+        <TabsContent value="downloads">
           <div className="space-y-1">
              {download ? (
               <div className="space-y-2">
@@ -143,7 +101,8 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
               <p className="text-muted-foreground/50">No active downloads.</p>
             )}
           </div>
-        )}
+        </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

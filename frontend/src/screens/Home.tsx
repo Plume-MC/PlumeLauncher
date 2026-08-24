@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Search, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { ContextStrip } from '@/components/home/ContextStrip';
 import { InstanceCard } from '@/components/home/InstanceCard';
 import { InstanceDetailSheet } from '@/components/home/InstanceDetailSheet';
@@ -73,14 +74,14 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
             aria-label="Search instances"
           />
         </div>
-         <label className="sr-only" htmlFor="loader-filter">Filter by loader</label>
-         <select id="loader-filter" value={loaderFilter} onChange={(event) => setLoaderFilter(event.target.value as 'all' | LoaderType)} className="h-8 rounded-md border border-border bg-background px-2 text-xs">
-           <option value="all">All loaders</option><option value="vanilla">Vanilla</option><option value="fabric">Fabric</option><option value="quilt">Quilt</option>
-         </select>
-         <label className="sr-only" htmlFor="sort-instances">Sort instances</label>
-         <select id="sort-instances" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)} className="h-8 rounded-md border border-border bg-background px-2 text-xs">
-           <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="name">Name</option>
-         </select>
+          <Select value={loaderFilter as string} onValueChange={(value) => setLoaderFilter((value ?? 'all') as 'all' | LoaderType)}>
+            <SelectTrigger aria-label="Filter by loader"><span>{loaderFilter === 'all' ? 'All loaders' : loaderFilter}</span></SelectTrigger>
+            <SelectContent><SelectItem value="all">All loaders</SelectItem><SelectItem value="vanilla">Vanilla</SelectItem><SelectItem value="fabric">Fabric</SelectItem><SelectItem value="quilt">Quilt</SelectItem></SelectContent>
+          </Select>
+          <Select value={sort} onValueChange={(value) => setSort((value ?? 'newest') as typeof sort)}>
+            <SelectTrigger aria-label="Sort instances"><span className="capitalize">{sort}</span></SelectTrigger>
+            <SelectContent><SelectItem value="newest">Newest</SelectItem><SelectItem value="oldest">Oldest</SelectItem><SelectItem value="name">Name</SelectItem></SelectContent>
+          </Select>
          <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
           <Plus className="size-3.5" />
           New Instance

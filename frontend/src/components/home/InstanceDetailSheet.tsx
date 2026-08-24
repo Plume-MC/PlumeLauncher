@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { InstanceService, HomeService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { Instance, Settings } from '../../../bindings/plumelauncher/internal/instances/models.js';
 
@@ -48,6 +50,7 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
   const [saved, setSaved] = useState<Draft>(() => draftFrom(instance?.settings));
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  const [discardOpen, setDiscardOpen] = useState(false);
 
   useEffect(() => {
     const next = draftFrom(instance?.settings);
@@ -61,7 +64,10 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const update = (key: keyof Draft, value: string) => setDraft((current) => ({ ...current, [key]: value }));
   const close = () => {
-    if (dirty && !window.confirm('Discard unsaved instance settings?')) return;
+    if (dirty) {
+      setDiscardOpen(true);
+      return;
+    }
     onClose();
   };
 
@@ -101,6 +107,7 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
   };
 
   return (
+    <>
     <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) close(); }}>
       <Dialog.Portal>
       <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/40" />
@@ -125,8 +132,8 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
             <label className="block space-y-1 text-xs">Java path<Input value={draft.javaPath} onChange={(e) => update('javaPath', e.target.value)} placeholder="Inherit launcher default" /></label>
             <label className="block space-y-1 text-xs">JVM arguments<Input value={draft.jvmArgs} onChange={(e) => update('jvmArgs', e.target.value)} placeholder="Inherit launcher default" /></label>
             <div className="grid grid-cols-2 gap-3">
-              <label className="space-y-1 text-xs">Window mode<select value={draft.windowMode} onChange={(e) => update('windowMode', e.target.value)} className="h-8 w-full rounded-md border border-border bg-background px-2"><option value="">Inherit</option><option>Windowed</option><option>Fullscreen</option><option>Borderless</option></select></label>
-              <label className="space-y-1 text-xs">GPU<select value={draft.gpuPreference} onChange={(e) => update('gpuPreference', e.target.value)} className="h-8 w-full rounded-md border border-border bg-background px-2"><option value="">Inherit</option><option value="auto">Auto</option><option value="discrete">Discrete</option><option value="integrated">Integrated</option></select></label>
+               <label className="space-y-1 text-xs">Window mode<Select value={draft.windowMode} onValueChange={(value) => update('windowMode', value ?? '')}><SelectTrigger aria-label="Window mode"><span>{draft.windowMode || 'Inherit'}</span></SelectTrigger><SelectContent><SelectItem value="">Inherit</SelectItem><SelectItem value="Windowed">Windowed</SelectItem><SelectItem value="Fullscreen">Fullscreen</SelectItem><SelectItem value="Borderless">Borderless</SelectItem></SelectContent></Select></label>
+               <label className="space-y-1 text-xs">GPU<Select value={draft.gpuPreference} onValueChange={(value) => update('gpuPreference', value ?? '')}><SelectTrigger aria-label="GPU preference"><span>{draft.gpuPreference || 'Inherit'}</span></SelectTrigger><SelectContent><SelectItem value="">Inherit</SelectItem><SelectItem value="auto">Auto</SelectItem><SelectItem value="discrete">Discrete</SelectItem><SelectItem value="integrated">Integrated</SelectItem></SelectContent></Select></label>
             </div>
             <label className="block space-y-1 text-xs">Wrapper command<Input value={draft.wrapperCommand} onChange={(e) => update('wrapperCommand', e.target.value)} placeholder="Inherit launcher default" /></label>
           </fieldset>
@@ -140,5 +147,13 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
       </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>
+    <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+      <AlertDialogContent>
+        <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+        <AlertDialogDescription>Your instance settings changes will be lost.</AlertDialogDescription>
+        <div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={() => setDiscardOpen(false)}>Keep editing</Button><Button variant="destructive" onClick={() => { setDiscardOpen(false); onClose(); }}>Discard</Button></div>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

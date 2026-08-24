@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { HomeService } from '../../../bindings/plumelauncher/internal/services/index.js';
 
 interface CreateInstanceDialogProps {
@@ -78,10 +79,10 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
           <form className="mt-5 space-y-4" onSubmit={submit}>
             <div className="space-y-2"><label htmlFor="instance-name" className="text-sm font-medium">Name</label><Input id="instance-name" value={name} maxLength={48} onChange={(event) => setName(event.target.value)} autoFocus required /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><label htmlFor="instance-loader" className="text-sm font-medium">Loader</label><select id="instance-loader" value={loader} onChange={(event) => setLoader(event.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"><option value="vanilla">Vanilla</option><option value="fabric">Fabric</option><option value="quilt">Quilt</option></select></div>
-              <div className="space-y-2"><label htmlFor="instance-version" className="text-sm font-medium">Minecraft version</label><select id="instance-version" value={version} onChange={(event) => setVersion(event.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm" disabled={!versions.length}>{versions.map((supported) => <option key={supported} value={supported}>{supported}</option>)}</select></div>
+              <div className="space-y-2"><label className="text-sm font-medium">Loader</label><Select value={loader} onValueChange={(value) => setLoader(value ?? 'vanilla')}><SelectTrigger aria-label="Loader"><span className="capitalize">{loader}</span></SelectTrigger><SelectContent><SelectItem value="vanilla">Vanilla</SelectItem><SelectItem value="fabric">Fabric</SelectItem><SelectItem value="quilt">Quilt</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><label className="text-sm font-medium">Minecraft version</label><Select value={version} onValueChange={(value) => setVersion(value ?? '')} disabled={!versions.length}><SelectTrigger aria-label="Minecraft version"><span>{version || 'Select version'}</span></SelectTrigger><SelectContent>{versions.map((supported) => <SelectItem key={supported} value={supported}>{supported}</SelectItem>)}</SelectContent></Select></div>
             </div>
-            {loader !== 'vanilla' && <div className="space-y-2"><label htmlFor="instance-loader-version" className="text-sm font-medium">{loader === 'fabric' ? 'Fabric' : 'Quilt'} loader version</label><select id="instance-loader-version" value={loaderVersion} onChange={(event) => setLoaderVersion(event.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm" disabled={!loaderVersions.length}>{loaderVersions.map((supported) => <option key={supported} value={supported}>{supported}</option>)}</select></div>}
+            {loader !== 'vanilla' && <div className="space-y-2"><label className="text-sm font-medium">{loader === 'fabric' ? 'Fabric' : 'Quilt'} loader version</label><Select value={loaderVersion} onValueChange={(value) => setLoaderVersion(value ?? '')} disabled={!loaderVersions.length}><SelectTrigger aria-label="Loader version"><span>{loaderVersion || 'Select loader version'}</span></SelectTrigger><SelectContent>{loaderVersions.map((supported) => <SelectItem key={supported} value={supported}>{supported}</SelectItem>)}</SelectContent></Select></div>}
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <div className="flex justify-end gap-2"><Dialog.Close render={<Button type="button" variant="ghost" />}>Cancel</Dialog.Close><Button type="submit" disabled={!name.trim() || !version || (loader !== 'vanilla' && !loaderVersion) || !!error}>Create</Button></div>
           </form>
