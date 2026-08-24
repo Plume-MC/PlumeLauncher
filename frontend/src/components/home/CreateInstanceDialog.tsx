@@ -39,8 +39,9 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
     setVersion('');
     void HomeService.SupportedVersions(loader).then((supported) => {
       if (cancelled) return;
-      setVersions(supported);
-      setVersion((current) => supported.includes(current) ? current : supported[0] ?? '');
+       const nextVersions = supported ?? [];
+       setVersions(nextVersions);
+       setVersion((current) => nextVersions.includes(current) ? current : nextVersions[0] ?? '');
     }).catch((err) => {
       if (!cancelled) {
         setVersions([]);
@@ -58,8 +59,9 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
     if (loader === 'vanilla' || !version) return;
     void HomeService.LoaderVersions(loader, version).then((supported) => {
       if (cancelled) return;
-      setLoaderVersions(supported);
-      setLoaderVersion(supported[0] ?? '');
+       const nextVersions = supported ?? [];
+       setLoaderVersions(nextVersions);
+       setLoaderVersion(nextVersions[0] ?? '');
     }).catch((err) => {
       if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load loader versions');
     });

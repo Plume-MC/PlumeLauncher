@@ -12,6 +12,7 @@ import { HomeService } from '../../bindings/plumelauncher/internal/services/inde
 import { toast } from '@/components/ui/toast';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
 import type { Instance } from '../../bindings/plumelauncher/internal/instances/models.js';
+import { LoaderType } from '../../bindings/plumelauncher/internal/instances/models.js';
 
 interface HomeProps {
   account: Account | null;
@@ -22,7 +23,7 @@ interface HomeProps {
 
 export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
   const [search, setSearch] = useState('');
-  const [loaderFilter, setLoaderFilter] = useState<'all' | 'vanilla' | 'fabric' | 'quilt'>('all');
+  const [loaderFilter, setLoaderFilter] = useState<'all' | LoaderType>('all');
   const [sort, setSort] = useState<'newest' | 'oldest' | 'name'>('newest');
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailInstance, setDetailInstance] = useState<Instance | null>(null);
@@ -73,7 +74,7 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
           />
         </div>
          <label className="sr-only" htmlFor="loader-filter">Filter by loader</label>
-         <select id="loader-filter" value={loaderFilter} onChange={(event) => setLoaderFilter(event.target.value as typeof loaderFilter)} className="h-8 rounded-md border border-border bg-background px-2 text-xs">
+         <select id="loader-filter" value={loaderFilter} onChange={(event) => setLoaderFilter(event.target.value as 'all' | LoaderType)} className="h-8 rounded-md border border-border bg-background px-2 text-xs">
            <option value="all">All loaders</option><option value="vanilla">Vanilla</option><option value="fabric">Fabric</option><option value="quilt">Quilt</option>
          </select>
          <label className="sr-only" htmlFor="sort-instances">Sort instances</label>
@@ -96,7 +97,7 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
           </p>
         </div>}
         {instances.length > 0 && visibleInstances.length === 0 && <div className="col-span-full py-16 text-center text-sm text-muted-foreground">No matching instances.</div>}
-        {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.state as 'not_installed' | 'ready' | 'running' | 'downloading' | 'failed' | 'stopped' | 'crashed'} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
+         {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.state} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
       </div>
 
        <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} instance={detailInstance} onChanged={onRefresh} onDelete={() => { setDetailOpen(false); setDeleteId(detailInstance?.id ?? null); }} />

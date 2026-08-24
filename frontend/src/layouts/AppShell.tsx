@@ -4,6 +4,7 @@ import { Events } from '@wailsio/runtime';
 import { TopBar } from '@/components/home/TopBar';
 import { ActivityPanel } from '@/components/panels/ActivityPanel';
 import { SettingsSheet } from '@/components/home/SettingsSheet';
+import type { DownloadProgressEvent, LaunchStateEvent } from '../../bindings/plumelauncher/internal/services/models.js';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -16,15 +17,17 @@ export function AppShell({ children }: AppShellProps) {
 
   useEffect(() => {
     const unsubs = [
-      Events.On('download-progress', (event: any) => {
-        const active = event.data?.status !== 'completed' && event.data?.status !== 'failed';
+      Events.On('download-progress', (event) => {
+        const data: DownloadProgressEvent = event.data;
+        const active = data.status !== 'completed' && data.status !== 'failed' && data.status !== 'cancelled';
         setActivityCount(active ? 1 : 0);
-        if (active || event.data?.status === 'failed') setActivityOpen(true);
+        if (active || data.status === 'failed') setActivityOpen(true);
       }),
-      Events.On('launch-state', (event: any) => {
-        const active = event.data?.state !== 'stopped' && event.data?.state !== 'failed';
+      Events.On('launch-state', (event) => {
+        const data: LaunchStateEvent = event.data;
+        const active = data.state !== 'stopped' && data.state !== 'failed';
         setActivityCount(active ? 1 : 0);
-        if (active || event.data?.state === 'failed') setActivityOpen(true);
+        if (active || data.state === 'failed') setActivityOpen(true);
       }),
     ];
     return () => unsubs.forEach((unsubscribe) => unsubscribe());

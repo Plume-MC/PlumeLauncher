@@ -16,7 +16,7 @@ function App() {
   const [loading, setLoading] = useState(true)
 
   const refresh = async () => {
-    const accounts = await AccountService.ListAccounts()
+    const accounts = (await AccountService.ListAccounts()) ?? []
     setAccounts(accounts)
     setAccount(accounts.find((item) => item.selected) ?? accounts[0] ?? null)
     setInstances((await HomeService.ListInstances()) ?? [])

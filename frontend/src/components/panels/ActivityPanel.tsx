@@ -4,10 +4,9 @@ import { X, Terminal, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { HomeService } from '../../../bindings/plumelauncher/internal/services/index.js';
+import type { DownloadProgressEvent } from '../../../bindings/plumelauncher/internal/services/models.js';
 
 type Tab = 'console' | 'downloads';
-type DownloadProgress = { instanceId: string; status: string; fileProgress: number; totalFiles: number; byteProgress: number; totalBytes: number; speed: number; eta: number; error?: string };
-
 interface ActivityPanelProps {
   isOpen: boolean;
   onClose: () => void;
@@ -17,7 +16,7 @@ interface ActivityPanelProps {
 export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('downloads');
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
-  const [download, setDownload] = useState<DownloadProgress | null>(null);
+  const [download, setDownload] = useState<DownloadProgressEvent | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
@@ -29,12 +28,12 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0 }: ActivityPa
     window.addEventListener('keydown', closeOnEscape);
 
     const unsubs = [
-       Events.On('log-line', (event: any) => {
-          const data = event.data;
+        Events.On('log-line', (event) => {
+           const data = event.data;
           setConsoleLines((prev) => [...prev.slice(-199), `${data?.level === 'error' ? '[ERR] ' : ''}${data?.message ?? ''}`]);
         }),
-       Events.On('download-progress', (event: any) => {
-          setDownload(event.data as DownloadProgress);
+        Events.On('download-progress', (event) => {
+           setDownload(event.data);
       }),
     ];
 

@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
-type InstanceState = 'not_installed' | 'ready' | 'running' | 'downloading' | 'failed' | 'stopped' | 'crashed';
+import { InstanceState, LoaderType } from '../../../bindings/plumelauncher/internal/instances/models.js';
+
 
 interface InstanceCardProps {
   name: string;
   mcVersion: string;
-  loader?: 'vanilla' | 'fabric' | 'quilt';
+  loader?: LoaderType;
   state?: InstanceState;
   onPlay?: () => void;
   onDownload?: () => void;
@@ -19,24 +20,36 @@ interface InstanceCardProps {
 }
 
 const stateLabel: Record<InstanceState, string> = {
-  not_installed: 'Not installed',
-  ready: 'Ready',
-  running: 'Running',
-  downloading: 'Downloading',
+  [InstanceState.$zero]: 'Unknown',
+  [InstanceState.StateNotInstalled]: 'Not installed',
+  [InstanceState.StatePlanning]: 'Planning',
+  [InstanceState.StateDownloading]: 'Downloading',
+  [InstanceState.StateVerifying]: 'Verifying',
+  [InstanceState.StateReady]: 'Ready',
+  [InstanceState.StateRunning]: 'Running',
+  [InstanceState.StateStopped]: 'Stopped',
+  [InstanceState.StateCrashed]: 'Crashed',
+  [InstanceState.StateFailed]: 'Failed',
 };
 
 const stateVariant: Record<InstanceState, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  not_installed: 'outline',
-  ready: 'default',
-  running: 'secondary',
-  downloading: 'outline',
+  [InstanceState.$zero]: 'outline',
+  [InstanceState.StateNotInstalled]: 'outline',
+  [InstanceState.StatePlanning]: 'outline',
+  [InstanceState.StateDownloading]: 'outline',
+  [InstanceState.StateVerifying]: 'outline',
+  [InstanceState.StateReady]: 'default',
+  [InstanceState.StateRunning]: 'secondary',
+  [InstanceState.StateStopped]: 'secondary',
+  [InstanceState.StateCrashed]: 'destructive',
+  [InstanceState.StateFailed]: 'destructive',
 };
 
 export function InstanceCard({
   name,
   mcVersion,
-  loader = 'vanilla',
-  state = 'not_installed',
+  loader = LoaderType.LoaderVanilla,
+  state = InstanceState.StateNotInstalled,
   onPlay,
   onDownload,
   onOpenDetail,
@@ -66,25 +79,25 @@ export function InstanceCard({
       </CardHeader>
       <CardContent className="flex items-center justify-between pt-0">
         <div className="flex items-center gap-1.5">
-           {(state === 'ready' || state === 'stopped') && (
+           {(state === InstanceState.StateReady || state === InstanceState.StateStopped) && (
              <Button size="sm" disabled={busy} onClick={(e) => { e.stopPropagation(); onPlay?.(); onAction?.('play'); }} aria-label={`Play ${name}`}>
               <Play className="size-3" />
               Play
             </Button>
           )}
-           {(state === 'not_installed' || state === 'failed' || state === 'crashed') && (
-             <Button size="sm" variant="secondary" disabled={busy} onClick={(e) => { e.stopPropagation(); onDownload?.(); onAction?.(state === 'not_installed' ? 'install' : 'repair'); }} aria-label={`${state === 'not_installed' ? 'Install' : 'Repair'} ${name}`}>
+           {(state === InstanceState.StateNotInstalled || state === InstanceState.StateFailed || state === InstanceState.StateCrashed) && (
+             <Button size="sm" variant="secondary" disabled={busy} onClick={(e) => { e.stopPropagation(); onDownload?.(); onAction?.(state === InstanceState.StateNotInstalled ? 'install' : 'repair'); }} aria-label={`${state === InstanceState.StateNotInstalled ? 'Install' : 'Repair'} ${name}`}>
               <Download className="size-3" />
               Install
             </Button>
           )}
-           {state === 'downloading' && (
+           {(state === InstanceState.StateDownloading || state === InstanceState.StatePlanning || state === InstanceState.StateVerifying) && (
             <Badge variant="outline" className="text-[10px]">
                <Download className={`mr-1 size-3 ${reducedMotion ? '' : 'animate-pulse'}`} />
               Downloading
             </Badge>
           )}
-           {state === 'running' && (
+           {state === InstanceState.StateRunning && (
              <Button size="sm" variant="secondary" disabled={busy} onClick={(e) => { e.stopPropagation(); onAction?.('stop'); }} aria-label={`Stop ${name}`}>Stop</Button>
            )}
         </div>
