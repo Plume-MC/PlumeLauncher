@@ -264,6 +264,9 @@ func (s *HomeService) LaunchInstance(id string) error {
 		}
 		javaPath = selected.Path
 	}
+	if err := launch.ApplyGPUPreference(javaPath, settings.GPUPreference); err != nil && s.Logger != nil {
+		s.Logger.Warn("apply GPU preference", "javaPath", javaPath, "preference", settings.GPUPreference, "error", err)
+	}
 	nativesDir := filepath.Join(s.DataRoot, "instances", id, "natives")
 	if err := os.RemoveAll(nativesDir); err != nil {
 		return NewInternalError("clear natives: " + err.Error())
@@ -310,7 +313,6 @@ func (s *HomeService) LaunchInstance(id string) error {
 		Width:         settings.ResolutionW,
 		Height:        settings.ResolutionH,
 		WindowMode:    settings.WindowMode,
-		GPU:           settings.GPUPreference,
 		JVMArgs:       launch.ParseArgumentString(settings.JVMArgs),
 		Env:           launch.EnvironmentForGPU(settings.GPUPreference),
 		JavaPath:      javaPath,

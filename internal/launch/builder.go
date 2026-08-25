@@ -27,7 +27,6 @@ type Options struct {
 	Height          int
 	Fullscreen      bool
 	WindowMode      string
-	GPU             string   // "auto", "discrete", "integrated"
 	Wrapper         []string // validated argv prefix
 	JavaPath        string
 	JVMArgs         []string
@@ -144,18 +143,6 @@ func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {
 
 	// Launcher branding
 	args = append(args, "-Dlauncher.name=PlumeLauncher", "-Dlauncher.version=1.0.0")
-
-	// GPU preference via JVM property (platform-specific)
-	if opts.GPU != "" && opts.GPU != "auto" {
-		switch runtime.GOOS {
-		case "windows":
-			// Windows: GPU preference is passed as a system property
-			args = append(args, fmt.Sprintf("-Dplume.gpu=%s", opts.GPU))
-		case "linux":
-			// Linux: could use DRI_PRIME environment variable
-			// Applied via env in Launch, not JVM args
-		}
-	}
 
 	// Classpath
 	if version.Arguments != nil && len(version.Arguments.JVM) > 0 {
