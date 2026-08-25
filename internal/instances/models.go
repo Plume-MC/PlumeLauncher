@@ -23,9 +23,9 @@ const (
 // validTransitions defines allowed state transitions.
 var validTransitions = map[InstanceState][]InstanceState{
 	StateNotInstalled: {StatePlanning, StateFailed},
-	StatePlanning:     {StateDownloading, StateFailed},
-	StateDownloading:  {StateVerifying, StateFailed},
-	StateVerifying:    {StateReady, StateFailed},
+	StatePlanning:     {StateNotInstalled, StateDownloading, StateStopped, StateCrashed, StateFailed},
+	StateDownloading:  {StateNotInstalled, StateVerifying, StateStopped, StateCrashed, StateFailed},
+	StateVerifying:    {StateNotInstalled, StateReady, StateStopped, StateCrashed, StateFailed},
 	StateReady:        {StateRunning},
 	StateRunning:      {StateStopped, StateCrashed, StateFailed},
 	StateStopped:      {StatePlanning},

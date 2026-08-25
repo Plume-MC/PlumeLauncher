@@ -23,7 +23,7 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
     setBusy(true);
     setError('');
     try {
-      setRuntimes(await SystemService.JavaRuntimes());
+      setRuntimes(await SystemService.JavaRuntimes() ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to scan Java runtimes');
     } finally {

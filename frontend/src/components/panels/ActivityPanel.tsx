@@ -77,7 +77,7 @@ export function ActivityPanel({ isOpen, onClose, activityCount = 0, consoleLines
           <div className="space-y-1">
              {download ? (
 			   <div className="space-y-2" role="status" aria-live="polite">
-                <div className="flex items-center justify-between"><p>{download.status} · {download.fileProgress}/{download.totalFiles} files</p>{download.status === 'downloading' && <Button variant="ghost" size="sm" disabled={cancelling} onClick={() => void cancelDownload()}>{cancelling ? 'Cancelling...' : 'Cancel'}</Button>}</div>
+                <div className="flex items-center justify-between"><p>{download.status} · {download.fileProgress}/{download.totalFiles} files</p>{(download.status === 'downloading' || download.status === 'repairing') && <Button variant="ghost" size="sm" disabled={cancelling} onClick={() => void cancelDownload()}>{cancelling ? 'Cancelling...' : 'Cancel'}</Button>}</div>
                 <progress className="h-1.5 w-full accent-primary" value={download.totalBytes ? download.byteProgress : download.fileProgress} max={download.totalBytes || download.totalFiles} aria-label="Download progress" />
                 <p className="text-muted-foreground/70">{download.totalBytes ? `${Math.round(download.byteProgress / 1024 / 1024)} / ${Math.round(download.totalBytes / 1024 / 1024)} MB` : 'Preparing files'}{download.speed > 0 && ` · ${Math.round(download.speed / 1024)} KB/s`}</p>
 				 {download.error && <p className="text-destructive" role="alert">{download.error}</p>}

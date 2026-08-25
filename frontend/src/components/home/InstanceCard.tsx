@@ -14,7 +14,7 @@ interface InstanceCardProps {
   onPlay?: () => void;
   onDownload?: () => void;
   onOpenDetail?: () => void;
-  onAction?: (action: 'play' | 'install' | 'stop' | 'repair') => void;
+  onAction?: (action: 'play' | 'install' | 'stop' | 'repair' | 'cancel') => void;
   busy?: boolean;
 }
 
@@ -95,12 +95,11 @@ export function InstanceCard({
               Install
             </Button>
           )}
-           {(state === InstanceState.StateDownloading || state === InstanceState.StatePlanning || state === InstanceState.StateVerifying) && (
-            <Badge variant="outline" className="text-[10px]">
-				<Download className="mr-1 size-3" />
-              Downloading
-            </Badge>
-          )}
+            {(state === InstanceState.StateDownloading || state === InstanceState.StatePlanning || state === InstanceState.StateVerifying) && (
+				<Button size="sm" variant="secondary" disabled={busy} onClick={(e) => { e.stopPropagation(); onAction?.('cancel'); }} aria-label={`Cancel ${name}`}>
+				  Cancel
+				</Button>
+            )}
            {state === InstanceState.StateRunning && (
              <Button size="sm" variant="secondary" disabled={busy} onClick={(e) => { e.stopPropagation(); onAction?.('stop'); }} aria-label={`Stop ${name}`}>Stop</Button>
            )}

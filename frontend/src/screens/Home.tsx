@@ -14,7 +14,7 @@ import { HomeService } from '../../bindings/plumelauncher/internal/services/inde
 import { toast } from '@/components/ui/toast';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
 import type { Instance } from '../../bindings/plumelauncher/internal/instances/models.js';
-import { LoaderType } from '../../bindings/plumelauncher/internal/instances/models.js';
+import { InstanceState, LoaderType } from '../../bindings/plumelauncher/internal/instances/models.js';
 import type { DownloadProgressEvent, LaunchStateEvent } from '../../bindings/plumelauncher/internal/services/models.js';
 
 interface HomeProps {
@@ -33,14 +33,21 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState('');
-  const [accountsOpen, setAccountsOpen] = useState(false);
-  const [liveStatus, setLiveStatus] = useState('');
+   const [accountsOpen, setAccountsOpen] = useState(false);
+   const [liveStatus, setLiveStatus] = useState('');
+	const [downloadInstanceId, setDownloadInstanceId] = useState('');
 
 	useEffect(() => {
 	  const unsubs = [
 		Events.On('download-progress', (event) => {
 		  const data: DownloadProgressEvent = event.data;
-		  setLiveStatus(data.status === 'downloading' ? `Downloading ${data.fileProgress}/${data.totalFiles}` : data.status === 'failed' ? 'Download failed' : '');
+		  setLiveStatus(data.status === 'downloading' ? `Downloading ${data.fileProgress}/${data.totalFiles}` : data.status === 'repairing' ? 'Repairing instance' : data.status === 'cancelled' ? 'Download cancelled' : data.status === 'failed' ? 'Download failed' : '');
+		  if (data.status === 'downloading' || data.status === 'repairing') {
+			setDownloadInstanceId(data.instanceId);
+		  } else if (data.status === 'completed' || data.status === 'cancelled' || data.status === 'failed') {
+			setDownloadInstanceId('');
+			void onRefresh();
+		  }
 		}),
 		Events.On('launch-state', (event) => {
 		  const data: LaunchStateEvent = event.data;
@@ -48,24 +55,29 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
 		}),
 	  ];
 	  return () => unsubs.forEach((unsubscribe) => unsubscribe());
-	}, []);
+	}, [onRefresh]);
 
   const visibleInstances = [...instances]
     .filter((instance) => loaderFilter === 'all' || instance.loader === loaderFilter)
     .filter((instance) => instance.name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : sort === 'oldest' ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt));
 
-  const runAction = async (id: string, action: 'play' | 'install' | 'stop' | 'repair') => {
+   const runAction = async (id: string, action: 'play' | 'install' | 'stop' | 'repair' | 'cancel') => {
     if (busyId) return;
     setBusyId(id)
     try {
       if (action === 'play') await HomeService.LaunchInstance(id)
        if (action === 'install') await HomeService.InstallInstance(id)
        if (action === 'repair') await HomeService.RepairInstance(id)
-      if (action === 'stop') await HomeService.StopInstance(id)
-      toast.add({ type: 'success', title: action === 'play' ? 'Minecraft closed' : `${action === 'install' ? 'Install' : action === 'repair' ? 'Repair' : 'Stop'} complete` })
-    } catch (error) {
-      toast.add({ type: 'error', title: 'Action failed', description: error instanceof Error ? error.message : 'Please check the launcher logs.', priority: 'high' })
+	   if (action === 'cancel') await HomeService.CancelInstance(id)
+       if (action === 'stop') await HomeService.StopInstance(id)
+	   toast.add({ type: 'success', title: action === 'cancel' ? 'Cancellation requested' : action === 'play' ? 'Minecraft closed' : `${action === 'install' ? 'Install' : action === 'repair' ? 'Repair' : 'Stop'} complete` })
+     } catch (error) {
+		 if (error instanceof Error && /cancelled|canceled/i.test(error.message)) {
+		   toast.add({ type: 'info', title: `${action === 'repair' ? 'Repair' : 'Install'} cancelled`, description: 'The instance was returned to its previous state.' })
+		   return
+		 }
+       toast.add({ type: 'error', title: 'Action failed', description: error instanceof Error ? error.message : 'Please check the launcher logs.', priority: 'high' })
     } finally {
       await onRefresh()
       setBusyId('')
@@ -116,7 +128,7 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
           </p>
         </div>}
         {instances.length > 0 && visibleInstances.length === 0 && <div className="col-span-full py-16 text-center text-sm text-muted-foreground">No matching instances.</div>}
-         {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.state} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
+		 {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.id === downloadInstanceId ? InstanceState.StateDownloading : instance.state} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
       </div>
 
        <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} instance={detailInstance} onChanged={onRefresh} onDelete={() => { setDetailOpen(false); setDeleteId(detailInstance?.id ?? null); }} />

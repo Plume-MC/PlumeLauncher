@@ -112,8 +112,11 @@ func (s *HomeService) InstallInstance(id string) error {
 		}
 	}()
 
-	detail, err := s.resolveInstanceDetail(context.Background(), inst)
+	detail, err := s.resolveInstanceDetail(op.CancelContext, inst)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return s.cancelInstall(id, op, inst.State)
+		}
 		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
 	}
 	plan := metadata.ResolvePlan(*detail, metadata.CurrentSystem())
@@ -128,13 +131,16 @@ func (s *HomeService) InstallInstance(id string) error {
 	if err := s.Instances.UpdateState(id, instances.StateDownloading); err != nil {
 		return err
 	}
+	if err := op.CancelContext.Err(); err != nil {
+		return s.cancelInstall(id, op, inst.State)
+	}
 	orch := downloader.NewOrchestrator(s.DataRoot, 10)
 	var totalBytes int64
 	for _, artifact := range plan.Artifacts {
 		totalBytes += artifact.Size
 	}
 	emit(s.App, EventDownloadProgress, DownloadProgressEvent{
-		OperationID: id, InstanceID: id, Status: "downloading",
+		OperationID: op.ID, InstanceID: id, Status: "downloading",
 		TotalFiles: len(plan.Artifacts), TotalBytes: totalBytes,
 	})
 	stopProgress := make(chan struct{})
@@ -146,7 +152,7 @@ func (s *HomeService) InstallInstance(id string) error {
 			case <-ticker.C:
 				snapshot := orch.Progress()
 				emit(s.App, EventDownloadProgress, DownloadProgressEvent{
-					OperationID: id, InstanceID: id, Status: "downloading",
+					OperationID: op.ID, InstanceID: id, Status: "downloading",
 					FileProgress: snapshot.CompletedFiles, TotalFiles: snapshot.TotalFiles,
 					ByteProgress: snapshot.CompletedBytes, TotalBytes: snapshot.TotalBytes,
 					Speed: snapshot.Speed, ETA: snapshot.ETA.Seconds(),
@@ -161,13 +167,15 @@ func (s *HomeService) InstallInstance(id string) error {
 		if s.Logger != nil {
 			s.Logger.Error("install_failed", "instanceId", id, "operationId", op.ID, "error", err.Error())
 		}
-		status := "failed"
 		if errors.Is(err, context.Canceled) || s.Registry.Get(id).Status == instances.OpStatusCancelled {
-			status = "cancelled"
+			return s.cancelInstall(id, op, inst.State)
 		}
-		emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: status, Error: err.Error()})
+		emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "failed", Error: err.Error()})
 		_ = s.Instances.UpdateState(id, instances.StateFailed)
 		return err
+	}
+	if err := op.CancelContext.Err(); err != nil {
+		return s.cancelInstall(id, op, inst.State)
 	}
 	if err := s.Instances.UpdateState(id, instances.StateVerifying); err != nil {
 		return err
@@ -175,7 +183,7 @@ func (s *HomeService) InstallInstance(id string) error {
 	if err := s.Instances.UpdateState(id, instances.StateReady); err != nil {
 		return err
 	}
-	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: id, InstanceID: id, Status: "completed", FileProgress: len(plan.Artifacts), TotalFiles: len(plan.Artifacts)})
+	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "completed", FileProgress: len(plan.Artifacts), TotalFiles: len(plan.Artifacts)})
 	s.Registry.Complete(id)
 	if s.Logger != nil {
 		s.Logger.Info("install_completed", "instanceId", id, "operationId", op.ID)
@@ -218,12 +226,75 @@ func (s *HomeService) RepairInstance(id string) error {
 	if s.Registry.IsActive(id) {
 		return NewConflictError("instance already has an active operation")
 	}
-	detail, err := s.resolveInstanceDetail(context.Background(), inst)
+	op, err := s.Registry.Start(id, instances.OpDownload)
 	if err != nil {
+		return NewConflictError(err.Error())
+	}
+	defer func() {
+		if current := s.Registry.Get(id); current != nil && current.Status == instances.OpStatusRunning {
+			s.Registry.Fail(id)
+		}
+	}()
+	detail, err := s.resolveInstanceDetail(op.CancelContext, inst)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return s.cancelRepair(id, op, inst.State)
+		}
 		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
 	}
 	plan := metadata.ResolvePlan(*detail, metadata.CurrentSystem())
-	return downloader.RepairPlan(context.Background(), s.DataRoot, plan)
+	for _, artifact := range plan.Artifacts {
+		if err := security.ValidateArtifactURL(artifact.URL); err != nil {
+			return NewValidationError(err.Error(), "artifact.url")
+		}
+	}
+	if inst.State == instances.StateFailed || inst.State == instances.StateCrashed {
+		if err := s.Instances.UpdateState(id, instances.StatePlanning); err != nil {
+			return err
+		}
+		if err := s.Instances.UpdateState(id, instances.StateDownloading); err != nil {
+			return err
+		}
+	}
+	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "repairing", TotalFiles: len(plan.Artifacts)})
+	if err := downloader.RepairPlan(op.CancelContext, s.DataRoot, plan); err != nil {
+		if errors.Is(err, context.Canceled) || s.Registry.Get(id).Status == instances.OpStatusCancelled {
+			return s.cancelRepair(id, op, inst.State)
+		}
+		emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "failed", Error: err.Error()})
+		if inst.State == instances.StateFailed || inst.State == instances.StateCrashed {
+			_ = s.Instances.UpdateState(id, instances.StateFailed)
+		}
+		return err
+	}
+	if err := op.CancelContext.Err(); err != nil {
+		return s.cancelRepair(id, op, inst.State)
+	}
+	if inst.State == instances.StateFailed || inst.State == instances.StateCrashed {
+		if err := s.Instances.UpdateState(id, instances.StateVerifying); err != nil {
+			return err
+		}
+		if err := s.Instances.UpdateState(id, instances.StateReady); err != nil {
+			return err
+		}
+	}
+	s.Registry.Complete(id)
+	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "completed", TotalFiles: len(plan.Artifacts)})
+	return nil
+}
+
+func (s *HomeService) cancelInstall(id string, op *instances.Operation, previous instances.InstanceState) error {
+	_ = s.Instances.UpdateState(id, previous)
+	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "cancelled"})
+	return context.Canceled
+}
+
+func (s *HomeService) cancelRepair(id string, op *instances.Operation, previous instances.InstanceState) error {
+	if previous == instances.StateFailed || previous == instances.StateCrashed {
+		_ = s.Instances.UpdateState(id, previous)
+	}
+	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "cancelled"})
+	return context.Canceled
 }
 
 // CancelInstance cancels the active download or launch operation.

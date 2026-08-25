@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTit
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { InstanceService, HomeService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { Instance, Settings } from '../../../bindings/plumelauncher/internal/instances/models.js';
+import { toast } from '@/components/ui/toast';
 
 interface InstanceDetailSheetProps {
   isOpen: boolean;
@@ -96,8 +97,15 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
     setError('');
     try {
       if (name === 'folder') await InstanceService.OpenInstanceFolder(instance.id);
-      if (name === 'verify') await HomeService.VerifyInstance(instance.id);
-      if (name === 'repair') await HomeService.RepairInstance(instance.id);
+      if (name === 'verify') {
+        const results = await HomeService.VerifyInstance(instance.id) ?? [];
+        const broken = results.filter((result) => !result.Valid).length;
+        toast.add(broken ? { type: 'warning', title: 'Verification found issues', description: `${broken} file${broken === 1 ? '' : 's'} missing or corrupt.` } : { type: 'success', title: 'Verification passed', description: 'All instance files are healthy.' });
+      }
+      if (name === 'repair') {
+        await HomeService.RepairInstance(instance.id);
+        toast.add({ type: 'success', title: 'Repair complete', description: 'The instance is ready to use.' });
+      }
       await onChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : `Unable to ${name} instance`);
