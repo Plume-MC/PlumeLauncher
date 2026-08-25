@@ -38,6 +38,23 @@ func ScanJavaInstallations() ([]JavaInfo, error) {
 	return results, nil
 }
 
+// SystemDefault returns the Java executable resolved from the current PATH.
+func SystemDefault() (*JavaInfo, error) {
+	path, err := exec.LookPath("java")
+	if err != nil {
+		return nil, err
+	}
+	info, err := CheckJava(path)
+	if err != nil || info == nil {
+		return nil, err
+	}
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		info.Path = resolved
+	}
+	info.Source = "System default"
+	return info, nil
+}
+
 // CheckJava runs `java -version` and parses the output.
 func CheckJava(path string) (*JavaInfo, error) {
 	// Verify file exists

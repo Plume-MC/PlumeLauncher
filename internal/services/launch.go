@@ -54,11 +54,6 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	}
 
 	// Find Java
-	installs, err := java.ScanJavaInstallations()
-	if err != nil || len(installs) == 0 {
-		return NewIncompatibleError("no Java installation found")
-	}
-
 	requiredMajor := java.RequiredJavaMajor(detail.ID)
 	javaPath := opts.JavaPath
 	if javaPath != "" {
@@ -66,6 +61,10 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 			return NewIncompatibleError(err.Error())
 		}
 	} else {
+		installs, err := java.ScanJavaInstallations()
+		if err != nil || len(installs) == 0 {
+			return NewIncompatibleError("no Java installation found")
+		}
 		selected, err := java.SelectJava(installs, detail.ID)
 		if err != nil {
 			return NewIncompatibleError(err.Error())

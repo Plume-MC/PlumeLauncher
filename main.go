@@ -8,6 +8,7 @@ import (
 
 	"plumelauncher/internal/bootstrap"
 	"plumelauncher/internal/instances"
+	"plumelauncher/internal/java"
 	"plumelauncher/internal/logging"
 	"plumelauncher/internal/services"
 
@@ -54,6 +55,15 @@ func main() {
 	defaults, err := instances.LoadConfig(config.DataRoot)
 	if err != nil {
 		log.Fatal(err)
+	}
+	if !defaults.JavaDefaultInitialized {
+		defaults.JavaDefaultInitialized = true
+		if systemJava, err := java.SystemDefault(); err == nil && systemJava != nil {
+			defaults.DefaultJavaPath = systemJava.Path
+		}
+		if err := instances.SaveConfig(config.DataRoot, defaults); err != nil {
+			log.Fatal(err)
+		}
 	}
 	registry := instances.NewRegistry()
 	accountService := &services.AccountService{DataRoot: config.DataRoot}

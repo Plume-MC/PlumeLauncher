@@ -1,6 +1,7 @@
 package services
 
 import (
+	"path/filepath"
 	"plumelauncher/internal/bootstrap"
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
@@ -38,7 +39,7 @@ func (s *SystemService) UpdateSettings(settings instances.LauncherDefaults) erro
 		return NewValidationError("invalid wrapper command", "wrapperCommand")
 	}
 	if settings.DefaultJavaPath != "" {
-		if _, err := java.CheckJava(settings.DefaultJavaPath); err != nil {
+		if _, err := java.ValidateJavaPath(settings.DefaultJavaPath, 0); err != nil {
 			return NewValidationError("default Java path is not executable", "defaultJavaPath")
 		}
 	}
@@ -85,6 +86,59 @@ func (s *SystemService) OpenLogFolder() error {
 // ScanJava detects installed Java installations.
 func (s *SystemService) ScanJava() ([]java.JavaInfo, error) {
 	return java.ScanJavaInstallations()
+}
+
+// JavaRuntimes returns all verified runtimes, marking the PATH runtime and custom entries.
+func (s *SystemService) JavaRuntimes() ([]java.JavaInfo, error) {
+	installed, err := java.ScanJavaInstallations()
+	if err != nil {
+		return nil, err
+	}
+	for i := range installed {
+		installed[i].Source = "Detected"
+	}
+	if system, err := java.SystemDefault(); err == nil && system != nil {
+		installed = append([]java.JavaInfo{*system}, installed...)
+	}
+	for _, path := range s.Defaults.CustomJavaPaths {
+		if info, err := java.ValidateJavaPath(path, 0); err == nil {
+			info.Source = "Custom"
+			installed = append(installed, *info)
+		}
+	}
+	seen := make(map[string]bool)
+	runtimes := make([]java.JavaInfo, 0, len(installed))
+	for _, info := range installed {
+		path, err := filepath.EvalSymlinks(info.Path)
+		if err == nil {
+			info.Path = path
+		}
+		if !seen[info.Path] {
+			seen[info.Path] = true
+			runtimes = append(runtimes, info)
+		}
+	}
+	return runtimes, nil
+}
+
+// AddCustomJava verifies a Java executable before persisting it as a custom runtime.
+func (s *SystemService) AddCustomJava(path string) (*java.JavaInfo, error) {
+	info, err := java.ValidateJavaPath(path, 0)
+	if err != nil {
+		return nil, NewValidationError(err.Error(), "javaPath")
+	}
+	for _, existing := range s.Defaults.CustomJavaPaths {
+		if existing == info.Path {
+			info.Source = "Custom"
+			return info, nil
+		}
+	}
+	s.Defaults.CustomJavaPaths = append(s.Defaults.CustomJavaPaths, info.Path)
+	if err := instances.SaveConfig(s.DataRoot, s.Defaults); err != nil {
+		return nil, NewInternalError("save custom Java: " + err.Error())
+	}
+	info.Source = "Custom"
+	return info, nil
 }
 
 // ValidateJavaPath checks if a Java path is valid and compatible.

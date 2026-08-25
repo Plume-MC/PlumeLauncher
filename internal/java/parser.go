@@ -10,6 +10,7 @@ type JavaInfo struct {
 	Path    string `json:"path"`
 	Version string `json:"version"`
 	Major   int    `json:"major"`
+	Source  string `json:"source,omitempty"`
 }
 
 var versionRegex = regexp.MustCompile(`version "([^"]+)"`)

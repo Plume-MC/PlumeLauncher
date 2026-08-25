@@ -247,7 +247,11 @@ func (s *HomeService) LaunchInstance(id string) error {
 	if err != nil {
 		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
 	}
-	settings := instances.EffectiveSettings(*inst, s.Defaults)
+	defaults, err := instances.LoadConfig(s.DataRoot)
+	if err != nil {
+		return NewInternalError("load launcher settings: " + err.Error())
+	}
+	settings := instances.EffectiveSettings(*inst, defaults)
 	javaPath := settings.JavaPath
 	if javaPath == "" {
 		found, scanErr := java.ScanJavaInstallations()

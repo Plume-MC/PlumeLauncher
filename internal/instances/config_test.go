@@ -14,6 +14,9 @@ func TestSaveLoadConfig(t *testing.T) {
 	defaults := instances.DefaultLauncherDefaults()
 	defaults.DefaultMinRamMB = 2048
 	defaults.DefaultMaxRamMB = 8192
+	defaults.DefaultJavaPath = "C:/Java/jdk-21/bin/java.exe"
+	defaults.CustomJavaPaths = []string{"C:/Java/jdk-8/bin/java.exe"}
+	defaults.JavaDefaultInitialized = true
 
 	err := instances.SaveConfig(dir, defaults)
 	if err != nil {
@@ -30,6 +33,9 @@ func TestSaveLoadConfig(t *testing.T) {
 	}
 	if loaded.DefaultMaxRamMB != 8192 {
 		t.Errorf("DefaultMaxRamMB = %d, want 8192", loaded.DefaultMaxRamMB)
+	}
+	if loaded.DefaultJavaPath != defaults.DefaultJavaPath || len(loaded.CustomJavaPaths) != 1 || !loaded.JavaDefaultInitialized {
+		t.Fatalf("managed Java settings were not preserved: %#v", loaded)
 	}
 }
 

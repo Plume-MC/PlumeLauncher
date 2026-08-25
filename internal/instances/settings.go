@@ -2,30 +2,32 @@ package instances
 
 // LauncherDefaults holds global launcher settings that instances inherit from.
 type LauncherDefaults struct {
-	Theme          string `json:"theme"`
-	CloseAction    string `json:"closeAction"`
-	WindowMode     string `json:"windowMode"`
-	DefaultMinRamMB int   `json:"defaultMinRamMB"`
-	DefaultMaxRamMB int   `json:"defaultMaxRamMB"`
-	DefaultResolutionW int `json:"defaultResolutionW"`
-	DefaultResolutionH int `json:"defaultResolutionH"`
-	DefaultJavaPath string `json:"defaultJavaPath"`
-	DefaultJvmArgs  string `json:"defaultJvmArgs"`
-	GPUPreference   string `json:"gpuPreference"`
-	WrapperCommand  string `json:"wrapperCommand"`
+	Theme                  string   `json:"theme"`
+	CloseAction            string   `json:"closeAction"`
+	WindowMode             string   `json:"windowMode"`
+	DefaultMinRamMB        int      `json:"defaultMinRamMB"`
+	DefaultMaxRamMB        int      `json:"defaultMaxRamMB"`
+	DefaultResolutionW     int      `json:"defaultResolutionW"`
+	DefaultResolutionH     int      `json:"defaultResolutionH"`
+	DefaultJavaPath        string   `json:"defaultJavaPath"`
+	CustomJavaPaths        []string `json:"customJavaPaths,omitempty"`
+	JavaDefaultInitialized bool     `json:"javaDefaultInitialized"`
+	DefaultJvmArgs         string   `json:"defaultJvmArgs"`
+	GPUPreference          string   `json:"gpuPreference"`
+	WrapperCommand         string   `json:"wrapperCommand"`
 }
 
 // DefaultLauncherDefaults returns sensible defaults.
 func DefaultLauncherDefaults() LauncherDefaults {
 	return LauncherDefaults{
-		Theme:          "dark",
-		CloseAction:    "keep_open",
-		WindowMode:     "Windowed",
-		DefaultMinRamMB: 1024,
-		DefaultMaxRamMB: 4096,
+		Theme:              "dark",
+		CloseAction:        "keep_open",
+		WindowMode:         "Windowed",
+		DefaultMinRamMB:    1024,
+		DefaultMaxRamMB:    4096,
 		DefaultResolutionW: 854,
 		DefaultResolutionH: 480,
-		GPUPreference:   "auto",
+		GPUPreference:      "auto",
 	}
 }
 
@@ -101,15 +103,15 @@ func EffectiveSettings(inst Instance, defaults LauncherDefaults) EffectiveSettin
 
 // EffectiveSettingsResult is the resolved settings after inheritance.
 type EffectiveSettingsResult struct {
-	InstanceID    string
-	MinRamMB      int
-	MaxRamMB      int
-	ResolutionW   int
-	ResolutionH   int
-	JavaPath      string
-	JVMArgs       string
-	WindowMode    string
-	GPUPreference string
+	InstanceID     string
+	MinRamMB       int
+	MaxRamMB       int
+	ResolutionW    int
+	ResolutionH    int
+	JavaPath       string
+	JVMArgs        string
+	WindowMode     string
+	GPUPreference  string
 	WrapperCommand string
 }
 
