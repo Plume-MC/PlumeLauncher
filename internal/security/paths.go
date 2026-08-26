@@ -13,6 +13,8 @@ var trustedArtifactHosts = map[string]struct{}{
 	"libraries.minecraft.net":          {},
 	"piston-data.mojang.com":           {},
 	"piston-meta.mojang.com":           {},
+	"launchermeta.mojang.com":          {},
+	"launcher.mojang.com":              {},
 	"resources.download.minecraft.net": {},
 	"s3.amazonaws.com":                 {},
 	"maven.fabricmc.net":               {},

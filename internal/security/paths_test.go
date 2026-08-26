@@ -46,6 +46,8 @@ func TestValidateArtifactURL(t *testing.T) {
 	for _, value := range []string{
 		"https://piston-data.mojang.com/v1/objects/hash/client.jar",
 		"https://maven.fabricmc.net/example.jar",
+		"https://launchermeta.mojang.com/v1/packages/abc/1.8.json",
+		"https://launcher.mojang.com/v1/objects/abc/client.jar",
 	} {
 		if err := ValidateArtifactURL(value); err != nil {
 			t.Errorf("ValidateArtifactURL(%q): %v", value, err)
@@ -55,6 +57,7 @@ func TestValidateArtifactURL(t *testing.T) {
 		"http://piston-data.mojang.com/client.jar",
 		"https://evil.example/client.jar",
 		"https://user:pass@libraries.minecraft.net/client.jar",
+		"https://evil.mojang.com/v1/packages/x",
 	} {
 		if err := ValidateArtifactURL(value); err == nil {
 			t.Errorf("ValidateArtifactURL(%q) accepted untrusted URL", value)
