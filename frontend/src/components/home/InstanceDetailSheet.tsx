@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, FolderOpen, Shield, Wrench, Trash2 } from 'lucide-react';
+import { X, FolderOpen, Trash2 } from 'lucide-react';
 import { Dialog } from '@base-ui/react/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,9 +7,8 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
-import { InstanceService, HomeService } from '../../../bindings/plumelauncher/internal/services/index.js';
+import { InstanceService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { Instance, Settings } from '../../../bindings/plumelauncher/internal/instances/models.js';
-import { toast } from '@/components/ui/toast';
 
 interface InstanceDetailSheetProps {
   isOpen: boolean;
@@ -92,23 +91,14 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
     }
   };
 
-  const action = async (name: 'folder' | 'verify' | 'repair') => {
-    setBusy(name);
+  const openFolder = async () => {
+    setBusy('folder');
     setError('');
     try {
-      if (name === 'folder') await InstanceService.OpenInstanceFolder(instance.id);
-      if (name === 'verify') {
-        const results = await HomeService.VerifyInstance(instance.id) ?? [];
-        const broken = results.filter((result) => !result.Valid).length;
-        toast.add(broken ? { type: 'warning', title: 'Verification found issues', description: `${broken} file${broken === 1 ? '' : 's'} missing or corrupt.` } : { type: 'success', title: 'Verification passed', description: 'All instance files are healthy.' });
-      }
-      if (name === 'repair') {
-        await HomeService.RepairInstance(instance.id);
-        toast.add({ type: 'success', title: 'Repair complete', description: 'The instance is ready to use.' });
-      }
+      await InstanceService.OpenInstanceFolder(instance.id);
       await onChanged?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Unable to ${name} instance`);
+      setError(err instanceof Error ? err.message : 'Unable to open instance folder');
     } finally {
       setBusy('');
     }
@@ -148,8 +138,8 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
           {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3">
-          <Button variant="ghost" size="sm" disabled={!!busy} onClick={() => void action('folder')}><FolderOpen className="mr-1.5 size-3.5" />Open folder</Button>
-          <div className="flex items-center gap-1.5"><Button variant="ghost" size="icon-sm" disabled={!!busy} onClick={() => void action('verify')} aria-label="Verify"><Shield className="size-3.5" /></Button><Button variant="ghost" size="icon-sm" disabled={!!busy} onClick={() => void action('repair')} aria-label="Repair"><Wrench className="size-3.5" /></Button><Button variant="ghost" size="icon-sm" disabled={!!busy} className="text-destructive" aria-label="Delete" onClick={onDelete}><Trash2 className="size-3.5" /></Button></div>
+          <Button variant="ghost" size="sm" disabled={!!busy} onClick={() => void openFolder()}><FolderOpen className="mr-1.5 size-3.5" />Open folder</Button>
+          <Button variant="ghost" size="icon-sm" disabled={!!busy} className="text-destructive" aria-label="Delete" onClick={onDelete}><Trash2 className="size-3.5" /></Button>
           <Button size="sm" disabled={!dirty || !!busy} onClick={() => void save()}>{busy === 'save' ? 'Saving...' : 'Save'}</Button>
         </div>
       </Dialog.Popup>

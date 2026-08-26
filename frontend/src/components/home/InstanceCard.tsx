@@ -14,7 +14,7 @@ interface InstanceCardProps {
   onPlay?: () => void;
   onDownload?: () => void;
   onOpenDetail?: () => void;
-  onAction?: (action: 'play' | 'install' | 'stop' | 'repair' | 'cancel') => void;
+  onAction?: (action: 'play' | 'install' | 'stop' | 'cancel') => void;
   busy?: boolean;
 }
 
@@ -90,7 +90,7 @@ export function InstanceCard({
             </Button>
           )}
            {(state === InstanceState.StateNotInstalled || state === InstanceState.StateFailed || state === InstanceState.StateCrashed) && (
-             <Button size="sm" variant="secondary" disabled={busy} onClick={(e) => { e.stopPropagation(); onDownload?.(); onAction?.(state === InstanceState.StateNotInstalled ? 'install' : 'repair'); }} aria-label={`${state === InstanceState.StateNotInstalled ? 'Install' : 'Repair'} ${name}`}>
+             <Button size="sm" variant="secondary" disabled={busy} onClick={(e) => { e.stopPropagation(); onDownload?.(); onAction?.('install'); }} aria-label={`Install ${name}`}>
               <Download className="size-3" />
               Install
             </Button>

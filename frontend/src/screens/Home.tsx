@@ -62,22 +62,21 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
     .filter((instance) => instance.name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : sort === 'oldest' ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt));
 
-   const runAction = async (id: string, action: 'play' | 'install' | 'stop' | 'repair' | 'cancel') => {
+  const runAction = async (id: string, action: 'play' | 'install' | 'stop' | 'cancel') => {
     if (busyId) return;
     setBusyId(id)
     try {
       if (action === 'play') await HomeService.LaunchInstance(id)
-       if (action === 'install') await HomeService.InstallInstance(id)
-       if (action === 'repair') await HomeService.RepairInstance(id)
-	   if (action === 'cancel') await HomeService.CancelInstance(id)
-       if (action === 'stop') await HomeService.StopInstance(id)
-	   toast.add({ type: 'success', title: action === 'cancel' ? 'Cancellation requested' : action === 'play' ? 'Minecraft closed' : `${action === 'install' ? 'Install' : action === 'repair' ? 'Repair' : 'Stop'} complete` })
-     } catch (error) {
-		 if (error instanceof Error && /cancelled|canceled/i.test(error.message)) {
-		   toast.add({ type: 'info', title: `${action === 'repair' ? 'Repair' : 'Install'} cancelled`, description: 'The instance was returned to its previous state.' })
-		   return
-		 }
-       toast.add({ type: 'error', title: 'Action failed', description: error instanceof Error ? error.message : 'Please check the launcher logs.', priority: 'high' })
+      if (action === 'install') await HomeService.InstallInstance(id)
+      if (action === 'cancel') await HomeService.CancelInstance(id)
+      if (action === 'stop') await HomeService.StopInstance(id)
+      toast.add({ type: 'success', title: action === 'cancel' ? 'Cancellation requested' : action === 'play' ? 'Minecraft closed' : `${action === 'install' ? 'Install' : 'Stop'} complete` })
+    } catch (error) {
+      if (error instanceof Error && /cancelled|canceled/i.test(error.message)) {
+        toast.add({ type: 'info', title: action === 'play' ? 'Launch cancelled' : 'Install cancelled', description: 'The instance was returned to its previous state.' })
+        return
+      }
+      toast.add({ type: 'error', title: 'Action failed', description: error instanceof Error ? error.message : 'Please check the launcher logs.', priority: 'high' })
     } finally {
       await onRefresh()
       setBusyId('')

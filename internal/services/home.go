@@ -231,6 +231,25 @@ func (s *HomeService) RepairInstance(id string) error {
 	if err != nil {
 		return NewNotFoundError("instance not found")
 	}
+	detail, err := s.resolveInstanceDetail(context.Background(), inst)
+	if err != nil {
+		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
+	}
+	plan := metadata.ResolvePlan(*detail, metadata.CurrentSystem())
+	return s.repairArtifacts(id, inst, plan)
+}
+
+// ensureArtifacts repairs only when verify finds missing or corrupt files.
+func (s *HomeService) ensureArtifacts(id string, inst *instances.Instance, plan *metadata.ArtifactPlan) error {
+	for _, status := range downloader.VerifyPlan(s.DataRoot, plan) {
+		if !status.Valid {
+			return s.repairArtifacts(id, inst, plan)
+		}
+	}
+	return nil
+}
+
+func (s *HomeService) repairArtifacts(id string, inst *instances.Instance, plan *metadata.ArtifactPlan) error {
 	if s.Registry.IsActive(id) {
 		return NewConflictError("instance already has an active operation")
 	}
@@ -243,14 +262,6 @@ func (s *HomeService) RepairInstance(id string) error {
 			s.Registry.Fail(id)
 		}
 	}()
-	detail, err := s.resolveInstanceDetail(op.CancelContext, inst)
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			return s.cancelRepair(id, op, inst.State)
-		}
-		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
-	}
-	plan := metadata.ResolvePlan(*detail, metadata.CurrentSystem())
 	for _, artifact := range plan.Artifacts {
 		if err := security.ValidateArtifactURL(artifact.URL); err != nil {
 			return NewValidationError(err.Error(), "artifact.url")
@@ -320,11 +331,15 @@ func (s *HomeService) LaunchInstance(id string) error {
 		return NewNotFoundError("instance not found")
 	}
 	if inst.State != instances.StateReady && inst.State != instances.StateStopped {
-		return NewConflictError("instance is not ready; install or repair it first")
+		return NewConflictError("instance is not ready; install it first")
 	}
 	detail, err := s.resolveInstanceDetail(context.Background(), inst)
 	if err != nil {
 		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
+	}
+	plan := metadata.ResolvePlan(*detail, metadata.CurrentSystem())
+	if err := s.ensureArtifacts(id, inst, plan); err != nil {
+		return err
 	}
 	defaults, err := instances.LoadConfig(s.appStateRoot())
 	if err != nil {
