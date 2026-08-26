@@ -23,7 +23,8 @@ import (
 // HomeService exposes instance actions in terms of persisted instance IDs.
 // The frontend never constructs artifact plans or launch command arguments.
 type HomeService struct {
-	DataRoot  string
+	AppRoot   string // fixed app state; empty falls back to DataRoot
+	DataRoot  string // game data root
 	Defaults  instances.LauncherDefaults
 	Instances *instances.Manager
 	Registry  *instances.Registry
@@ -31,6 +32,13 @@ type HomeService struct {
 	Accounts  *AccountService
 	App       *application.App
 	Logger    *logging.Logger
+}
+
+func (s *HomeService) appStateRoot() string {
+	if s.AppRoot != "" {
+		return s.AppRoot
+	}
+	return s.DataRoot
 }
 
 func (s *HomeService) ListInstances() ([]instances.Instance, error) {
@@ -318,7 +326,7 @@ func (s *HomeService) LaunchInstance(id string) error {
 	if err != nil {
 		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
 	}
-	defaults, err := instances.LoadConfig(s.DataRoot)
+	defaults, err := instances.LoadConfig(s.appStateRoot())
 	if err != nil {
 		return NewInternalError("load launcher settings: " + err.Error())
 	}

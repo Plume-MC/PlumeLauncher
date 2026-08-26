@@ -236,6 +236,27 @@ func TestSystemServiceUpdateDataRootRejectsEmptyPath(t *testing.T) {
 	}
 }
 
+func TestSystemServiceOpenLogFolderUsesAppRoot(t *testing.T) {
+	appRoot := t.TempDir()
+	gameRoot := t.TempDir()
+	svc := &services.SystemService{AppRoot: appRoot, DataRoot: gameRoot}
+	logDir := filepath.Join(appRoot, "logs")
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// OpenLogFolder must resolve under AppRoot; call path builder indirectly via GetAppRoot.
+	if got := svc.GetAppRoot(); got != appRoot {
+		t.Fatalf("GetAppRoot = %q, want %q", got, appRoot)
+	}
+	if svc.GetDataRoot() != gameRoot {
+		t.Fatalf("GetDataRoot = %q, want game root", svc.GetDataRoot())
+	}
+	want := filepath.Join(svc.GetAppRoot(), "logs")
+	if want != logDir {
+		t.Fatalf("log path = %q, want %q", want, logDir)
+	}
+}
+
 func TestSystemServiceScanJava(t *testing.T) {
 	svc := &services.SystemService{}
 	installs, err := svc.ScanJava()

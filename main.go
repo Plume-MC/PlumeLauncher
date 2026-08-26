@@ -41,18 +41,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	logger, err := logging.New(config.DataRoot)
+	logger, err := logging.New(config.AppRoot)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer logger.Close()
-	logger.Info("launcher_started", "dataRoot", config.DataRoot)
-	dataRootLock, err := bootstrap.AcquireDataRootLock(config.DataRoot)
+	logger.Info("launcher_started", "appRoot", config.AppRoot, "gameRoot", config.GameRoot)
+	dataRootLock, err := bootstrap.AcquireDataRootLock(config.AppRoot)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer dataRootLock.Release()
-	defaults, err := instances.LoadConfig(config.DataRoot)
+	defaults, err := instances.LoadConfig(config.AppRoot)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -61,16 +61,16 @@ func main() {
 		if systemJava, err := java.SystemDefault(); err == nil && systemJava != nil {
 			defaults.DefaultJavaPath = systemJava.Path
 		}
-		if err := instances.SaveConfig(config.DataRoot, defaults); err != nil {
+		if err := instances.SaveConfig(config.AppRoot, defaults); err != nil {
 			log.Fatal(err)
 		}
 	}
 	registry := instances.NewRegistry()
-	accountService := &services.AccountService{DataRoot: config.DataRoot}
-	instanceManager := instances.NewManager(config.DataRoot, defaults)
-	launchService := &services.LaunchService{DataRoot: config.DataRoot, Registry: registry, Instances: instanceManager, Logger: logger}
+	accountService := &services.AccountService{DataRoot: config.AppRoot}
+	instanceManager := instances.NewManager(config.GameRoot, defaults)
+	launchService := &services.LaunchService{DataRoot: config.GameRoot, Registry: registry, Instances: instanceManager, Logger: logger}
 	instanceService := &services.InstanceService{
-		DataRoot: config.DataRoot,
+		DataRoot: config.GameRoot,
 		Manager:  instanceManager,
 	}
 
@@ -85,7 +85,7 @@ func main() {
 		Services: []application.Service{
 			application.NewService(accountService),
 			application.NewService(instanceService),
-			application.NewService(&services.SystemService{DataRoot: config.DataRoot, Defaults: defaults}),
+			application.NewService(&services.SystemService{AppRoot: config.AppRoot, DataRoot: config.GameRoot, Defaults: defaults}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -96,7 +96,8 @@ func main() {
 	})
 	launchService.App = app
 	app.RegisterService(application.NewService(&services.HomeService{
-		DataRoot:  config.DataRoot,
+		AppRoot:   config.AppRoot,
+		DataRoot:  config.GameRoot,
 		Defaults:  defaults,
 		Instances: instanceManager,
 		Registry:  registry,

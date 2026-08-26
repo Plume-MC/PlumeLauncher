@@ -13,7 +13,12 @@ func dataRootEnvName() string {
 	return "PLUME_DATA_ROOT"
 }
 
-func defaultDataRoot() string {
+// AppRoot returns the fixed launcher state directory (accounts, config, logs, lock).
+func AppRoot() string {
+	return defaultAppRoot()
+}
+
+func defaultAppRoot() string {
 	if runtime.GOOS == "windows" {
 		localAppData := os.Getenv("LOCALAPPDATA")
 		if localAppData == "" {
@@ -22,7 +27,6 @@ func defaultDataRoot() string {
 		return filepath.Join(localAppData, "PlumeLauncher")
 	}
 
-	// Linux/Unix: XDG_DATA_HOME or ~/.local/share
 	xdg := os.Getenv("XDG_DATA_HOME")
 	if xdg != "" {
 		return filepath.Join(xdg, "PlumeLauncher")
@@ -31,30 +35,33 @@ func defaultDataRoot() string {
 	return filepath.Join(home, ".local", "share", "PlumeLauncher")
 }
 
-// ResolveDataRoot returns the data root directory.
-// If customRoot is non-empty, it is used directly.
-// Otherwise, the PLUME_DATA_ROOT env var is checked, then the platform default.
-func ResolveDataRoot(customRoot string) (string, error) {
+// ResolveGameRoot returns the game data directory (instances, assets, versions, cache).
+// Priority: customRoot arg → PLUME_DATA_ROOT → bootstrap.json → AppRoot.
+func ResolveGameRoot(customRoot string) (string, error) {
 	root := customRoot
 	if root == "" {
 		root = os.Getenv(dataRootEnvName())
 	}
 	if root == "" {
-		if configured, err := configuredDataRoot(); err != nil {
+		if configured, err := configuredGameRoot(); err != nil {
 			return "", err
 		} else {
 			root = configured
 		}
 	}
 	if root == "" {
-		root = defaultDataRoot()
+		root = defaultAppRoot()
 	}
 
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return "", err
 	}
-
 	return root, nil
+}
+
+// ResolveDataRoot is kept for callers that still mean "game data root".
+func ResolveDataRoot(customRoot string) (string, error) {
+	return ResolveGameRoot(customRoot)
 }
 
 type rootConfig struct {
@@ -62,9 +69,9 @@ type rootConfig struct {
 	DataRoot string `json:"dataRoot"`
 }
 
-func configuredDataRoot() (string, error) {
+func configuredGameRoot() (string, error) {
 	var config rootConfig
-	if err := storage.ReadJSON(filepath.Join(defaultDataRoot(), "bootstrap.json"), &config); err != nil {
+	if err := storage.ReadJSON(filepath.Join(defaultAppRoot(), "bootstrap.json"), &config); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return "", nil
 		}
@@ -73,7 +80,8 @@ func configuredDataRoot() (string, error) {
 	return config.DataRoot, nil
 }
 
-// SetDataRoot stores the root to use on the next app start without moving data.
+// SetDataRoot stores the game root to use on the next app start without moving data.
+// bootstrap.json always lives under the fixed AppRoot.
 func SetDataRoot(root string) error {
 	if root == "" {
 		return os.ErrInvalid
@@ -85,15 +93,19 @@ func SetDataRoot(root string) error {
 	if err := os.MkdirAll(absolute, 0o755); err != nil {
 		return err
 	}
-	return storage.WriteJSON(filepath.Join(defaultDataRoot(), "bootstrap.json"), rootConfig{
+	appRoot := defaultAppRoot()
+	if err := os.MkdirAll(appRoot, 0o755); err != nil {
+		return err
+	}
+	return storage.WriteJSON(filepath.Join(appRoot, "bootstrap.json"), rootConfig{
 		Document: storage.Document{SchemaVersion: 1},
 		DataRoot: absolute,
 	})
 }
 
-// ResolveLogDir returns the log directory path and ensures it exists.
-func ResolveLogDir(dataRoot string) (string, error) {
-	logDir := filepath.Join(dataRoot, "logs")
+// ResolveLogDir returns the log directory under AppRoot and ensures it exists.
+func ResolveLogDir(appRoot string) (string, error) {
+	logDir := filepath.Join(appRoot, "logs")
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		return "", err
 	}

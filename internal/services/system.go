@@ -1,7 +1,9 @@
 package services
 
 import (
+	"os"
 	"path/filepath"
+
 	"plumelauncher/internal/bootstrap"
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
@@ -11,7 +13,8 @@ import (
 
 // SystemService manages launcher settings and system operations.
 type SystemService struct {
-	DataRoot string
+	AppRoot  string // fixed: config, accounts path source, logs
+	DataRoot string // game root: instances/assets (shown as Data root in UI)
 	Defaults instances.LauncherDefaults
 }
 
@@ -46,8 +49,7 @@ func (s *SystemService) UpdateSettings(settings instances.LauncherDefaults) erro
 
 	s.Defaults = settings
 
-	// Persist
-	return instances.SaveConfig(s.DataRoot, settings)
+	return instances.SaveConfig(s.appStateRoot(), settings)
 }
 
 // WrapperArgs converts the validated persisted wrapper command to an argv prefix.
@@ -59,12 +61,18 @@ func WrapperArgs(value string) []string {
 	return args
 }
 
-// GetDataRoot returns the data root path.
+// GetDataRoot returns the game data root path (instances, assets, versions, cache).
 func (s *SystemService) GetDataRoot() string {
 	return s.DataRoot
 }
 
-// UpdateDataRoot stores a new root to use after the launcher restarts.
+// GetAppRoot returns the fixed launcher state directory.
+func (s *SystemService) GetAppRoot() string {
+	return s.appStateRoot()
+}
+
+// UpdateDataRoot stores a new game root to use after the launcher restarts.
+// Accounts, config, and logs stay under the fixed app root.
 func (s *SystemService) UpdateDataRoot(path string) error {
 	if path == "" {
 		return NewValidationError("data root is required", "dataRoot")
@@ -75,12 +83,23 @@ func (s *SystemService) UpdateDataRoot(path string) error {
 	return nil
 }
 
-// OpenLogFolder opens the active data root's log directory.
+// OpenLogFolder opens the fixed app root's log directory.
 func (s *SystemService) OpenLogFolder() error {
-	if err := platform.OpenFileManager(s.DataRoot + "/logs"); err != nil {
+	logDir := filepath.Join(s.appStateRoot(), "logs")
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		return NewInternalError("create log folder: " + err.Error())
+	}
+	if err := platform.OpenFileManager(logDir); err != nil {
 		return NewInternalError("open log folder: " + err.Error())
 	}
 	return nil
+}
+
+func (s *SystemService) appStateRoot() string {
+	if s.AppRoot != "" {
+		return s.AppRoot
+	}
+	return s.DataRoot
 }
 
 // ScanJava detects installed Java installations.
@@ -134,7 +153,7 @@ func (s *SystemService) AddCustomJava(path string) (*java.JavaInfo, error) {
 		}
 	}
 	s.Defaults.CustomJavaPaths = append(s.Defaults.CustomJavaPaths, info.Path)
-	if err := instances.SaveConfig(s.DataRoot, s.Defaults); err != nil {
+	if err := instances.SaveConfig(s.appStateRoot(), s.Defaults); err != nil {
 		return nil, NewInternalError("save custom Java: " + err.Error())
 	}
 	info.Source = "Custom"

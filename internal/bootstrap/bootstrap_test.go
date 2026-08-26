@@ -10,7 +10,6 @@ import (
 )
 
 func TestInitializeDefaultRoot(t *testing.T) {
-	// Clear env to use default
 	t.Setenv("PLUME_DATA_ROOT", "")
 
 	cfg, err := bootstrap.Initialize("")
@@ -18,46 +17,68 @@ func TestInitializeDefaultRoot(t *testing.T) {
 		t.Fatalf("Initialize: %v", err)
 	}
 
-	if cfg.DataRoot == "" {
-		t.Fatal("DataRoot is empty")
+	if cfg.AppRoot == "" {
+		t.Fatal("AppRoot is empty")
+	}
+	if cfg.GameRoot == "" {
+		t.Fatal("GameRoot is empty")
 	}
 	if cfg.LogDir == "" {
 		t.Fatal("LogDir is empty")
 	}
-
-	// Verify directory was created
-	if _, err := os.Stat(cfg.DataRoot); os.IsNotExist(err) {
-		t.Errorf("DataRoot dir was not created: %s", cfg.DataRoot)
+	if cfg.LogDir != filepath.Join(cfg.AppRoot, "logs") {
+		t.Errorf("LogDir = %q, want under AppRoot", cfg.LogDir)
 	}
 
-	// Verify log dir was created
-	logDir := filepath.Join(cfg.DataRoot, "logs")
-	if _, err := os.Stat(logDir); os.IsNotExist(err) {
-		t.Errorf("LogDir was not created: %s", logDir)
+	if _, err := os.Stat(cfg.AppRoot); os.IsNotExist(err) {
+		t.Errorf("AppRoot dir was not created: %s", cfg.AppRoot)
+	}
+	if _, err := os.Stat(cfg.GameRoot); os.IsNotExist(err) {
+		t.Errorf("GameRoot dir was not created: %s", cfg.GameRoot)
+	}
+	if _, err := os.Stat(cfg.LogDir); os.IsNotExist(err) {
+		t.Errorf("LogDir was not created: %s", cfg.LogDir)
 	}
 
-	// Verify platform-specific default
 	if runtime.GOOS == "windows" {
-		if filepath.Base(cfg.DataRoot) != "PlumeLauncher" {
-			t.Errorf("DataRoot base = %q, want %q", filepath.Base(cfg.DataRoot), "PlumeLauncher")
+		if filepath.Base(cfg.AppRoot) != "PlumeLauncher" {
+			t.Errorf("AppRoot base = %q, want %q", filepath.Base(cfg.AppRoot), "PlumeLauncher")
 		}
 	}
 }
 
 func TestInitializeCustomRoot(t *testing.T) {
-	custom := filepath.Join(t.TempDir(), "custom-root")
+	base := t.TempDir()
+	t.Setenv("LOCALAPPDATA", base)
+	t.Setenv("USERPROFILE", base)
+	t.Setenv("XDG_DATA_HOME", base)
+	t.Setenv("PLUME_DATA_ROOT", "")
 
+	custom := filepath.Join(t.TempDir(), "custom-root")
 	cfg, err := bootstrap.Initialize(custom)
 	if err != nil {
 		t.Fatalf("Initialize: %v", err)
 	}
 
-	if cfg.DataRoot != custom {
-		t.Errorf("DataRoot = %q, want %q", cfg.DataRoot, custom)
+	if cfg.GameRoot != custom {
+		t.Errorf("GameRoot = %q, want %q", cfg.GameRoot, custom)
+	}
+	if cfg.AppRoot != filepath.Join(base, "PlumeLauncher") && cfg.AppRoot != filepath.Join(base, "PlumeLauncher") {
+		// AppRoot always fixed under env base
+		if filepath.Base(cfg.AppRoot) != "PlumeLauncher" {
+			t.Errorf("AppRoot = %q, want fixed app root", cfg.AppRoot)
+		}
+	}
+	if cfg.LogDir != filepath.Join(cfg.AppRoot, "logs") {
+		t.Errorf("LogDir = %q, want %q", cfg.LogDir, filepath.Join(cfg.AppRoot, "logs"))
 	}
 }
 
 func TestInitializeEnvOverride(t *testing.T) {
+	base := t.TempDir()
+	t.Setenv("LOCALAPPDATA", base)
+	t.Setenv("USERPROFILE", base)
+	t.Setenv("XDG_DATA_HOME", base)
 	envRoot := filepath.Join(t.TempDir(), "env-root")
 	t.Setenv("PLUME_DATA_ROOT", envRoot)
 
@@ -66,8 +87,11 @@ func TestInitializeEnvOverride(t *testing.T) {
 		t.Fatalf("Initialize: %v", err)
 	}
 
-	if cfg.DataRoot != envRoot {
-		t.Errorf("DataRoot = %q, want %q", cfg.DataRoot, envRoot)
+	if cfg.GameRoot != envRoot {
+		t.Errorf("GameRoot = %q, want %q", cfg.GameRoot, envRoot)
+	}
+	if cfg.LogDir != filepath.Join(cfg.AppRoot, "logs") {
+		t.Errorf("logs left AppRoot: %q", cfg.LogDir)
 	}
 }
 
@@ -86,7 +110,19 @@ func TestSetDataRootAppliesOnNextInitialize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Initialize: %v", err)
 	}
-	if config.DataRoot != target {
-		t.Errorf("DataRoot = %q, want %q", config.DataRoot, target)
+	if config.GameRoot != target {
+		t.Errorf("GameRoot = %q, want %q", config.GameRoot, target)
+	}
+	if config.AppRoot != filepath.Join(base, "PlumeLauncher") {
+		// linux uses XDG under base
+		if filepath.Base(config.AppRoot) != "PlumeLauncher" {
+			t.Errorf("AppRoot drifted: %q", config.AppRoot)
+		}
+	}
+	if config.LogDir != filepath.Join(config.AppRoot, "logs") {
+		t.Errorf("LogDir = %q, want under AppRoot", config.LogDir)
+	}
+	if _, err := os.Stat(filepath.Join(config.AppRoot, "bootstrap.json")); err != nil {
+		t.Fatalf("bootstrap.json missing under AppRoot: %v", err)
 	}
 }
