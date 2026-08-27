@@ -120,11 +120,18 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
 
       {/* Card grid */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {instances.length === 0 && <div className="col-span-full rounded-lg border border-dashed border-border py-16 text-center">
-          <p className="text-sm text-muted-foreground">No instances yet.</p>
-          <p className="mt-1 text-xs text-muted-foreground/50">
-            Click "New Instance" to create one.
-          </p>
+        {instances.length === 0 && <div className="col-span-full flex flex-col items-center gap-4 rounded-lg border border-dashed border-border py-16 text-center">
+          <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
+            <Plus className="size-6 text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">Your library is empty</p>
+            <p className="mt-1 text-xs text-muted-foreground">Create your first instance to start playing.</p>
+          </div>
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-1.5 size-3.5" />
+            Create Instance
+          </Button>
         </div>}
         {instances.length > 0 && visibleInstances.length === 0 && <div className="col-span-full py-16 text-center text-sm text-muted-foreground">No matching instances.</div>}
 		 {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.id === downloadInstanceId ? InstanceState.StateDownloading : instance.state} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
