@@ -16,6 +16,7 @@ interface InstanceCardProps {
   onOpenDetail?: () => void;
   onAction?: (action: 'play' | 'install' | 'stop' | 'cancel') => void;
   busy?: boolean;
+  downloadProgress?: { fileProgress: number; totalFiles: number } | null;
 }
 
 const stateLabel: Record<InstanceState, string> = {
@@ -54,19 +55,11 @@ export function InstanceCard({
   onOpenDetail,
   onAction,
   busy = false,
+  downloadProgress = null,
 }: InstanceCardProps) {
   return (
     <Card
-      className="cursor-pointer hover:border-primary/40"
-      onClick={onOpenDetail}
-      onKeyDown={(event) => {
-		if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
-		event.preventDefault();
-		onOpenDetail?.();
-	  }}
-	  tabIndex={0}
-	  role="button"
-	  aria-label={`Open details for ${name}`}
+      className="hover:border-primary/40"
       data-slot="instance-card"
     >
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
@@ -81,7 +74,8 @@ export function InstanceCard({
            <MoreVertical className="size-3.5" />
          </Button>
       </CardHeader>
-      <CardContent className="flex items-center justify-between pt-0">
+      <CardContent className="space-y-2 pt-0">
+        <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
            {(state === InstanceState.StateReady || state === InstanceState.StateStopped) && (
              <Button size="sm" disabled={busy} onClick={(e) => { e.stopPropagation(); onPlay?.(); onAction?.('play'); }} aria-label={`Play ${name}`}>
@@ -105,6 +99,13 @@ export function InstanceCard({
            )}
         </div>
         <Badge variant="outline" className="text-[10px] capitalize">{loader}</Badge>
+        </div>
+        {state === InstanceState.StateDownloading && downloadProgress && downloadProgress.totalFiles > 0 && (
+          <div className="space-y-1">
+            <progress className="h-1 w-full accent-primary" value={downloadProgress.fileProgress} max={downloadProgress.totalFiles} />
+            <p className="text-[10px] text-muted-foreground">{downloadProgress.fileProgress}/{downloadProgress.totalFiles} files</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

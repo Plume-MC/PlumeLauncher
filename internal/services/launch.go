@@ -41,8 +41,12 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 		s.Logger.AddSecrets(opts.AccessToken)
 		s.Logger.Info("launch_requested", "instanceId", opts.VersionID, "operationId", op.ID)
 	}
+	handedOff := false
 	defer func() {
-		if op.Status == instances.OpStatusRunning {
+		if handedOff {
+			return
+		}
+		if s.Registry.IsActive(opts.VersionID) {
 			s.Registry.Fail(opts.VersionID)
 		}
 	}()
@@ -81,19 +85,25 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	if err != nil {
 		return NewInternalError("failed to launch: " + err.Error())
 	}
+	handedOff = true
+	go s.monitor(cmd, opts, op)
+	return nil
+}
+
+func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instances.Operation) {
 	started := false
 	defer func() {
 		s.mu.Lock()
-		if s.processes != nil {
-			delete(s.processes, opts.VersionID)
-		}
+		delete(s.processes, opts.VersionID)
 		s.mu.Unlock()
+		if s.Registry.IsActive(opts.VersionID) {
+			s.Registry.Fail(opts.VersionID)
+		}
 	}()
 
-	// Monitor (blocks until exit)
 	var stderr []string
 	var stderrMu sync.Mutex
-	err = launch.MonitorWithStart(cmd, func(line string, isStderr bool) {
+	err := launch.MonitorWithStart(cmd, func(line string, isStderr bool) {
 		level := "info"
 		if isStderr {
 			level = "error"
@@ -129,14 +139,14 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 		if !started {
 			s.Registry.Fail(opts.VersionID)
 			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "failed"})
-			return NewInternalError("failed to start game: " + err.Error())
+			return
 		}
-		if op := s.Registry.Get(opts.VersionID); op != nil && op.Status == instances.OpStatusCancelled {
+		if current := s.Registry.Get(opts.VersionID); current != nil && current.Status == instances.OpStatusCancelled {
 			if s.Instances != nil {
 				_ = s.Instances.UpdateState(opts.VersionID, instances.StateStopped)
 			}
 			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "stopped"})
-			return nil
+			return
 		}
 		var exitErr *launch.ProcessExitError
 		if errors.As(err, &exitErr) {
@@ -152,10 +162,10 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 			s.Registry.Fail(opts.VersionID)
 			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "failed"})
 		}
-		if len(stderr) > 0 {
-			return NewInternalError("game process error: " + launch.Redact(strings.Join(stderr, "\n"), opts.AccessToken))
+		if len(stderr) > 0 && s.Logger != nil {
+			s.Logger.Error("game_process_error", "instanceId", opts.VersionID, "error", launch.Redact(strings.Join(stderr, "\n"), opts.AccessToken))
 		}
-		return NewInternalError("game process error: " + err.Error())
+		return
 	}
 
 	if s.Instances != nil {
@@ -166,7 +176,6 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 		s.Logger.Info("launch_stopped", "instanceId", opts.VersionID, "operationId", op.ID)
 	}
 	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "stopped"})
-	return nil
 }
 
 // Stop stops a running instance.

@@ -127,6 +127,9 @@ func main() {
 	// Run the application. This blocks until the application has been exited.
 	err = app.Run()
 
+	// Kill all running game processes before exit.
+	launchService.KillAll()
+
 	// If an error occurred while running the application, log it and exit.
 	if err != nil {
 		log.Fatal(err)

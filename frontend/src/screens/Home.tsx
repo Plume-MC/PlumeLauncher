@@ -36,6 +36,8 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
    const [accountsOpen, setAccountsOpen] = useState(false);
    const [liveStatus, setLiveStatus] = useState('');
 	const [downloadInstanceId, setDownloadInstanceId] = useState('');
+	const [downloadProgress, setDownloadProgress] = useState<{ fileProgress: number; totalFiles: number } | null>(null);
+	const [runningInstanceId, setRunningInstanceId] = useState('');
 
 	useEffect(() => {
 	  const unsubs = [
@@ -44,14 +46,22 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
 		  setLiveStatus(data.status === 'downloading' ? `Downloading ${data.fileProgress}/${data.totalFiles}` : data.status === 'repairing' ? 'Repairing instance' : data.status === 'cancelled' ? 'Download cancelled' : data.status === 'failed' ? 'Download failed' : '');
 		  if (data.status === 'downloading' || data.status === 'repairing') {
 			setDownloadInstanceId(data.instanceId);
+			setDownloadProgress({ fileProgress: data.fileProgress, totalFiles: data.totalFiles });
 		  } else if (data.status === 'completed' || data.status === 'cancelled' || data.status === 'failed') {
 			setDownloadInstanceId('');
+			setDownloadProgress(null);
 			void onRefresh();
 		  }
 		}),
 		Events.On('launch-state', (event) => {
 		  const data: LaunchStateEvent = event.data;
 		  setLiveStatus(data.state === 'running' ? 'Minecraft is running' : data.state === 'crashed' ? 'Minecraft crashed' : data.state === 'failed' ? 'Launch failed' : '');
+		  if (data.state === 'running') {
+			setRunningInstanceId(data.instanceId);
+		  } else if (data.state === 'stopped' || data.state === 'crashed' || data.state === 'failed') {
+			setRunningInstanceId('');
+			void onRefresh();
+		  }
 		}),
 	  ];
 	  return () => unsubs.forEach((unsubscribe) => unsubscribe());
@@ -134,7 +144,7 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
           </Button>
         </div>}
         {instances.length > 0 && visibleInstances.length === 0 && <div className="col-span-full py-16 text-center text-sm text-muted-foreground">No matching instances.</div>}
-		 {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.id === downloadInstanceId ? InstanceState.StateDownloading : instance.state} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
+		 {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.id === downloadInstanceId ? InstanceState.StateDownloading : instance.id === runningInstanceId ? InstanceState.StateRunning : instance.state} downloadProgress={instance.id === downloadInstanceId ? downloadProgress : null} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
       </div>
 
        <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} instance={detailInstance} onChanged={onRefresh} onDelete={() => { setDetailOpen(false); setDeleteId(detailInstance?.id ?? null); }} />
