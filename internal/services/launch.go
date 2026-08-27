@@ -188,3 +188,23 @@ func (s *LaunchService) Stop(instanceID string) error {
 	s.Registry.Cancel(instanceID)
 	return nil
 }
+
+// KillAll forcefully terminates all running game processes.
+// Called during application shutdown to prevent orphaned Java processes.
+func (s *LaunchService) KillAll() {
+	s.mu.Lock()
+	procs := make(map[string]*exec.Cmd, len(s.processes))
+	for k, v := range s.processes {
+		procs[k] = v
+	}
+	s.mu.Unlock()
+
+	for id, cmd := range procs {
+		if cmd.Process != nil {
+			if s.Logger != nil {
+				s.Logger.Info("killing_instance", "instanceId", id, "pid", cmd.Process.Pid)
+			}
+			_ = cmd.Process.Kill()
+		}
+	}
+}
