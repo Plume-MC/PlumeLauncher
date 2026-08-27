@@ -133,6 +133,25 @@ func (s *HomeService) InstallInstance(id string) error {
 			return NewValidationError(err.Error(), "artifact.url")
 		}
 	}
+	// Pre-verify: skip already-committed artifacts on retry after cancel
+	statuses := downloader.VerifyPlan(s.DataRoot, plan)
+	var remaining []metadata.Artifact
+	for _, status := range statuses {
+		if !status.Valid {
+			remaining = append(remaining, status.Artifact)
+		}
+	}
+	if len(remaining) == 0 {
+		if err := s.Instances.UpdateState(id, instances.StateVerifying); err != nil {
+			return err
+		}
+		if err := s.Instances.UpdateState(id, instances.StateReady); err != nil {
+			return err
+		}
+		s.Registry.Complete(id)
+		return nil
+	}
+	plan.Artifacts = remaining
 	if err := s.Instances.UpdateState(id, instances.StatePlanning); err != nil {
 		return err
 	}

@@ -49,14 +49,15 @@ func (o *Orchestrator) DownloadPlan(ctx context.Context, plan *metadata.Artifact
 		if err != nil {
 			return err
 		}
+		a := artifact
 		tasks = append(tasks, Task{
-			URL:  artifact.URL,
+			URL:  a.URL,
 			Path: fullPath,
-			SHA1: artifact.Sha1,
-			Size: artifact.Size,
+			SHA1: a.Sha1,
+			Size: a.Size,
 			OnComplete: func(cached bool) {
 				if cached {
-					o.progress.Increment(artifact.Size, artifact.Size)
+					o.progress.Increment(a.Size, a.Size)
 				} else {
 					o.progress.Complete()
 				}
@@ -144,16 +145,17 @@ func (o *Orchestrator) DownloadAssets(ctx context.Context, detail metadata.Versi
 		if len(obj.Hash) != 40 || !isHexHash(obj.Hash) {
 			return fmt.Errorf("invalid asset hash %q", obj.Hash)
 		}
-		path := filepath.Join(objectsDir, obj.Hash[:2], obj.Hash)
-		url := baseURL + obj.Hash[:2] + "/" + obj.Hash
+		p := filepath.Join(objectsDir, obj.Hash[:2], obj.Hash)
+		u := baseURL + obj.Hash[:2] + "/" + obj.Hash
+		sz := int64(obj.Size)
 		tasks = append(tasks, Task{
-			URL:  url,
-			Path: path,
+			URL:  u,
+			Path: p,
 			SHA1: obj.Hash,
-			Size: int64(obj.Size),
+			Size: sz,
 			OnComplete: func(cached bool) {
 				if cached {
-					o.progress.Increment(int64(obj.Size), int64(obj.Size))
+					o.progress.Increment(sz, sz)
 				} else {
 					o.progress.Complete()
 				}
