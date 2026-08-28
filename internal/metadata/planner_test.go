@@ -153,13 +153,13 @@ func TestResolvePlanRuleFiltering(t *testing.T) {
 		},
 		Libraries: []metadata.Library{
 			{
-				Name: "allowed-library",
+				Name: "com.example:allowed:1.0",
 				Downloads: &metadata.LibraryDownloads{
 					Artifact: metadata.DownloadInfo{URL: "http://example.com/allowed.jar", Size: 100, SHA1: "b"},
 				},
 			},
 			{
-				Name: "osx-only-library",
+				Name: "com.example:osx-only:1.0",
 				Rules: []metadata.Rule{
 					{Action: "allow", OS: &metadata.OSRule{Name: "osx"}},
 				},
@@ -168,7 +168,7 @@ func TestResolvePlanRuleFiltering(t *testing.T) {
 				},
 			},
 			{
-				Name: "windows-only-library",
+				Name: "com.example:windows-only:1.0",
 				Rules: []metadata.Rule{
 					{Action: "allow", OS: &metadata.OSRule{Name: "windows"}},
 				},
@@ -237,7 +237,7 @@ func TestResolvePlanDeduplicatesArtifactPaths(t *testing.T) {
 	plan := metadata.ResolvePlan(detail, metadata.SystemInfo{OS: "windows", Arch: "x64"})
 	count := 0
 	for _, artifact := range plan.Artifacts {
-		if artifact.Path == "org/lwjgl/lwjgl/3.2.2/lwjgl-3.2.2.jar" {
+		if artifact.Path == "libraries/org/lwjgl/lwjgl/3.2.2/lwjgl-3.2.2.jar" {
 			count++
 		}
 	}

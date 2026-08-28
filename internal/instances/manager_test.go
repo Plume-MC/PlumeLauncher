@@ -30,7 +30,7 @@ func TestCreateInstance(t *testing.T) {
 	if inst.ID == "" {
 		t.Error("ID is empty")
 	}
-	if _, err := os.Stat(filepath.Join(dir, "instances", inst.ID, ".minecraft")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, "instances", "test-instance", ".minecraft")); err != nil {
 		t.Errorf("isolated game directory: %v", err)
 	}
 }

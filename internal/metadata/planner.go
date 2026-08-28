@@ -110,6 +110,7 @@ func (p *ArtifactPlan) addClient(detail VersionDetail) {
 }
 
 func (p *ArtifactPlan) addLibraries(detail VersionDetail, sys SystemInfo) {
+	libDir := ResolveLibraryDir()
 	for _, lib := range detail.Libraries {
 		if !ShouldDownload(lib.Rules, sys) {
 			continue
@@ -125,13 +126,17 @@ func (p *ArtifactPlan) addLibraries(detail VersionDetail, sys SystemInfo) {
 		if path == "" {
 			path = ResolveMavenPath(lib.Name)
 		}
-		if err := ValidatePath(path); err != nil {
+		if path == "" {
+			continue
+		}
+		fullPath := libDir + "/" + path
+		if err := ValidatePath(fullPath); err != nil {
 			continue
 		}
 		p.Artifacts = append(p.Artifacts, Artifact{
 			Role:     RoleLibrary,
 			URL:      dl.URL,
-			Path:     path,
+			Path:     fullPath,
 			Size:     dl.Size,
 			Sha1:     dl.SHA1,
 			Rules:    lib.Rules,
@@ -141,6 +146,7 @@ func (p *ArtifactPlan) addLibraries(detail VersionDetail, sys SystemInfo) {
 }
 
 func (p *ArtifactPlan) addNatives(detail VersionDetail, sys SystemInfo) {
+	libDir := ResolveLibraryDir()
 	for _, lib := range detail.Libraries {
 		if !ShouldDownload(lib.Rules, sys) {
 			continue
@@ -176,7 +182,7 @@ func (p *ArtifactPlan) addNatives(detail VersionDetail, sys SystemInfo) {
 		p.Artifacts = append(p.Artifacts, Artifact{
 			Role:     RoleNative,
 			URL:      dl.URL,
-			Path:     nativePath,
+			Path:     libDir + "/" + nativePath,
 			Size:     dl.Size,
 			Sha1:     dl.SHA1,
 			Rules:    lib.Rules,

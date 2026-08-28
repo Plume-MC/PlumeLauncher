@@ -375,6 +375,7 @@ func buildClasspath(version metadata.VersionDetail, opts Options) string {
 	paths = append(paths, clientPath)
 
 	// Add allowed libraries
+	libDir := metadata.ResolveLibraryDir()
 	for _, lib := range version.Libraries {
 		if !metadata.ShouldDownload(lib.Rules, launchSystem(opts)) {
 			continue
@@ -384,7 +385,10 @@ func buildClasspath(version metadata.VersionDetail, opts Options) string {
 			if path == "" {
 				path = metadata.ResolveMavenPath(lib.Name)
 			}
-			paths = append(paths, filepath.Join(root, path))
+			if path == "" {
+				continue
+			}
+			paths = append(paths, filepath.Join(root, libDir, path))
 		}
 	}
 
