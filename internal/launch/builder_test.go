@@ -281,6 +281,17 @@ func TestBuildArgumentsAddsVerifiedInjector(t *testing.T) {
 	t.Fatal("missing authlib injector argument")
 }
 
+func TestSanitizeJvmArgs(t *testing.T) {
+	args := []string{"-Xmx2G", "-agentlib:jdwp=transport=dt_socket", "-Xrunjdwp:server=y", "-Dcom.sun.management.jmxremote", "-Xdebug", "-Dfile.encoding=UTF-8"}
+	safe := launch.SanitizeJvmArgs(args)
+	if len(safe) != 2 {
+		t.Fatalf("SanitizeJvmArgs returned %d args, want 2: %v", len(safe), safe)
+	}
+	if safe[0] != "-Xmx2G" || safe[1] != "-Dfile.encoding=UTF-8" {
+		t.Fatalf("unexpected args: %v", safe)
+	}
+}
+
 func TestBuildArgumentsUsesLoaderParentJar(t *testing.T) {
 	args, err := launch.BuildArguments(metadata.VersionDetail{ID: "fabric-loader-0.16.0-1.20.1", Jar: "1.20.1", MainClass: "main"}, launch.Options{ClasspathRoot: "test", GameDir: "test", NativesDir: "test/natives"})
 	if err != nil {

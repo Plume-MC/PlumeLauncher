@@ -156,7 +156,7 @@ func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {
 		cp := buildClasspath(version, opts)
 		args = append(args, "-cp", cp)
 	}
-	args = append(args, opts.JVMArgs...)
+	args = append(args, SanitizeJvmArgs(opts.JVMArgs)...)
 	if strings.EqualFold(opts.WindowMode, "borderless") {
 		args = append(args, "-Dorg.lwjgl.glfw.window.undecorated=true")
 	}
@@ -220,6 +220,31 @@ func buildGameArgs(version metadata.VersionDetail, opts Options) []string {
 	}
 
 	return args
+}
+
+var unsafeJvmPrefixes = []string{
+	"-agentlib",
+	"-Xrunjdwp",
+	"-Dcom.sun.management.jmxremote",
+	"-Xdebug",
+}
+
+// SanitizeJvmArgs filters out dangerous JVM arguments that could enable remote debugging or agent injection.
+func SanitizeJvmArgs(args []string) []string {
+	var safe []string
+	for _, arg := range args {
+		blocked := false
+		for _, prefix := range unsafeJvmPrefixes {
+			if strings.HasPrefix(arg, prefix) {
+				blocked = true
+				break
+			}
+		}
+		if !blocked {
+			safe = append(safe, arg)
+		}
+	}
+	return safe
 }
 
 func ensureGameOption(args []string, option, value string) []string {
