@@ -95,6 +95,9 @@ func (s *HomeService) CreateInstance(name, version, loader, loaderVersion string
 }
 
 func (s *HomeService) DeleteInstance(id string) error {
+	if s.Registry != nil && s.Registry.IsActive(id) {
+		return NewConflictError("stop the instance before deleting it")
+	}
 	return s.Instances.Delete(id)
 }
 

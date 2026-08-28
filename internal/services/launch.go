@@ -25,6 +25,12 @@ type LaunchService struct {
 	processes map[string]*exec.Cmd
 }
 
+func (s *LaunchService) HasRunning() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.processes) > 0
+}
+
 // Launch starts a Minecraft instance.
 func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Options) error {
 	// Check if operation already active

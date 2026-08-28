@@ -14,6 +14,7 @@ import (
 	"plumelauncher/internal/services"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.
@@ -121,7 +122,7 @@ func main() {
 	// 'Mac' options tailor the window when running on macOS.
 	// 'BackgroundColour' is the background colour of the window.
 	// 'URL' is the URL that will be loaded into the webview.
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	mainWindow := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "Plume Launcher",
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
 		Width:  1600,
@@ -133,6 +134,24 @@ func main() {
 		},
 		BackgroundColour: application.NewRGB(6, 7, 15),
 		URL:              "/",
+	})
+	allowClose := false
+	mainWindow.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
+		if allowClose || !launchService.HasRunning() {
+			return
+		}
+		event.Cancel()
+		dialog := app.Dialog.Question().SetTitle("Minecraft is still running").SetMessage("Stop Minecraft and close Plume Launcher?")
+		stop := dialog.AddButton("Stop and close")
+		cancel := dialog.AddButton("Keep open")
+		dialog.SetDefaultButton(stop)
+		dialog.SetCancelButton(cancel)
+		stop.OnClick(func() {
+			allowClose = true
+			launchService.KillAll()
+			mainWindow.Close()
+		})
+		dialog.Show()
 	})
 
 	// Run the application. This blocks until the application has been exited.
