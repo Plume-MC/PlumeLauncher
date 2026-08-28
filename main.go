@@ -2,6 +2,8 @@ package main
 
 import (
 	"embed"
+	"errors"
+	"fmt"
 
 	"log"
 
@@ -37,22 +39,30 @@ func init() {
 func main() {
 	config, err := bootstrap.Initialize("")
 	if err != nil {
-		log.Fatal(err)
+		showStartupError(err)
+		return
 	}
 	logger, err := logging.New(config.AppRoot)
 	if err != nil {
-		log.Fatal(err)
+		showStartupError(err)
+		return
 	}
 	defer logger.Close()
 	logger.Info("launcher_started", "appRoot", config.AppRoot, "gameRoot", config.GameRoot)
 	dataRootLock, err := bootstrap.AcquireDataRootLock(config.AppRoot)
 	if err != nil {
-		log.Fatal(err)
+		if errors.Is(err, bootstrap.ErrDataRootLocked) {
+			showStartupError(fmt.Errorf("another Plume Launcher is already using this data folder:\n\n%s", config.AppRoot))
+		} else {
+			showStartupError(err)
+		}
+		return
 	}
 	defer dataRootLock.Release()
 	defaults, err := instances.LoadConfig(config.AppRoot)
 	if err != nil {
-		log.Fatal(err)
+		showStartupError(err)
+		return
 	}
 	if !defaults.JavaDefaultInitialized {
 		defaults.JavaDefaultInitialized = true
@@ -60,7 +70,8 @@ func main() {
 			defaults.DefaultJavaPath = systemJava.Path
 		}
 		if err := instances.SaveConfig(config.AppRoot, defaults); err != nil {
-			log.Fatal(err)
+			showStartupError(err)
+			return
 		}
 	}
 	registry := instances.NewRegistry()
@@ -134,4 +145,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func showStartupError(err error) {
+	app := application.New(application.Options{Name: "Plume Launcher"})
+	app.Dialog.Error().SetTitle("Plume Launcher could not start").SetMessage(err.Error()).Show()
 }

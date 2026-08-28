@@ -1,6 +1,7 @@
 package bootstrap_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,6 +19,8 @@ func TestDataRootLockIsExclusiveAndReleasable(t *testing.T) {
 
 	if _, err := bootstrap.AcquireDataRootLock(root); err == nil {
 		t.Fatal("second process acquired the lock")
+	} else if !errors.Is(err, bootstrap.ErrDataRootLocked) {
+		t.Fatalf("second lock error: %v", err)
 	}
 	if err := first.Release(); err != nil {
 		t.Fatalf("release: %v", err)

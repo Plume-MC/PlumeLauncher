@@ -1,10 +1,13 @@
 package bootstrap
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 )
+
+var ErrDataRootLocked = errors.New("data root is already in use")
 
 // DataRootLock prevents multiple launcher processes from owning writable state.
 type DataRootLock struct {
@@ -23,7 +26,7 @@ func AcquireDataRootLock(dataRoot string) (*DataRootLock, error) {
 	}
 	if err := lockFile(file); err != nil {
 		_ = file.Close()
-		return nil, fmt.Errorf("acquire data root lock: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrDataRootLocked, err)
 	}
 	if err := file.Truncate(0); err != nil {
 		_ = unlockFile(file)
