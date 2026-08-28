@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useEffect } from 'react';
 import { Events } from '@wailsio/runtime';
 import { TopBar } from '@/components/home/TopBar';
@@ -17,6 +17,7 @@ export function AppShell({ children }: AppShellProps) {
   const [launchActive, setLaunchActive] = useState(false);
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
   const [download, setDownload] = useState<DownloadProgressEvent | null>(null);
+  const dismissedRef = useRef(false);
 
   useEffect(() => {
     const unsubs = [
@@ -25,7 +26,8 @@ export function AppShell({ children }: AppShellProps) {
         setDownload(data);
         const active = !['completed', 'failed', 'cancelled'].includes(data.status);
         setDownloadActive(active);
-        if (active || data.status === 'failed') setActivityOpen(true);
+        if (!active) dismissedRef.current = false;
+        if ((active || data.status === 'failed') && !dismissedRef.current) setActivityOpen(true);
       }),
       Events.On('launch-state', (event) => {
         const data: LaunchStateEvent = event.data;
@@ -51,7 +53,7 @@ export function AppShell({ children }: AppShellProps) {
         onSettingsClick={() => setSettingsOpen(true)}
       />
       <main className="flex-1 overflow-auto">{children}</main>
-      <ActivityPanel isOpen={activityOpen} onClose={() => setActivityOpen(false)} activityCount={activityCount} consoleLines={consoleLines} download={download} />
+      <ActivityPanel isOpen={activityOpen} onClose={() => { setActivityOpen(false); dismissedRef.current = true; }} activityCount={activityCount} consoleLines={consoleLines} download={download} />
       <SettingsSheet isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
