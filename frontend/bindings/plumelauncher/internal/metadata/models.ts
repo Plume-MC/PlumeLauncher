@@ -31,11 +31,15 @@ export enum ArtifactRole {
 };
 
 /**
- * FeatureRule matches against feature flags.
+ * FeatureRule matches against feature flags from version metadata.
  */
 export interface FeatureRule {
     "is_demo_user"?: boolean | null;
     "has_custom_resolution"?: boolean | null;
+    "has_quick_plays_support"?: boolean | null;
+    "is_quick_play_singleplayer"?: boolean | null;
+    "is_quick_play_multiplayer"?: boolean | null;
+    "is_quick_play_realms"?: boolean | null;
 }
 
 /**

@@ -96,16 +96,26 @@ func matchOS(osRule *OSRule, sys SystemInfo) bool {
 }
 
 func matchFeatures(featureRule *FeatureRule, sys SystemInfo) bool {
-	if sys.Features == nil {
-		return false
+	features := sys.Features
+	if features == nil {
+		features = map[string]bool{}
 	}
-	if featureRule.IsDemoUser != nil {
-		if sys.Features["is_demo_user"] != *featureRule.IsDemoUser {
-			return false
+	checks := []struct {
+		want *bool
+		key  string
+	}{
+		{featureRule.IsDemoUser, "is_demo_user"},
+		{featureRule.HasCustomResolution, "has_custom_resolution"},
+		{featureRule.HasQuickPlaysSupport, "has_quick_plays_support"},
+		{featureRule.IsQuickPlaySingleplayer, "is_quick_play_singleplayer"},
+		{featureRule.IsQuickPlayMultiplayer, "is_quick_play_multiplayer"},
+		{featureRule.IsQuickPlayRealms, "is_quick_play_realms"},
+	}
+	for _, check := range checks {
+		if check.want == nil {
+			continue
 		}
-	}
-	if featureRule.HasCustomResolution != nil {
-		if sys.Features["has_custom_resolution"] != *featureRule.HasCustomResolution {
+		if features[check.key] != *check.want {
 			return false
 		}
 	}

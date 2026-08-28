@@ -93,6 +93,18 @@ func TestShouldDownloadFeaturesMismatch(t *testing.T) {
 	}
 }
 
+func TestShouldDownloadRejectsUnsetQuickPlayFeatures(t *testing.T) {
+	sys := metadata.SystemInfo{OS: "windows", Arch: "x64"}
+	rules := []metadata.Rule{
+		{Action: "allow", Features: &metadata.FeatureRule{
+			IsQuickPlaySingleplayer: boolPtr(true),
+		}},
+	}
+	if metadata.ShouldDownload(rules, sys) {
+		t.Fatal("quick play args must stay disabled unless explicitly enabled")
+	}
+}
+
 func TestShouldDownloadMatchesOSVersionRegex(t *testing.T) {
 	sys := metadata.SystemInfo{OS: "windows", Arch: "x64", OSVersion: "10.0.22631"}
 	rules := []metadata.Rule{{Action: "allow", OS: &metadata.OSRule{Name: "windows", Version: `^10\.`}}}

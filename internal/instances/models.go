@@ -22,15 +22,15 @@ const (
 
 // validTransitions defines allowed state transitions.
 var validTransitions = map[InstanceState][]InstanceState{
-	StateNotInstalled: {StatePlanning, StateFailed},
-	StatePlanning:     {StateNotInstalled, StateDownloading, StateStopped, StateCrashed, StateFailed},
+	StateNotInstalled: {StatePlanning, StateVerifying, StateFailed},
+	StatePlanning:     {StateNotInstalled, StateDownloading, StateVerifying, StateStopped, StateCrashed, StateFailed},
 	StateDownloading:  {StateNotInstalled, StateVerifying, StateStopped, StateCrashed, StateFailed},
 	StateVerifying:    {StateNotInstalled, StateReady, StateStopped, StateCrashed, StateFailed},
 	StateReady:        {StateRunning},
 	StateRunning:      {StateStopped, StateCrashed, StateFailed},
 	StateStopped:      {StatePlanning},
-	StateCrashed:      {StatePlanning},
-	StateFailed:       {StatePlanning},
+	StateCrashed:      {StatePlanning, StateVerifying},
+	StateFailed:       {StatePlanning, StateVerifying},
 }
 
 // CanTransition checks if a transition from one state to another is valid.

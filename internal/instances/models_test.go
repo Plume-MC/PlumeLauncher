@@ -13,9 +13,11 @@ func TestValidTransitions(t *testing.T) {
 		valid bool
 	}{
 		{instances.StateNotInstalled, instances.StatePlanning, true},
+		{instances.StateNotInstalled, instances.StateVerifying, true},
 		{instances.StateNotInstalled, instances.StateFailed, true},
 		{instances.StateNotInstalled, instances.StateReady, false},
 		{instances.StatePlanning, instances.StateDownloading, true},
+		{instances.StatePlanning, instances.StateVerifying, true},
 		{instances.StatePlanning, instances.StateNotInstalled, true},
 		{instances.StatePlanning, instances.StateFailed, true},
 		{instances.StatePlanning, instances.StateReady, false},
@@ -32,7 +34,9 @@ func TestValidTransitions(t *testing.T) {
 		{instances.StateStopped, instances.StatePlanning, true},
 		{instances.StateStopped, instances.StateReady, false},
 		{instances.StateCrashed, instances.StatePlanning, true},
+		{instances.StateCrashed, instances.StateVerifying, true},
 		{instances.StateFailed, instances.StatePlanning, true},
+		{instances.StateFailed, instances.StateVerifying, true},
 		{instances.StateFailed, instances.StateReady, false},
 	}
 

@@ -429,6 +429,7 @@ func (s *HomeService) LaunchInstance(id string) error {
 		JVMArgs:       launch.ParseArgumentString(settings.JVMArgs),
 		Env:           launch.EnvironmentForGPU(settings.GPUPreference),
 		JavaPath:      javaPath,
+		JavaMajor:     java.RequiredJavaMajor(inst.MCVersion),
 	}
 	options.Wrapper, err = launch.ParseAndValidateWrapper(settings.WrapperCommand)
 	if err != nil {

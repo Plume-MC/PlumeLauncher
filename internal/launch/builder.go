@@ -29,6 +29,7 @@ type Options struct {
 	WindowMode      string
 	Wrapper         []string // validated argv prefix
 	JavaPath        string
+	JavaMajor       int // required Java major version for --add-opens injection
 	JVMArgs         []string
 	Env             map[string]string
 	AuthlibInjector string // verified authlib-injector JAR for Ely.by accounts
@@ -159,6 +160,16 @@ func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {
 	args = append(args, SanitizeJvmArgs(opts.JVMArgs)...)
 	if strings.EqualFold(opts.WindowMode, "borderless") {
 		args = append(args, "-Dorg.lwjgl.glfw.window.undecorated=true")
+	}
+
+	// Java module access for Minecraft launchers (same as Modrinth/official launcher)
+	// Java 9+ requires explicit access to java.lang.reflect for the launcher bootstrap
+	if opts.JavaMajor >= 9 {
+		args = append(args, "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED")
+	}
+	// Java 25+ requires JEP 512 support (jdk.internal.misc)
+	if opts.JavaMajor >= 25 {
+		args = append(args, "--add-opens=jdk.internal/jdk.internal.misc=ALL-UNNAMED")
 	}
 
 	return args
@@ -305,22 +316,28 @@ func launchSystem(opts Options) metadata.SystemInfo {
 
 func replaceVars(s string, version metadata.VersionDetail, opts Options) string {
 	vars := map[string]string{
-		"${auth_player_name}":  opts.PlayerName,
-		"${auth_uuid}":         opts.UUID,
-		"${auth_access_token}": opts.AccessToken,
-		"${user_type}":         mapUserType(opts.UserType),
-		"${user_properties}":   "{}",
-		"${version_name}":      version.ID,
-		"${game_directory}":    opts.GameDir,
-		"${assets_root}":       opts.AssetsDir,
-		"${assets_index_name}": version.AssetIndex.ID,
-		"${auth_xuid}":         "",
-		"${clientid}":          "",
-		"${version_type}":      "PlumeLauncher",
-		"${natives_directory}": opts.NativesDir,
-		"${launcher_name}":     "PlumeLauncher",
-		"${launcher_version}":  "1.0.0",
-		"${classpath}":         buildClasspath(version, opts),
+		"${auth_player_name}":      opts.PlayerName,
+		"${auth_uuid}":             opts.UUID,
+		"${auth_access_token}":     opts.AccessToken,
+		"${user_type}":             mapUserType(opts.UserType),
+		"${user_properties}":       "{}",
+		"${version_name}":          version.ID,
+		"${game_directory}":        opts.GameDir,
+		"${assets_root}":           opts.AssetsDir,
+		"${assets_index_name}":     version.AssetIndex.ID,
+		"${auth_xuid}":             "",
+		"${clientid}":              "",
+		"${version_type}":          "PlumeLauncher",
+		"${natives_directory}":     opts.NativesDir,
+		"${launcher_name}":         "PlumeLauncher",
+		"${launcher_version}":      "1.0.0",
+		"${classpath}":             buildClasspath(version, opts),
+		"${resolution_width}":      fmt.Sprintf("%d", opts.Width),
+		"${resolution_height}":     fmt.Sprintf("%d", opts.Height),
+		"${quickPlayPath}":         "",
+		"${quickPlaySingleplayer}": "",
+		"${quickPlayMultiplayer}":  "",
+		"${quickPlayRealms}":       "",
 	}
 
 	for k, v := range vars {

@@ -15,7 +15,6 @@ declare module "@wailsio/runtime" {
             "download-progress": services$0.DownloadProgressEvent;
             "launch-state": services$0.LaunchStateEvent;
             "log-line": services$0.LogLineEvent;
-            "time": string;
         }
     }
 }

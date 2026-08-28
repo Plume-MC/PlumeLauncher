@@ -112,10 +112,14 @@ type OSRule struct {
 	Version string `json:"version,omitempty"`
 }
 
-// FeatureRule matches against feature flags.
+// FeatureRule matches against feature flags from version metadata.
 type FeatureRule struct {
-	IsDemoUser          *bool `json:"is_demo_user,omitempty"`
-	HasCustomResolution *bool `json:"has_custom_resolution,omitempty"`
+	IsDemoUser              *bool `json:"is_demo_user,omitempty"`
+	HasCustomResolution     *bool `json:"has_custom_resolution,omitempty"`
+	HasQuickPlaysSupport    *bool `json:"has_quick_plays_support,omitempty"`
+	IsQuickPlaySingleplayer *bool `json:"is_quick_play_singleplayer,omitempty"`
+	IsQuickPlayMultiplayer  *bool `json:"is_quick_play_multiplayer,omitempty"`
+	IsQuickPlayRealms       *bool `json:"is_quick_play_realms,omitempty"`
 }
 
 // AssetIndex points to the asset index JSON file.
