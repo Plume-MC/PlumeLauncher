@@ -1,6 +1,8 @@
 package bootstrap_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"plumelauncher/internal/bootstrap"
@@ -27,4 +29,17 @@ func TestDataRootLockIsExclusiveAndReleasable(t *testing.T) {
 	if err := second.Release(); err != nil {
 		t.Fatalf("second release: %v", err)
 	}
+}
+
+func TestDataRootLockReusesStaleMarker(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".plume.lock"), []byte("stale\n"), 0o600); err != nil {
+		t.Fatalf("write stale marker: %v", err)
+	}
+
+	lock, err := bootstrap.AcquireDataRootLock(root)
+	if err != nil {
+		t.Fatalf("acquire stale marker: %v", err)
+	}
+	defer lock.Release()
 }
