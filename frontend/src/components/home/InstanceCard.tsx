@@ -17,6 +17,7 @@ interface InstanceCardProps {
   onAction?: (action: 'play' | 'install' | 'stop' | 'cancel') => void;
   busy?: boolean;
   downloadProgress?: { fileProgress: number; totalFiles: number } | null;
+  actionState?: 'preparing' | 'stopping' | null;
 }
 
 const stateLabel: Record<InstanceState, string> = {
@@ -56,7 +57,9 @@ export function InstanceCard({
   onAction,
   busy = false,
   downloadProgress = null,
+  actionState = null,
 }: InstanceCardProps) {
+  const actionBusy = busy || actionState !== null;
   return (
     <Card
       className="hover:border-primary/40"
@@ -78,25 +81,26 @@ export function InstanceCard({
         <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
            {(state === InstanceState.StateReady || state === InstanceState.StateStopped) && (
-             <Button size="sm" disabled={busy} onClick={(e) => { e.stopPropagation(); onPlay?.(); onAction?.('play'); }} aria-label={`Play ${name}`}>
+              <Button size="sm" disabled={actionBusy} onClick={(e) => { e.stopPropagation(); onPlay?.(); onAction?.('play'); }} aria-label={`Play ${name}`}>
               <Play className="size-3" />
               Play
             </Button>
           )}
            {(state === InstanceState.StateNotInstalled || state === InstanceState.StateFailed || state === InstanceState.StateCrashed) && (
-             <Button size="sm" variant="secondary" disabled={busy} onClick={(e) => { e.stopPropagation(); onDownload?.(); onAction?.('install'); }} aria-label={`Install ${name}`}>
+              <Button size="sm" variant="secondary" disabled={actionBusy} onClick={(e) => { e.stopPropagation(); onDownload?.(); onAction?.('install'); }} aria-label={`Install ${name}`}>
               <Download className="size-3" />
               Install
             </Button>
           )}
             {(state === InstanceState.StateDownloading || state === InstanceState.StatePlanning || state === InstanceState.StateVerifying) && (
-				<Button size="sm" variant="secondary" disabled={busy} onClick={(e) => { e.stopPropagation(); onAction?.('cancel'); }} aria-label={`Cancel ${name}`}>
+              <Button size="sm" variant="secondary" disabled={actionBusy} onClick={(e) => { e.stopPropagation(); onAction?.('cancel'); }} aria-label={`Cancel ${name}`}>
 				  Cancel
 				</Button>
             )}
            {state === InstanceState.StateRunning && (
-             <Button size="sm" variant="secondary" disabled={busy} onClick={(e) => { e.stopPropagation(); onAction?.('stop'); }} aria-label={`Stop ${name}`}>Stop</Button>
-           )}
+              <Button size="sm" variant="secondary" disabled={actionBusy} onClick={(e) => { e.stopPropagation(); onAction?.('stop'); }} aria-label={`Stop ${name}`}>{actionState === 'stopping' ? 'Stopping...' : 'Stop'}</Button>
+            )}
+            {actionState === 'preparing' && <Button size="sm" variant="secondary" disabled>Launching...</Button>}
         </div>
         <Badge variant="outline" className="text-[10px] capitalize">{loader}</Badge>
         </div>

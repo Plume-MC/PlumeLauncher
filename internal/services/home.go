@@ -352,6 +352,7 @@ func (s *HomeService) LaunchInstance(id string) error {
 	if inst.State != instances.StateReady && inst.State != instances.StateStopped {
 		return NewConflictError("instance is not ready; install it first")
 	}
+	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: id, State: "preparing"})
 	detail, err := s.resolveInstanceDetail(context.Background(), inst)
 	if err != nil {
 		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))

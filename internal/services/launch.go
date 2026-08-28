@@ -191,6 +191,7 @@ func (s *LaunchService) Stop(instanceID string) error {
 	if cmd == nil {
 		return NewNotFoundError("no process for active launch")
 	}
+	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: instanceID, State: "stopping"})
 	if err := launch.Stop(cmd); err != nil {
 		return NewInternalError("failed to stop launch: " + err.Error())
 	}

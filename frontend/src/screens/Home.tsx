@@ -38,6 +38,8 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
 	const [downloadInstanceId, setDownloadInstanceId] = useState('');
 	const [downloadProgress, setDownloadProgress] = useState<{ fileProgress: number; totalFiles: number } | null>(null);
 	const [runningInstanceId, setRunningInstanceId] = useState('');
+	const [launchingInstanceId, setLaunchingInstanceId] = useState('');
+	const [stoppingInstanceId, setStoppingInstanceId] = useState('');
 
 	useEffect(() => {
 	  const unsubs = [
@@ -55,10 +57,18 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
 		}),
 		Events.On('launch-state', (event) => {
 		  const data: LaunchStateEvent = event.data;
-		  setLiveStatus(data.state === 'running' ? 'Minecraft is running' : data.state === 'crashed' ? 'Minecraft crashed' : data.state === 'failed' ? 'Launch failed' : '');
-		  if (data.state === 'running') {
+		  setLiveStatus(data.state === 'preparing' ? 'Preparing Minecraft' : data.state === 'running' ? 'Minecraft is running' : data.state === 'stopping' ? 'Stopping Minecraft' : data.state === 'crashed' ? 'Minecraft crashed' : data.state === 'failed' ? 'Launch failed' : '');
+		  if (data.state === 'preparing') {
+			setLaunchingInstanceId(data.instanceId);
+		  } else if (data.state === 'stopping') {
+			setStoppingInstanceId(data.instanceId);
+		  } else if (data.state === 'running') {
+			setLaunchingInstanceId('');
+			setStoppingInstanceId('');
 			setRunningInstanceId(data.instanceId);
 		  } else if (data.state === 'stopped' || data.state === 'crashed' || data.state === 'failed') {
+			setLaunchingInstanceId('');
+			setStoppingInstanceId('');
 			setRunningInstanceId('');
 			void onRefresh();
 		  }
@@ -80,7 +90,7 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
       if (action === 'install') await HomeService.InstallInstance(id)
       if (action === 'cancel') await HomeService.CancelInstance(id)
       if (action === 'stop') await HomeService.StopInstance(id)
-      toast.add({ type: 'success', title: action === 'cancel' ? 'Cancellation requested' : action === 'play' ? 'Minecraft closed' : `${action === 'install' ? 'Install' : 'Stop'} complete` })
+		  toast.add({ type: 'success', title: action === 'cancel' ? 'Cancellation requested' : action === 'play' ? 'Launch started' : `${action === 'install' ? 'Install' : 'Stop'} requested` })
     } catch (error) {
       if (error instanceof Error && /cancelled|canceled/i.test(error.message)) {
         toast.add({ type: 'info', title: action === 'play' ? 'Launch cancelled' : 'Install cancelled', description: 'The instance was returned to its previous state.' })
@@ -144,7 +154,7 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
           </Button>
         </div>}
         {instances.length > 0 && visibleInstances.length === 0 && <div className="col-span-full py-16 text-center text-sm text-muted-foreground">No matching instances.</div>}
-		 {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.id === downloadInstanceId ? InstanceState.StateDownloading : instance.id === runningInstanceId ? InstanceState.StateRunning : instance.state} downloadProgress={instance.id === downloadInstanceId ? downloadProgress : null} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
+		 {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} actionState={instance.id === launchingInstanceId ? 'preparing' : instance.id === stoppingInstanceId ? 'stopping' : null} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.id === downloadInstanceId ? InstanceState.StateDownloading : instance.id === runningInstanceId ? InstanceState.StateRunning : instance.state} downloadProgress={instance.id === downloadInstanceId ? downloadProgress : null} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
       </div>
 
        <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} instance={detailInstance} onChanged={onRefresh} onDelete={() => { setDetailOpen(false); setDeleteId(detailInstance?.id ?? null); }} />
