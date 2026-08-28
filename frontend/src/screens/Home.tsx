@@ -10,7 +10,7 @@ import { InstanceDetailSheet } from '@/components/home/InstanceDetailSheet';
 import { CreateInstanceDialog } from '@/components/home/CreateInstanceDialog';
 import { DeleteInstanceDialog } from '@/components/home/DeleteInstanceDialog';
 import { AccountDialog } from '@/components/home/AccountDialog';
-import { HomeService } from '../../bindings/plumelauncher/internal/services/index.js';
+import { HomeService, SystemService } from '../../bindings/plumelauncher/internal/services/index.js';
 import { toast } from '@/components/ui/toast';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
 import type { Instance } from '../../bindings/plumelauncher/internal/instances/models.js';
@@ -40,6 +40,7 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
 	const [runningInstanceId, setRunningInstanceId] = useState('');
 	const [launchingInstanceId, setLaunchingInstanceId] = useState('');
 	const [stoppingInstanceId, setStoppingInstanceId] = useState('');
+	const [crashExitCodes, setCrashExitCodes] = useState<Record<string, number>>({});
 
 	useEffect(() => {
 	  const unsubs = [
@@ -70,6 +71,7 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
 			setLaunchingInstanceId('');
 			setStoppingInstanceId('');
 			setRunningInstanceId('');
+			if (data.state === 'crashed' && data.exitCode !== undefined && data.exitCode !== null) setCrashExitCodes((current) => ({ ...current, [data.instanceId]: data.exitCode as number }));
 			void onRefresh();
 		  }
 		}),
@@ -154,7 +156,7 @@ export function Home({ account, accounts, instances, onRefresh }: HomeProps) {
           </Button>
         </div>}
         {instances.length > 0 && visibleInstances.length === 0 && <div className="col-span-full py-16 text-center text-sm text-muted-foreground">No matching instances.</div>}
-		 {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} actionState={instance.id === launchingInstanceId ? 'preparing' : instance.id === stoppingInstanceId ? 'stopping' : null} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.id === downloadInstanceId ? InstanceState.StateDownloading : instance.id === runningInstanceId ? InstanceState.StateRunning : instance.state} downloadProgress={instance.id === downloadInstanceId ? downloadProgress : null} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
+		 {visibleInstances.map((instance) => <InstanceCard key={instance.id} name={instance.name} busy={busyId === instance.id} actionState={instance.id === launchingInstanceId ? 'preparing' : instance.id === stoppingInstanceId ? 'stopping' : null} crashExitCode={crashExitCodes[instance.id] ?? null} onOpenLogs={() => void SystemService.OpenLogFolder()} mcVersion={instance.mcVersion} loader={instance.loader} state={instance.id === downloadInstanceId ? InstanceState.StateDownloading : instance.id === runningInstanceId ? InstanceState.StateRunning : instance.state} downloadProgress={instance.id === downloadInstanceId ? downloadProgress : null} onAction={(action) => void runAction(instance.id, action)} onOpenDetail={() => { setDetailInstance(instance); setDetailOpen(true); }} />)}
       </div>
 
        <InstanceDetailSheet isOpen={detailOpen} onClose={() => setDetailOpen(false)} instance={detailInstance} onChanged={onRefresh} onDelete={() => { setDetailOpen(false); setDeleteId(detailInstance?.id ?? null); }} />

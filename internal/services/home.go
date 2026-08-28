@@ -268,6 +268,12 @@ func (s *HomeService) ensureArtifacts(id string, inst *instances.Instance, plan 
 			return s.repairArtifacts(id, inst, plan)
 		}
 	}
+	if inst.State == instances.StateCrashed {
+		if err := s.Instances.UpdateState(id, instances.StateVerifying); err != nil {
+			return err
+		}
+		return s.Instances.UpdateState(id, instances.StateReady)
+	}
 	return nil
 }
 
@@ -352,7 +358,7 @@ func (s *HomeService) LaunchInstance(id string) error {
 	if err != nil {
 		return NewNotFoundError("instance not found")
 	}
-	if inst.State != instances.StateReady && inst.State != instances.StateStopped {
+	if inst.State != instances.StateReady && inst.State != instances.StateStopped && inst.State != instances.StateCrashed {
 		return NewConflictError("instance is not ready; install it first")
 	}
 	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: id, State: "preparing"})

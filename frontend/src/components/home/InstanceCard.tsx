@@ -18,6 +18,8 @@ interface InstanceCardProps {
   busy?: boolean;
   downloadProgress?: { fileProgress: number; totalFiles: number } | null;
   actionState?: 'preparing' | 'stopping' | null;
+  crashExitCode?: number | null;
+  onOpenLogs?: () => void;
 }
 
 const stateLabel: Record<InstanceState, string> = {
@@ -58,6 +60,8 @@ export function InstanceCard({
   busy = false,
   downloadProgress = null,
   actionState = null,
+  crashExitCode = null,
+  onOpenLogs,
 }: InstanceCardProps) {
   const actionBusy = busy || actionState !== null;
   return (
@@ -86,7 +90,13 @@ export function InstanceCard({
               Play
             </Button>
           )}
-           {(state === InstanceState.StateNotInstalled || state === InstanceState.StateFailed || state === InstanceState.StateCrashed) && (
+            {state === InstanceState.StateCrashed && (
+              <Button size="sm" variant="secondary" disabled={actionBusy} onClick={(e) => { e.stopPropagation(); onAction?.('play'); }} aria-label={`Play ${name} again`}>
+               <Play className="size-3" />
+               Play again
+              </Button>
+            )}
+            {(state === InstanceState.StateNotInstalled || state === InstanceState.StateFailed) && (
               <Button size="sm" variant="secondary" disabled={actionBusy} onClick={(e) => { e.stopPropagation(); onDownload?.(); onAction?.('install'); }} aria-label={`Install ${name}`}>
               <Download className="size-3" />
               Install
@@ -101,6 +111,7 @@ export function InstanceCard({
               <Button size="sm" variant="secondary" disabled={actionBusy} onClick={(e) => { e.stopPropagation(); onAction?.('stop'); }} aria-label={`Stop ${name}`}>{actionState === 'stopping' ? 'Stopping...' : 'Stop'}</Button>
             )}
             {actionState === 'preparing' && <Button size="sm" variant="secondary" disabled>Launching...</Button>}
+            {state === InstanceState.StateCrashed && onOpenLogs && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onOpenLogs(); }}>Logs</Button>}
         </div>
         <Badge variant="outline" className="text-[10px] capitalize">{loader}</Badge>
         </div>
@@ -110,6 +121,7 @@ export function InstanceCard({
             <p className="text-[10px] text-muted-foreground">{downloadProgress.fileProgress}/{downloadProgress.totalFiles} files</p>
           </div>
         )}
+        {state === InstanceState.StateCrashed && crashExitCode !== null && <p className="text-[10px] text-destructive">Exit code {crashExitCode}</p>}
       </CardContent>
     </Card>
   );
