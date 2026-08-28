@@ -78,6 +78,19 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
     }
   };
 
+  const openFolder = async (kind: 'app' | 'game') => {
+    setBusy(kind);
+    setError('');
+    try {
+      if (kind === 'app') await SystemService.OpenAppRoot();
+      else await SystemService.OpenGameRoot();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to open folder');
+    } finally {
+      setBusy('');
+    }
+  };
+
   return (
     <>
       <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) close(); }}>
@@ -93,10 +106,11 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                 <TabsContent value="data" className="flex flex-col gap-3">
                   <p className="text-xs text-muted-foreground">Game data root (instances, assets, versions, cache) applies after restart. Existing game data is not moved. Accounts, settings, and logs stay in the app folder.</p>
                   <label className="flex flex-col gap-1 text-xs">Game data root<Input value={dataRoot} onChange={(event) => setDataRoot(event.target.value)} /></label>
-                  {appRoot ? <p className="text-[11px] text-muted-foreground">App data (fixed): <span className="font-mono text-foreground/80">{appRoot}</span></p> : null}
-                  <div className="flex gap-2">
-                    <Button size="sm" disabled={!dataRoot || !!busy} onClick={() => void saveDataRoot()}>{busy === 'data-root' ? 'Saving...' : 'Use after restart'}</Button>
-                    <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void SystemService.OpenLogFolder()}>Open logs</Button>
+                   {appRoot ? <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground"><span>App data (fixed): <span className="font-mono text-foreground/80">{appRoot}</span></span><Button size="sm" variant="ghost" disabled={!!busy} onClick={() => void openFolder('app')}>{busy === 'app' ? 'Opening...' : 'Open folder'}</Button></div> : null}
+                   <div className="flex gap-2">
+                     <Button size="sm" disabled={!dataRoot || !!busy} onClick={() => void saveDataRoot()}>{busy === 'data-root' ? 'Saving...' : 'Use after restart'}</Button>
+                     <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void openFolder('game')}>{busy === 'game' ? 'Opening...' : 'Open game folder'}</Button>
+                     <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void SystemService.OpenLogFolder()}>Open logs</Button>
                   </div>
                   {dataNotice ? <p className="text-xs text-amber-500" role="status">{dataNotice}</p> : null}
                 </TabsContent>

@@ -95,6 +95,24 @@ func (s *SystemService) OpenLogFolder() error {
 	return nil
 }
 
+func (s *SystemService) OpenAppRoot() error {
+	return s.openFolder(s.appStateRoot(), "app data")
+}
+
+func (s *SystemService) OpenGameRoot() error {
+	return s.openFolder(s.DataRoot, "game data")
+}
+
+func (s *SystemService) openFolder(path, label string) error {
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		return NewInternalError("create " + label + " folder: " + err.Error())
+	}
+	if err := platform.OpenFileManager(path); err != nil {
+		return NewInternalError("open " + label + " folder: " + err.Error())
+	}
+	return nil
+}
+
 func (s *SystemService) appStateRoot() string {
 	if s.AppRoot != "" {
 		return s.AppRoot

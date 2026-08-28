@@ -52,6 +52,14 @@ export function JavaRuntimes(): $CancellablePromise<java$0.JavaInfo[] | null> {
     return $Call.ByID(1197596420);
 }
 
+export function OpenAppRoot(): $CancellablePromise<void> {
+    return $Call.ByID(485223332);
+}
+
+export function OpenGameRoot(): $CancellablePromise<void> {
+    return $Call.ByID(2958749619);
+}
+
 /**
  * OpenLogFolder opens the fixed app root's log directory.
  */
