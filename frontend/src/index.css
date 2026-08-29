@@ -80,7 +80,7 @@
     --chart-3: #16A34A;
     --chart-4: #D97706;
     --chart-5: #DC2626;
-    --radius: 0.375rem;
+    --radius: 0.5rem;
     --sidebar: #F4F1F1;
     --sidebar-foreground: #1E191B;
     --sidebar-primary: #5930C4;
@@ -89,6 +89,14 @@
     --sidebar-accent-foreground: #1E191B;
     --sidebar-border: #DDD5D6;
     --sidebar-ring: #7049D5;
+    --glass-bg: rgba(254, 251, 251, 0.82);
+    --glass-border: rgba(221, 213, 214, 0.65);
+    --glass-backdrop: blur(14px);
+    --glow-primary: 0 0 0 1px rgba(89, 48, 196, 0.12), 0 4px 20px rgba(89, 48, 196, 0.12);
+    --glow-info: 0 0 0 1px rgba(37, 99, 235, 0.1), 0 4px 18px rgba(37, 99, 235, 0.1);
+    --glow-success: 0 0 0 1px rgba(22, 163, 74, 0.1), 0 4px 18px rgba(22, 163, 74, 0.1);
+    --glow-warning: 0 0 0 1px rgba(217, 119, 6, 0.1), 0 4px 18px rgba(217, 119, 6, 0.1);
+    --glow-destructive: 0 0 0 1px rgba(220, 38, 38, 0.1), 0 4px 18px rgba(220, 38, 38, 0.1);
 }
 
 /* Dark theme — Prismatic Obsidian warm near-black */
@@ -119,7 +127,7 @@
     --chart-3: #22C55E;
     --chart-4: #F59E0B;
     --chart-5: #EF4444;
-    --radius: 0.375rem;
+    --radius: 0.5rem;
     --sidebar: #171415;
     --sidebar-foreground: #F5F2F2;
     --sidebar-primary: #6339D7;
@@ -128,6 +136,19 @@
     --sidebar-accent-foreground: #F5F2F2;
     --sidebar-border: #3A3234;
     --sidebar-ring: #A286EC;
+    --glass-bg: rgba(29, 25, 26, 0.78);
+    --glass-border: rgba(58, 50, 52, 0.65);
+    --glass-backdrop: blur(14px);
+    --glow-primary: 0 0 0 1px rgba(99, 57, 215, 0.2), 0 4px 22px rgba(99, 57, 215, 0.18);
+    --glow-info: 0 0 0 1px rgba(59, 130, 246, 0.15), 0 4px 20px rgba(59, 130, 246, 0.12);
+    --glow-success: 0 0 0 1px rgba(34, 197, 94, 0.15), 0 4px 20px rgba(34, 197, 94, 0.12);
+    --glow-warning: 0 0 0 1px rgba(245, 158, 11, 0.15), 0 4px 20px rgba(245, 158, 11, 0.12);
+    --glow-destructive: 0 0 0 1px rgba(239, 68, 68, 0.15), 0 4px 20px rgba(239, 68, 68, 0.12);
+}
+
+@theme inline {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
 }
 
 @layer base {
