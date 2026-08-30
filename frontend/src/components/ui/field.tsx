@@ -10,7 +10,7 @@ function FieldGroup({ className, ...props }: ComponentProps<'div'>) {
 }
 
 function FieldLabel({ className, ...props }: ComponentProps<typeof FieldPrimitive.Label>) {
-  return <FieldPrimitive.Label className={cn('text-xs font-medium', className)} {...props} />;
+  return <FieldPrimitive.Label className={cn('text-xs font-medium text-foreground/90', className)} {...props} />;
 }
 
 function FieldDescription({ className, ...props }: ComponentProps<typeof FieldPrimitive.Description>) {
