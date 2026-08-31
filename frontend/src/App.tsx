@@ -15,11 +15,11 @@ function App() {
   const [loading, setLoading] = useState(true)
 
   const refresh = async () => {
-    const accounts = (await AccountService.ListAccounts()) ?? []
-    setAccounts(accounts)
-    setAccount(accounts.find((item) => item.selected) ?? accounts[0] ?? null)
+    const nextAccounts = (await AccountService.ListAccounts()) ?? []
+    setAccounts(nextAccounts)
+    setAccount(nextAccounts.find((item) => item.selected) ?? nextAccounts[0] ?? null)
     setInstances((await HomeService.ListInstances()) ?? [])
-    setSetup(accounts.length === 0)
+    setSetup(nextAccounts.length === 0)
   }
 
   useEffect(() => {
@@ -37,8 +37,8 @@ function App() {
   }
 
   return (
-    <AppShell>
-      <Home account={account} accounts={accounts} instances={instances} onRefresh={refresh} />
+    <AppShell account={account} accounts={accounts} onAccountsChanged={refresh}>
+      <Home account={account} instances={instances} onRefresh={refresh} />
     </AppShell>
   )
 }

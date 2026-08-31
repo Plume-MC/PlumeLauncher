@@ -10,13 +10,13 @@ function SelectTrigger({ className, children, ...props }: ComponentProps<typeof 
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        'flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-input bg-background px-2.5 text-xs shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-[box-shadow,border-color] hover:border-primary/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.18)]',
+        'group flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-input bg-background px-2.5 text-xs shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-[box-shadow,border-color,transform] hover:border-primary/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.18)]',
         className
       )}
       {...props}
     >
       {children}
-      <ChevronDown className="size-3.5 opacity-60 transition-transform duration-200 ease-out group-data-[open]:rotate-180" />
+      <ChevronDown className="size-3.5 shrink-0 opacity-60 transition-transform duration-200 ease-out group-data-[popup-open]:rotate-180" />
     </SelectPrimitive.Trigger>
   );
 }
@@ -24,10 +24,10 @@ function SelectTrigger({ className, children, ...props }: ComponentProps<typeof 
 function SelectContent({ className, children, ...props }: ComponentProps<typeof SelectPrimitive.Popup>) {
   return (
     <SelectPrimitive.Portal>
-      <SelectPrimitive.Positioner className="z-50" sideOffset={4}>
+      <SelectPrimitive.Positioner className="z-50 outline-none" sideOffset={4} alignItemWithTrigger={false}>
         <SelectPrimitive.Popup
           className={cn(
-            'max-h-72 min-w-32 overflow-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg shadow-black/8 outline-none backdrop-blur-xl dark:shadow-black/20',
+            'box-border max-h-48 w-[var(--anchor-width)] min-w-[var(--anchor-width)] origin-top overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg shadow-black/8 outline-none backdrop-blur-xl transition-[opacity,transform] duration-150 ease-out data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 dark:shadow-black/20',
             className
           )}
           {...props}
@@ -45,7 +45,7 @@ function SelectItem({ className, children, ...props }: ComponentProps<typeof Sel
   return (
     <SelectPrimitive.Item
       className={cn(
-        'relative flex cursor-default select-none items-center rounded-md py-1.5 pl-7 pr-2 text-xs outline-none transition-colors data-highlighted:bg-accent data-highlighted:text-accent-foreground',
+        'relative flex w-full cursor-default select-none items-center rounded-md py-1.5 pl-7 pr-2 text-xs outline-none transition-colors data-highlighted:bg-accent data-highlighted:text-accent-foreground',
         className
       )}
       {...props}
@@ -55,7 +55,7 @@ function SelectItem({ className, children, ...props }: ComponentProps<typeof Sel
           <Check className="size-3.5" />
         </SelectPrimitive.ItemIndicator>
       </span>
-      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemText className="truncate">{children}</SelectPrimitive.ItemText>
     </SelectPrimitive.Item>
   );
 }

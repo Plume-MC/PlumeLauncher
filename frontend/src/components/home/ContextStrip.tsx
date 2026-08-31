@@ -1,4 +1,5 @@
 import { User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ContextStripProps {
   accountName?: string;
@@ -14,20 +15,30 @@ export function ContextStrip({
   liveStatus,
 }: ContextStripProps) {
   return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground" data-slot="context-strip" aria-live="polite">
+    <div
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
+      data-slot="context-strip"
+      aria-live="polite"
+    >
       <div className="flex items-center gap-1.5">
-        <User className="size-3" />
-        <span>{accountName}</span>
-        <span className="text-muted-foreground/50">({accountType})</span>
+        <User className="size-3 shrink-0" />
+        <span className="text-foreground/90">{accountName}</span>
+        <span className="text-muted-foreground/60">({accountType})</span>
       </div>
-      <span className="text-muted-foreground/30">·</span>
-      <span>{instanceCount} instances</span>
-      {liveStatus && (
+      <span className="hidden text-border sm:inline" aria-hidden>
+        ·
+      </span>
+      <span className="font-mono tabular-nums">
+        {instanceCount} instance{instanceCount === 1 ? '' : 's'}
+      </span>
+      {liveStatus ? (
         <>
-          <span className="text-muted-foreground/30">·</span>
-          <span className="text-info">{liveStatus}</span>
+          <span className="hidden text-border sm:inline" aria-hidden>
+            ·
+          </span>
+          <span className={cn('font-medium text-info')}>{liveStatus}</span>
         </>
-      )}
+      ) : null}
     </div>
   );
 }
