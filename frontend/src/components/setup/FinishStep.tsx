@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { cn } from '@/lib/utils';
+import { useEffect } from 'react';
+import { Check } from 'lucide-react';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { FadeIn } from '@/components/motion';
 
 interface FinishStepProps {
   onComplete: () => void;
@@ -8,41 +9,32 @@ interface FinishStepProps {
 
 export function FinishStep({ onComplete }: FinishStepProps) {
   const reduced = useReducedMotion();
-  const [phase, setPhase] = useState<'anim' | 'done'>(reduced ? 'done' : 'anim');
 
   useEffect(() => {
-    if (reduced) { onComplete(); return; }
-    const t1 = setTimeout(() => setPhase('done'), 1200);
-    const t2 = setTimeout(onComplete, 2000);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    const delay = reduced ? 0 : 900;
+    const t = setTimeout(onComplete, delay);
+    return () => clearTimeout(t);
   }, [onComplete, reduced]);
 
   return (
-    <div className="flex flex-col items-center justify-center space-y-6 py-8">
-      <div
-        className={cn(
-          'flex size-16 items-center justify-center rounded-full bg-primary/10',
-          !reduced && 'transition-all duration-500',
-          !reduced && phase === 'done' && 'scale-110'
-        )}
-      >
-        <span className="text-3xl text-primary">✓</span>
+    <FadeIn className="flex flex-col items-center justify-center space-y-5 py-6 text-center" direction="up" duration={0.35}>
+      <div className="flex size-14 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-primary">
+        <Check className="size-7" strokeWidth={2.25} />
       </div>
-      <div className="text-center space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">All Set!</h1>
-        <p className="text-sm text-muted-foreground">Launching your launcher...</p>
+      <div className="space-y-1.5">
+        <h1 className="text-xl font-semibold tracking-tight">Ready</h1>
+        <p className="text-sm text-muted-foreground">Opening the instance library.</p>
       </div>
-      {!reduced && (
-        <div className="flex gap-1.5">
-          {[0, 150, 300].map((delay) => (
-            <div
-              key={delay}
-              className="size-1.5 rounded-full bg-primary animate-bounce"
-              style={{ animationDelay: `${delay}ms` }}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+      <div className="h-0.5 w-24 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full w-full origin-left rounded-full bg-primary"
+          style={
+            reduced
+              ? undefined
+              : { animation: 'setup-progress 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards' }
+          }
+        />
+      </div>
+    </FadeIn>
   );
 }

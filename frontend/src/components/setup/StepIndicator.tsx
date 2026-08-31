@@ -1,37 +1,67 @@
+import { Box, Coffee, User, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const STEPS = [
+  { id: 1, label: 'Welcome', icon: Box },
+  { id: 2, label: 'Java', icon: Coffee },
+  { id: 3, label: 'Account', icon: User },
+  { id: 4, label: 'Ready', icon: CheckCircle2 },
+] as const;
 
 interface StepIndicatorProps {
   current: number;
-  total: number;
 }
 
-export function StepIndicator({ current, total }: StepIndicatorProps) {
+export function StepIndicator({ current }: StepIndicatorProps) {
   return (
-    <div className="flex items-center justify-center gap-2 mb-8">
-      {Array.from({ length: total }, (_, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <div
-            className={cn(
-              'flex size-8 items-center justify-center rounded-full text-xs font-medium transition-all duration-300',
-              i + 1 === current
-                ? 'bg-primary text-primary-foreground scale-110 shadow-lg shadow-primary/20'
-                : i + 1 < current
-                  ? 'bg-primary/20 text-primary'
-                  : 'bg-muted text-muted-foreground'
-            )}
-          >
-            {i + 1 < current ? '✓' : i + 1}
-          </div>
-          {i < total - 1 && (
-            <div
-              className={cn(
-                'h-0.5 w-8 rounded-full transition-colors duration-300',
-                i + 1 < current ? 'bg-primary/40' : 'bg-muted'
+    <div className="mb-8 flex flex-col gap-3" aria-label="Setup progress">
+      <div className="flex items-start justify-between gap-1">
+        {STEPS.map((s, i) => {
+          const Icon = s.icon;
+          const active = current === s.id;
+          const done = current > s.id;
+          return (
+            <div key={s.id} className="flex flex-1 items-center gap-1">
+              <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+                <div
+                  className={cn(
+                    'flex size-9 items-center justify-center rounded-full border transition-colors duration-200',
+                    active && 'border-primary bg-primary text-primary-foreground',
+                    done && 'border-primary/30 bg-primary/15 text-primary',
+                    !active && !done && 'border-border bg-muted/40 text-muted-foreground'
+                  )}
+                  aria-current={active ? 'step' : undefined}
+                >
+                  {done ? <CheckCircle2 className="size-4" /> : <Icon className="size-4" />}
+                </div>
+                <span
+                  className={cn(
+                    'max-w-full truncate text-[10px] font-medium',
+                    active ? 'text-foreground' : 'text-muted-foreground'
+                  )}
+                >
+                  {s.label}
+                </span>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div
+                  className={cn(
+                    'mb-5 h-px min-w-3 flex-1 rounded-full',
+                    current > s.id ? 'bg-primary/50' : 'bg-border'
+                  )}
+                  aria-hidden
+                />
               )}
-            />
-          )}
-        </div>
-      ))}
+            </div>
+          );
+        })}
+      </div>
+      <div className="h-0.5 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+          style={{ width: `${(current / STEPS.length) * 100}%` }}
+        />
+      </div>
     </div>
   );
 }
