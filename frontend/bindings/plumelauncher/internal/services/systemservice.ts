@@ -8,7 +8,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -21,7 +21,9 @@ import * as java$0 from "../java/models.js";
  * AddCustomJava verifies a Java executable before persisting it as a custom runtime.
  */
 export function AddCustomJava(path: string): $CancellablePromise<java$0.JavaInfo | null> {
-    return $Call.ByID(3970252539, path);
+    return $Call.ByID(3970252539, path).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
@@ -42,14 +44,18 @@ export function GetDataRoot(): $CancellablePromise<string> {
  * GetSettings returns the current launcher settings.
  */
 export function GetSettings(): $CancellablePromise<instances$0.LauncherDefaults> {
-    return $Call.ByID(3632610702);
+    return $Call.ByID(3632610702).then(($result: any) => {
+        return $$createType2($result);
+    });
 }
 
 /**
  * JavaRuntimes returns all verified runtimes, marking the PATH runtime and custom entries.
  */
-export function JavaRuntimes(): $CancellablePromise<java$0.JavaInfo[] | null> {
-    return $Call.ByID(1197596420);
+export function JavaRuntimes(): $CancellablePromise<java$0.JavaInfo[]> {
+    return $Call.ByID(1197596420).then(($result: any) => {
+        return $$createType3($result);
+    });
 }
 
 export function OpenAppRoot(): $CancellablePromise<void> {
@@ -70,8 +76,10 @@ export function OpenLogFolder(): $CancellablePromise<void> {
 /**
  * ScanJava detects installed Java installations.
  */
-export function ScanJava(): $CancellablePromise<java$0.JavaInfo[] | null> {
-    return $Call.ByID(4149514100);
+export function ScanJava(): $CancellablePromise<java$0.JavaInfo[]> {
+    return $Call.ByID(4149514100).then(($result: any) => {
+        return $$createType3($result);
+    });
 }
 
 /**
@@ -93,5 +101,13 @@ export function UpdateSettings(settings: instances$0.LauncherDefaults): $Cancell
  * ValidateJavaPath checks if a Java path is valid and compatible.
  */
 export function ValidateJavaPath(path: string, requiredMajor: number): $CancellablePromise<java$0.JavaInfo | null> {
-    return $Call.ByID(4219157576, path, requiredMajor);
+    return $Call.ByID(4219157576, path, requiredMajor).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
+
+// Private type creation functions
+const $$createType0 = java$0.JavaInfo.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = instances$0.LauncherDefaults.createFrom;
+const $$createType3 = $Create.Array($$createType0);

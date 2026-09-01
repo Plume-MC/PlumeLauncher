@@ -113,6 +113,33 @@ func (s *AccountService) LogoutElyBy(accountUUID string) error {
 	return nil
 }
 
+// DeleteAccount removes an offline profile or revokes and removes an Ely.by session.
+func (s *AccountService) DeleteAccount(accountUUID string) error {
+	accounts, err := s.loadAccounts()
+	if err != nil {
+		return NewInternalError("failed to load accounts")
+	}
+	for _, account := range accounts {
+		if account.UUID != accountUUID {
+			continue
+		}
+		if account.Type == "ely.by" {
+			return s.LogoutElyBy(accountUUID)
+		}
+		for i := range accounts {
+			if accounts[i].UUID == accountUUID {
+				accounts = append(accounts[:i], accounts[i+1:]...)
+				break
+			}
+		}
+		if err := s.saveAccounts(accounts); err != nil {
+			return NewInternalError("failed to save account")
+		}
+		return nil
+	}
+	return NewNotFoundError("account not found")
+}
+
 func (s *AccountService) elyByAccount(uuid string) (Account, error) {
 	accounts, err := s.loadAccounts()
 	if err != nil {

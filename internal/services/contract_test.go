@@ -79,6 +79,25 @@ func TestAccountServiceListAccounts(t *testing.T) {
 	}
 }
 
+func TestAccountServiceDeleteOffline(t *testing.T) {
+	dir := t.TempDir()
+	svc := &services.AccountService{DataRoot: dir}
+	account, err := svc.CreateOffline("Player1")
+	if err != nil {
+		t.Fatalf("CreateOffline: %v", err)
+	}
+	if err := svc.DeleteAccount(account.UUID); err != nil {
+		t.Fatalf("DeleteAccount: %v", err)
+	}
+	accounts, err := svc.ListAccounts()
+	if err != nil {
+		t.Fatalf("ListAccounts: %v", err)
+	}
+	if len(accounts) != 0 {
+		t.Fatalf("ListAccounts = %#v, want empty", accounts)
+	}
+}
+
 func TestAccountServiceElyByLifecycle(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/auth/invalidate" {
@@ -100,8 +119,8 @@ func TestAccountServiceElyByLifecycle(t *testing.T) {
 	if _, err := svc.RefreshElyBy(account.UUID); err != nil {
 		t.Fatalf("RefreshElyBy: %v", err)
 	}
-	if err := svc.LogoutElyBy(account.UUID); err != nil {
-		t.Fatalf("LogoutElyBy: %v", err)
+	if err := svc.DeleteAccount(account.UUID); err != nil {
+		t.Fatalf("DeleteAccount: %v", err)
 	}
 	if len(keyring) != 0 {
 		t.Fatal("logout left token in keyring")
