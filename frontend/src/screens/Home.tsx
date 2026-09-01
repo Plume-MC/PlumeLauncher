@@ -110,8 +110,8 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
       sort === 'name'
         ? a.name.localeCompare(b.name)
         : sort === 'oldest'
-          ? a.createdAt.localeCompare(b.createdAt)
-          : b.createdAt.localeCompare(a.createdAt)
+          ? String(a.createdAt).localeCompare(String(b.createdAt))
+          : String(b.createdAt).localeCompare(String(a.createdAt))
     );
 
   const runAction = async (id: string, action: 'play' | 'install' | 'stop' | 'cancel') => {
@@ -276,32 +276,12 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
           </Button>
         </motion.div>
       ) : (
-        <motion.div
-          className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          initial="hidden"
-          animate="show"
-          variants={{
-            hidden: {},
-            show: {
-              transition: { staggerChildren: reduced ? 0 : 0.04 },
-            },
-          }}
-        >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visibleInstances.length === 0 ? (
             <div className="col-span-full py-12 text-center text-sm text-muted-foreground">No matching instances.</div>
           ) : (
             visibleInstances.map((instance) => (
-              <motion.div
-                key={instance.id}
-                variants={{
-                  hidden: { opacity: 0, y: reduced ? 0 : 10 },
-                  show: {
-                    opacity: 1,
-                    y: 0,
-                    transition: { duration: reduced ? 0.01 : 0.28, ease: [0.16, 1, 0.3, 1] },
-                  },
-                }}
-              >
+              <div key={instance.id}>
                 <InstanceCard
                   name={instance.name}
                   busy={busyId === instance.id}
@@ -330,10 +310,10 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
                     setDetailOpen(true);
                   }}
                 />
-              </motion.div>
+              </div>
             ))
           )}
-        </motion.div>
+        </div>
       )}
 
       <InstanceDetailSheet
