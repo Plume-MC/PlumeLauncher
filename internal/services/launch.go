@@ -110,9 +110,8 @@ func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instance
 	var stderr []string
 	var stderrMu sync.Mutex
 	err := launch.MonitorWithStart(cmd, func(line string, isStderr bool) {
-		level := "info"
+		level := launchLogLevel(line, isStderr)
 		if isStderr {
-			level = "error"
 			stderrMu.Lock()
 			stderr = append(stderr, line)
 			if len(stderr) > 20 {
@@ -182,6 +181,20 @@ func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instance
 		s.Logger.Info("launch_stopped", "instanceId", opts.VersionID, "operationId", op.ID)
 	}
 	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "stopped"})
+}
+
+func launchLogLevel(line string, isStderr bool) string {
+	upper := strings.ToUpper(line)
+	switch {
+	case strings.Contains(upper, "[ERROR]"), strings.Contains(upper, "[ERR]"), strings.Contains(upper, "ERROR:"), strings.Contains(upper, "FATAL"), strings.Contains(upper, "EXCEPTION"), strings.Contains(upper, "SEVERE"):
+		return "error"
+	case strings.Contains(upper, "WARN"):
+		return "warning"
+	case isStderr:
+		return "warning"
+	default:
+		return "info"
+	}
 }
 
 // Stop stops a running instance.

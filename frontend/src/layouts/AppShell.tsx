@@ -4,6 +4,7 @@ import { TopBar } from '@/components/home/TopBar';
 import { ActivityPanel } from '@/components/panels/ActivityPanel';
 import { SettingsSheet } from '@/components/home/SettingsSheet';
 import { AccountDialog } from '@/components/home/AccountDialog';
+import type { ActivityLogLine } from '@/components/panels/ActivityPanel';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
 import type { DownloadProgressEvent, LaunchStateEvent, LogLineEvent } from '../../bindings/plumelauncher/internal/services/models.js';
 
@@ -25,7 +26,7 @@ export function AppShell({
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [downloadActive, setDownloadActive] = useState(false);
   const [launchActive, setLaunchActive] = useState(false);
-  const [consoleLines, setConsoleLines] = useState<string[]>([]);
+  const [consoleLines, setConsoleLines] = useState<ActivityLogLine[]>([]);
   const [download, setDownload] = useState<DownloadProgressEvent | null>(null);
   const dismissedRef = useRef(false);
 
@@ -43,13 +44,13 @@ export function AppShell({
         const data: LaunchStateEvent = event.data;
         const active = !['stopped', 'failed', 'crashed'].includes(data.state);
         setLaunchActive(active);
-        if (active || data.state === 'failed' || data.state === 'crashed') setActivityOpen(true);
+        if (data.state === 'failed' || data.state === 'crashed') setActivityOpen(true);
       }),
       Events.On('log-line', (event) => {
         const data: LogLineEvent = event.data;
         setConsoleLines((lines) => [
           ...lines.slice(-499),
-          `${data.level === 'error' ? '[ERR] ' : ''}${data.message}`,
+          { level: data.level, message: data.message },
         ]);
       }),
     ];
@@ -74,9 +75,9 @@ export function AppShell({
           setActivityOpen(false);
           dismissedRef.current = true;
         }}
-        activityCount={activityCount}
         consoleLines={consoleLines}
         download={download}
+        onClearConsole={() => setConsoleLines([])}
       />
       <SettingsSheet isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <AccountDialog
