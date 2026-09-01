@@ -19,7 +19,7 @@ function App() {
     setAccounts(nextAccounts)
     setAccount(nextAccounts.find((item) => item.selected) ?? nextAccounts[0] ?? null)
     setInstances((await HomeService.ListInstances()) ?? [])
-    setSetup(nextAccounts.length === 0)
+    setSetup((current) => current && nextAccounts.length === 0)
   }
 
   useEffect(() => {
