@@ -23,23 +23,12 @@ func TestInitializeDefaultRoot(t *testing.T) {
 	if cfg.GameRoot == "" {
 		t.Fatal("GameRoot is empty")
 	}
-	if cfg.LogDir == "" {
-		t.Fatal("LogDir is empty")
-	}
-	if cfg.LogDir != filepath.Join(cfg.AppRoot, "logs") {
-		t.Errorf("LogDir = %q, want under AppRoot", cfg.LogDir)
-	}
-
 	if _, err := os.Stat(cfg.AppRoot); os.IsNotExist(err) {
 		t.Errorf("AppRoot dir was not created: %s", cfg.AppRoot)
 	}
 	if _, err := os.Stat(cfg.GameRoot); os.IsNotExist(err) {
 		t.Errorf("GameRoot dir was not created: %s", cfg.GameRoot)
 	}
-	if _, err := os.Stat(cfg.LogDir); os.IsNotExist(err) {
-		t.Errorf("LogDir was not created: %s", cfg.LogDir)
-	}
-
 	if runtime.GOOS == "windows" {
 		if filepath.Base(cfg.AppRoot) != "PlumeLauncher" {
 			t.Errorf("AppRoot base = %q, want %q", filepath.Base(cfg.AppRoot), "PlumeLauncher")
@@ -69,9 +58,6 @@ func TestInitializeCustomRoot(t *testing.T) {
 			t.Errorf("AppRoot = %q, want fixed app root", cfg.AppRoot)
 		}
 	}
-	if cfg.LogDir != filepath.Join(cfg.AppRoot, "logs") {
-		t.Errorf("LogDir = %q, want %q", cfg.LogDir, filepath.Join(cfg.AppRoot, "logs"))
-	}
 }
 
 func TestInitializeEnvOverride(t *testing.T) {
@@ -89,9 +75,6 @@ func TestInitializeEnvOverride(t *testing.T) {
 
 	if cfg.GameRoot != envRoot {
 		t.Errorf("GameRoot = %q, want %q", cfg.GameRoot, envRoot)
-	}
-	if cfg.LogDir != filepath.Join(cfg.AppRoot, "logs") {
-		t.Errorf("logs left AppRoot: %q", cfg.LogDir)
 	}
 }
 
@@ -118,9 +101,6 @@ func TestSetDataRootAppliesOnNextInitialize(t *testing.T) {
 		if filepath.Base(config.AppRoot) != "PlumeLauncher" {
 			t.Errorf("AppRoot drifted: %q", config.AppRoot)
 		}
-	}
-	if config.LogDir != filepath.Join(config.AppRoot, "logs") {
-		t.Errorf("LogDir = %q, want under AppRoot", config.LogDir)
 	}
 	if _, err := os.Stat(filepath.Join(config.AppRoot, "bootstrap.json")); err != nil {
 		t.Fatalf("bootstrap.json missing under AppRoot: %v", err)

@@ -8,7 +8,7 @@ import (
 
 func TestResolveMavenPath(t *testing.T) {
 	tests := []struct {
-		name string
+		name  string
 		input string
 		want  string
 	}{
@@ -24,23 +24,6 @@ func TestResolveMavenPath(t *testing.T) {
 				t.Errorf("ResolveMavenPath(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
-	}
-}
-
-func TestResolveAssetPath(t *testing.T) {
-	tests := []struct {
-		hash string
-		want string
-	}{
-		{"0945265e5d7c19a3", "09/0945265e5d7c19a3"},
-		{"ab", "ab/ab"},
-		{"a", "a"},
-	}
-	for _, tt := range tests {
-		got := metadata.ResolveAssetPath(tt.hash)
-		if got != tt.want {
-			t.Errorf("ResolveAssetPath(%q) = %q, want %q", tt.hash, got, tt.want)
-		}
 	}
 }
 
@@ -92,44 +75,5 @@ func TestResolveNativePathNoNatives(t *testing.T) {
 	_, ok := metadata.ResolveNativePath(library, sys)
 	if ok {
 		t.Error("expected false for library without natives")
-	}
-}
-
-func TestResolveClientPath(t *testing.T) {
-	detail := metadata.VersionDetail{
-		ID: "1.0",
-		Downloads: metadata.Downloads{
-			Client: &metadata.DownloadInfo{Path: "com/mojang/client/1.0/client.jar"},
-		},
-	}
-	got := metadata.ResolveClientPath(detail)
-	if got != "com/mojang/client/1.0/client.jar" {
-		t.Errorf("ResolveClientPath = %q, want %q", got, "com/mojang/client/1.0/client.jar")
-	}
-}
-
-func TestResolveClientPathFallback(t *testing.T) {
-	detail := metadata.VersionDetail{ID: "1.0"}
-	got := metadata.ResolveClientPath(detail)
-	if got != "versions/1.0/1.0.jar" {
-		t.Errorf("ResolveClientPath = %q, want %q", got, "versions/1.0/1.0.jar")
-	}
-}
-
-func TestResolveAssetIndexPath(t *testing.T) {
-	detail := metadata.VersionDetail{
-		AssetIndex: metadata.AssetIndex{ID: "1.18"},
-	}
-	got := metadata.ResolveAssetIndexPath(detail)
-	if got != "assets/indexes/1.18.json" {
-		t.Errorf("ResolveAssetIndexPath = %q, want %q", got, "assets/indexes/1.18.json")
-	}
-}
-
-func TestResolveVersionJSONPath(t *testing.T) {
-	detail := metadata.VersionDetail{ID: "1.0"}
-	got := metadata.ResolveVersionJSONPath(detail)
-	if got != "versions/1.0/1.0.json" {
-		t.Errorf("ResolveVersionJSONPath = %q, want %q", got, "versions/1.0/1.0.json")
 	}
 }

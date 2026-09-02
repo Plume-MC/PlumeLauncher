@@ -13,11 +13,6 @@ func dataRootEnvName() string {
 	return "PLUME_DATA_ROOT"
 }
 
-// AppRoot returns the fixed launcher state directory (accounts, config, logs, lock).
-func AppRoot() string {
-	return defaultAppRoot()
-}
-
 func defaultAppRoot() string {
 	if runtime.GOOS == "windows" {
 		localAppData := os.Getenv("LOCALAPPDATA")
@@ -59,11 +54,6 @@ func ResolveGameRoot(customRoot string) (string, error) {
 	return root, nil
 }
 
-// ResolveDataRoot is kept for callers that still mean "game data root".
-func ResolveDataRoot(customRoot string) (string, error) {
-	return ResolveGameRoot(customRoot)
-}
-
 type rootConfig struct {
 	storage.Document
 	DataRoot string `json:"dataRoot"`
@@ -101,13 +91,4 @@ func SetDataRoot(root string) error {
 		Document: storage.Document{SchemaVersion: 1},
 		DataRoot: absolute,
 	})
-}
-
-// ResolveLogDir returns the log directory under AppRoot and ensures it exists.
-func ResolveLogDir(appRoot string) (string, error) {
-	logDir := filepath.Join(appRoot, "logs")
-	if err := os.MkdirAll(logDir, 0o755); err != nil {
-		return "", err
-	}
-	return logDir, nil
 }

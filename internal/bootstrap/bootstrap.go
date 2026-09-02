@@ -6,10 +6,9 @@ import "os"
 type Config struct {
 	AppRoot  string // fixed: accounts, config, logs, lock, bootstrap.json
 	GameRoot string // customizable: instances, assets, versions, cache
-	LogDir   string // always AppRoot/logs
 }
 
-// Initialize resolves app/game roots and log directory.
+// Initialize resolves app and game roots.
 // Pass an empty customRoot to use env, bootstrap.json, or the platform default.
 func Initialize(customRoot string) (*Config, error) {
 	appRoot := defaultAppRoot()
@@ -22,14 +21,8 @@ func Initialize(customRoot string) (*Config, error) {
 		return nil, err
 	}
 
-	logDir, err := ResolveLogDir(appRoot)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Config{
 		AppRoot:  appRoot,
 		GameRoot: gameRoot,
-		LogDir:   logDir,
 	}, nil
 }

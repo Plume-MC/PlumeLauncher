@@ -6,16 +6,13 @@ import "fmt"
 type ErrorCode string
 
 const (
-	ErrCodeValidation    ErrorCode = "VALIDATION"
-	ErrCodeNotFound      ErrorCode = "NOT_FOUND"
-	ErrCodeConflict      ErrorCode = "CONFLICT"
-	ErrCodeUnsupported   ErrorCode = "UNSUPPORTED"
-	ErrCodeIncompatible  ErrorCode = "INCOMPATIBLE"
-	ErrCodeIntegrity     ErrorCode = "INTEGRITY"
-	ErrCodeNetwork       ErrorCode = "NETWORK"
-	ErrCodeUpstream      ErrorCode = "UPSTREAM"
-	ErrCodeCancelled     ErrorCode = "CANCELLED"
-	ErrCodeInternal      ErrorCode = "INTERNAL"
+	ErrCodeValidation   ErrorCode = "VALIDATION"
+	ErrCodeNotFound     ErrorCode = "NOT_FOUND"
+	ErrCodeConflict     ErrorCode = "CONFLICT"
+	ErrCodeIncompatible ErrorCode = "INCOMPATIBLE"
+	ErrCodeIntegrity    ErrorCode = "INTEGRITY"
+	ErrCodeUpstream     ErrorCode = "UPSTREAM"
+	ErrCodeInternal     ErrorCode = "INTERNAL"
 )
 
 // ServiceError is a structured error returned by service methods.
@@ -44,11 +41,6 @@ func NewConflictError(message string) *ServiceError {
 	return &ServiceError{Code: ErrCodeConflict, Message: message}
 }
 
-// NewUnsupportedError creates an unsupported error.
-func NewUnsupportedError(message string) *ServiceError {
-	return &ServiceError{Code: ErrCodeUnsupported, Message: message}
-}
-
 // NewIncompatibleError creates an incompatible error.
 func NewIncompatibleError(message string) *ServiceError {
 	return &ServiceError{Code: ErrCodeIncompatible, Message: message}
@@ -59,19 +51,9 @@ func NewIntegrityError(message string) *ServiceError {
 	return &ServiceError{Code: ErrCodeIntegrity, Message: message}
 }
 
-// NewNetworkError creates a network error.
-func NewNetworkError(message string) *ServiceError {
-	return &ServiceError{Code: ErrCodeNetwork, Message: message}
-}
-
 // NewUpstreamError creates an upstream error.
 func NewUpstreamError(message string) *ServiceError {
 	return &ServiceError{Code: ErrCodeUpstream, Message: message}
-}
-
-// NewCancelledError creates a cancelled error.
-func NewCancelledError(operationID string) *ServiceError {
-	return &ServiceError{Code: ErrCodeCancelled, Message: "operation cancelled", Fields: []string{operationID}}
 }
 
 // NewInternalError creates an internal error.

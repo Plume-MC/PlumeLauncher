@@ -34,12 +34,9 @@ func TestAllErrorCodes(t *testing.T) {
 		{services.ErrCodeValidation},
 		{services.ErrCodeNotFound},
 		{services.ErrCodeConflict},
-		{services.ErrCodeUnsupported},
 		{services.ErrCodeIncompatible},
 		{services.ErrCodeIntegrity},
-		{services.ErrCodeNetwork},
 		{services.ErrCodeUpstream},
-		{services.ErrCodeCancelled},
 		{services.ErrCodeInternal},
 	}
 
@@ -53,18 +50,12 @@ func TestAllErrorCodes(t *testing.T) {
 				err = services.NewNotFoundError("test")
 			case services.ErrCodeConflict:
 				err = services.NewConflictError("test")
-			case services.ErrCodeUnsupported:
-				err = services.NewUnsupportedError("test")
 			case services.ErrCodeIncompatible:
 				err = services.NewIncompatibleError("test")
 			case services.ErrCodeIntegrity:
 				err = services.NewIntegrityError("test")
-			case services.ErrCodeNetwork:
-				err = services.NewNetworkError("test")
 			case services.ErrCodeUpstream:
 				err = services.NewUpstreamError("test")
-			case services.ErrCodeCancelled:
-				err = services.NewCancelledError("op-1")
 			case services.ErrCodeInternal:
 				err = services.NewInternalError("test")
 			}
