@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, ChevronLeft, Eye, EyeOff, Loader2, UserCircle } from 'lucide-react';
+import { IconCheck, IconChevronLeft, IconEye, IconEyeOff, IconLoader2, IconUserCircle } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -51,7 +51,7 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
           )}
         >
           <span className="flex size-11 items-center justify-center rounded-full border border-border bg-muted/40">
-            <UserCircle className="size-5 text-muted-foreground" />
+            <IconUserCircle className="size-5 text-muted-foreground" />
           </span>
           <span className="text-sm font-semibold">Offline</span>
           <span className="text-[10px] text-muted-foreground">Local profile</span>
@@ -111,7 +111,7 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                {showPassword ? <IconEyeOff className="size-4" /> : <IconEye className="size-4" />}
               </button>
             </div>
           </div>
@@ -126,7 +126,7 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
 
       <div className="flex gap-2">
         <Button variant="outline" onClick={onBack} className="flex-1 gap-1 border-border" disabled={saving}>
-          <ChevronLeft className="size-4" />
+          <IconChevronLeft className="size-4" />
           Back
         </Button>
         <Button
@@ -134,7 +134,7 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
           disabled={saving || !username.trim() || (type === 'ely.by' && !password)}
           className="flex-1 gap-1.5 bg-foreground font-semibold text-background hover:bg-foreground/90"
         >
-          {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+          {saving ? <IconLoader2 className="size-4 animate-spin" /> : <IconCheck className="size-4" />}
           {saving ? 'Working...' : type === 'ely.by' ? 'Sign in' : 'Create profile'}
         </Button>
       </div>

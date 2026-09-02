@@ -1,14 +1,14 @@
 import { Button } from '@/components/ui/button';
-import { Layers, Shield, Terminal } from 'lucide-react';
+import { IconStack2, IconShield, IconTerminal2 } from '@tabler/icons-react';
 
 interface WelcomeStepProps {
   onNext: () => void;
 }
 
 const FACTS = [
-  { icon: Layers, text: 'Isolated instances with shared assets' },
-  { icon: Terminal, text: 'Exact Java major per Minecraft version' },
-  { icon: Shield, text: 'Offline play and Ely.by sessions in the OS keyring' },
+  { icon: IconStack2, text: 'Isolated instances with shared assets' },
+  { icon: IconTerminal2, text: 'Exact Java major per Minecraft version' },
+  { icon: IconShield, text: 'Offline play and Ely.by sessions in the OS keyring' },
 ] as const;
 
 export function WelcomeStep({ onNext }: WelcomeStepProps) {

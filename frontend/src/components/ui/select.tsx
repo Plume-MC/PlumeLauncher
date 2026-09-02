@@ -1,5 +1,5 @@
 import { Select as SelectPrimitive } from '@base-ui/react/select';
-import { Check, ChevronDown } from 'lucide-react';
+import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import type { ComponentProps } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -16,7 +16,7 @@ function SelectTrigger({ className, children, ...props }: ComponentProps<typeof 
       {...props}
     >
       {children}
-      <ChevronDown className="size-3.5 shrink-0 opacity-60 transition-transform duration-200 ease-out group-data-[popup-open]:rotate-180" />
+      <IconChevronDown className="size-3.5 shrink-0 opacity-60 transition-transform duration-200 ease-out group-data-[popup-open]:rotate-180" />
     </SelectPrimitive.Trigger>
   );
 }
@@ -52,7 +52,7 @@ function SelectItem({ className, children, ...props }: ComponentProps<typeof Sel
     >
       <span className="absolute left-2 flex size-3.5 items-center justify-center">
         <SelectPrimitive.ItemIndicator>
-          <Check className="size-3.5" />
+          <IconCheck className="size-3.5" />
         </SelectPrimitive.ItemIndicator>
       </span>
       <SelectPrimitive.ItemText className="truncate">{children}</SelectPrimitive.ItemText>

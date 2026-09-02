@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Check } from 'lucide-react';
+import { IconCheck } from '@tabler/icons-react';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { FadeIn } from '@/components/motion';
 
@@ -19,7 +19,7 @@ export function FinishStep({ onComplete }: FinishStepProps) {
   return (
     <FadeIn className="flex flex-col items-center justify-center space-y-5 py-6 text-center" direction="up" duration={0.35}>
       <div className="flex size-14 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-primary">
-        <Check className="size-7" strokeWidth={2.25} />
+        <IconCheck className="size-7" stroke={2.25} />
       </div>
       <div className="space-y-1.5">
         <h1 className="text-xl font-semibold tracking-tight">Ready</h1>

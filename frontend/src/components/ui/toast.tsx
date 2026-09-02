@@ -3,7 +3,7 @@ import { Toast as ToastPrimitive } from "@base-ui/react/toast"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { XIcon, CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { IconX, IconCircleCheck, IconInfoCircle, IconAlertTriangle, IconCircleX, IconLoader2 } from '@tabler/icons-react';
 
 const toast = ToastPrimitive.createToastManager()
 
@@ -123,7 +123,7 @@ function ToastClose({
       )}
       {...props}
     >
-      {children ?? <XIcon aria-hidden="true" />}
+      {children ?? <IconX aria-hidden="true" />}
     </ToastPrimitive.Close>
   )
 }
@@ -132,23 +132,23 @@ function ToastIcon({ type }: { type: string | undefined }) {
   let icon: React.ReactNode = null
 
   if (type === "success") {
-    icon = <CircleCheckIcon className="text-success" aria-hidden="true" />
+    icon = <IconCircleCheck className="text-success" aria-hidden="true" />
   }
 
   if (type === "info") {
-    icon = <InfoIcon className="text-info" aria-hidden="true" />
+    icon = <IconInfoCircle className="text-info" aria-hidden="true" />
   }
 
   if (type === "warning") {
-    icon = <TriangleAlertIcon className="text-warning" aria-hidden="true" />
+    icon = <IconAlertTriangle className="text-warning" aria-hidden="true" />
   }
 
   if (type === "error") {
-    icon = <OctagonXIcon className="text-destructive" aria-hidden="true" />
+    icon = <IconCircleX className="text-destructive" aria-hidden="true" />
   }
 
   if (type === "loading") {
-    icon = <Loader2Icon className="animate-spin text-info" aria-hidden="true" />
+    icon = <IconLoader2 className="animate-spin text-info" aria-hidden="true" />
   }
 
   if (!icon) {

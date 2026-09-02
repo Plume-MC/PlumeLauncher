@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Events } from '@wailsio/runtime';
-import { Plus, Search } from 'lucide-react';
+import { IconPlus, IconSearch } from '@tabler/icons-react';
 import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -211,14 +211,14 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
           className="h-9 shrink-0 gap-1.5 bg-foreground font-semibold text-background hover:bg-foreground/90"
           onClick={() => setCreateOpen(true)}
         >
-          <Plus className="size-3.5" />
+          <IconPlus className="size-3.5" />
           New instance
         </Button>
       </div>
 
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="relative min-w-0 flex-1 sm:min-w-[220px]">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -271,7 +271,7 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
             className="mt-5 gap-1.5 bg-foreground font-semibold text-background hover:bg-foreground/90"
             onClick={() => setCreateOpen(true)}
           >
-            <Plus className="size-3.5" />
+            <IconPlus className="size-3.5" />
             Create instance
           </Button>
         </motion.div>

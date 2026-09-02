@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Settings, Coffee, FolderOpen, Info, Monitor, Laptop } from 'lucide-react';
+import { IconX, IconSettings, IconCoffee, IconFolderOpen, IconInfoCircle, IconDeviceDesktop, IconDeviceLaptop } from '@tabler/icons-react';
 import { Dialog } from '@base-ui/react/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -19,10 +19,10 @@ interface SettingsSheetProps {
 }
 
 const NAV_ITEMS = [
-  { id: 'general' as const, label: 'General', icon: Settings },
-  { id: 'java' as const, label: 'Java', icon: Coffee },
-  { id: 'data' as const, label: 'Data', icon: FolderOpen },
-  { id: 'about' as const, label: 'About', icon: Info },
+  { id: 'general' as const, label: 'General', icon: IconSettings },
+  { id: 'java' as const, label: 'Java', icon: IconCoffee },
+  { id: 'data' as const, label: 'Data', icon: IconFolderOpen },
+  { id: 'about' as const, label: 'About', icon: IconInfoCircle },
 ] as const;
 
 export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
@@ -109,7 +109,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                 <Dialog.Title className="text-sm font-semibold">Settings</Dialog.Title>
                 {dirty && <p className="text-xs text-amber-500">Unsaved changes</p>}
               </div>
-              <Button variant="ghost" size="icon-xs" onClick={close} aria-label="Close settings"><X className="size-4" /></Button>
+              <Button variant="ghost" size="icon-xs" onClick={close} aria-label="Close settings"><IconX className="size-4" /></Button>
             </div>
 
             <div className="flex min-h-0 flex-1">
@@ -223,7 +223,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                       <div className="rounded-lg bg-card/40 p-3">
                         <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Platform</p>
                         <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-foreground">
-                          {navigator.platform.includes('Win') ? <Monitor className="size-3.5" /> : <Laptop className="size-3.5" />}
+                          {navigator.platform.includes('Win') ? <IconDeviceDesktop className="size-3.5" /> : <IconDeviceLaptop className="size-3.5" />}
                           {navigator.platform.includes('Win') ? 'Windows' : navigator.platform.includes('Linux') ? 'Linux' : navigator.platform}
                           <span className="text-muted-foreground">amd64</span>
                         </div>

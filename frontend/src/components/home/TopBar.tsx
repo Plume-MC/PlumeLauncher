@@ -1,4 +1,4 @@
-import { Settings, PanelRight, User } from 'lucide-react';
+import { IconSettings, IconLayoutSidebarRight, IconUser } from '@tabler/icons-react';
 import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -58,7 +58,7 @@ export function TopBar({
               account && 'text-primary'
             )}
           >
-            <User className="size-3.5" />
+            <IconUser className="size-3.5" />
           </span>
           <span className="hidden min-w-0 flex-col items-start leading-none sm:flex">
             <span className="text-[10px] font-medium text-muted-foreground">Account</span>
@@ -77,7 +77,7 @@ export function TopBar({
           aria-label="Toggle activity panel"
           aria-pressed={activityCount > 0}
         >
-          <PanelRight className="size-4" />
+          <IconLayoutSidebarRight className="size-4" />
           {activityCount > 0 && (
             <motion.span
               initial={{ scale: 0.6, opacity: 0 }}
@@ -90,7 +90,7 @@ export function TopBar({
           )}
         </Button>
         <Button variant="ghost" size="icon-sm" onClick={onSettingsClick} aria-label="Open settings">
-          <Settings className="size-4" />
+          <IconSettings className="size-4" />
         </Button>
       </div>
     </header>

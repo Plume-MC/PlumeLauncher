@@ -1,4 +1,4 @@
-import { Play, Download, MoreVertical, Square, Loader2 } from 'lucide-react';
+import { IconPlayerPlay, IconDownload, IconDotsVertical, IconPlayerStop, IconLoader2 } from '@tabler/icons-react';
 import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -94,7 +94,7 @@ export function InstanceCard({
           }}
           aria-label={`Play ${name}`}
         >
-          <Play className="size-3.5" />
+          <IconPlayerPlay className="size-3.5" />
           Play
         </Button>
       );
@@ -113,7 +113,7 @@ export function InstanceCard({
             }}
             aria-label={`Play ${name} again`}
           >
-            <Play className="size-3.5" />
+            <IconPlayerPlay className="size-3.5" />
             Play again
           </Button>
           {onOpenLogs && (
@@ -146,7 +146,7 @@ export function InstanceCard({
           }}
           aria-label={`Install ${name}`}
         >
-          <Download className="size-3.5" />
+          <IconDownload className="size-3.5" />
           Install
         </Button>
       );
@@ -185,9 +185,9 @@ export function InstanceCard({
           aria-label={`Stop ${name}`}
         >
           {actionState === 'stopping' ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <IconLoader2 className="size-3.5 animate-spin" />
           ) : (
-            <Square className="size-3.5" />
+            <IconPlayerStop className="size-3.5" />
           )}
           {actionState === 'stopping' ? 'Stopping...' : 'Stop'}
         </Button>
@@ -196,7 +196,7 @@ export function InstanceCard({
     if (actionState === 'preparing') {
       return (
         <Button size="sm" variant="secondary" disabled className="h-9 w-full gap-1.5">
-          <Loader2 className="size-3.5 animate-spin" />
+          <IconLoader2 className="size-3.5 animate-spin" />
           Launching...
         </Button>
       );
@@ -231,7 +231,7 @@ export function InstanceCard({
               }}
               aria-label={`Open details for ${name}`}
             >
-              <MoreVertical className="size-3.5" />
+              <IconDotsVertical className="size-3.5" />
             </Button>
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">

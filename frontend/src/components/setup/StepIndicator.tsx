@@ -1,11 +1,11 @@
-import { Box, Coffee, User, CheckCircle2 } from 'lucide-react';
+import { IconBox, IconCoffee, IconUser, IconCircleCheck } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
 const STEPS = [
-  { id: 1, label: 'Welcome', icon: Box },
-  { id: 2, label: 'Java', icon: Coffee },
-  { id: 3, label: 'Account', icon: User },
-  { id: 4, label: 'Ready', icon: CheckCircle2 },
+  { id: 1, label: 'Welcome', icon: IconBox },
+  { id: 2, label: 'Java', icon: IconCoffee },
+  { id: 3, label: 'Account', icon: IconUser },
+  { id: 4, label: 'Ready', icon: IconCircleCheck },
 ] as const;
 
 interface StepIndicatorProps {
@@ -32,7 +32,7 @@ export function StepIndicator({ current }: StepIndicatorProps) {
                   )}
                   aria-current={active ? 'step' : undefined}
                 >
-                  {done ? <CheckCircle2 className="size-4" /> : <Icon className="size-4" />}
+                  {done ? <IconCircleCheck className="size-4" /> : <Icon className="size-4" />}
                 </div>
                 <span
                   className={cn(

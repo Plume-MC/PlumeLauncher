@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FolderKey, Loader2, Plus, Trash2, UserRound, X } from 'lucide-react';
+import { IconKey, IconLoader2, IconPlus, IconTrash, IconUser, IconX } from '@tabler/icons-react';
 import { Dialog } from '@base-ui/react/dialog';
 import { AccountService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { Account } from '../../../bindings/plumelauncher/internal/services/models.js';
@@ -55,7 +55,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
               <span className="font-mono text-[10px] text-muted-foreground">{accounts.length}</span>
             </div>
             <Dialog.Description className="sr-only">Select, add, or remove a launcher account.</Dialog.Description>
-            <Button type="button" variant="ghost" size="icon-sm" onClick={() => onOpenChange(false)} aria-label="Close accounts"><X className="size-4" /></Button>
+            <Button type="button" variant="ghost" size="icon-sm" onClick={() => onOpenChange(false)} aria-label="Close accounts"><IconX className="size-4" /></Button>
           </header>
 
           <div className="grid items-start md:grid-cols-[minmax(260px,0.85fr)_minmax(360px,1.15fr)]">
@@ -66,7 +66,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                     {accounts.map((account) => (
                       <div key={account.uuid} className={cn('flex min-h-16 items-center gap-3 px-3 py-2.5 transition-colors', account.selected && 'bg-primary/8')}>
                         <span className={cn('grid size-8 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground', account.selected && 'bg-primary/15 text-primary')}>
-                          <UserRound className="size-3.5" />
+                          <IconUser className="size-3.5" />
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{account.displayName || account.username}</p>
@@ -78,7 +78,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                         <div className="flex shrink-0 items-center gap-1">
                           {!account.selected ? <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => void run(() => AccountService.SelectAccount(account.uuid))}>Use</Button> : null}
                           <Button type="button" size="icon-xs" variant="ghost" className="text-muted-foreground hover:text-destructive" disabled={busy} aria-label={`Remove ${account.displayName || account.username}`} onClick={() => void run(() => AccountService.DeleteAccount(account.uuid))}>
-                            <Trash2 className="size-3.5" />
+                            <IconTrash className="size-3.5" />
                           </Button>
                         </div>
                       </div>
@@ -109,7 +109,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                         Password
                         <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
                       </label>
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><FolderKey className="size-3.5" />Session is stored in your OS keyring.</p>
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconKey className="size-3.5" />Session is stored in your OS keyring.</p>
                     </>
                   ) : null}
                   {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
@@ -117,7 +117,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
               </div>
               <footer className="flex justify-end border-t border-border px-5 py-3 sm:px-6">
                 <Button type="submit" size="sm" disabled={busy || !username.trim() || (type === 'ely.by' && !password)}>
-                  {busy ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Plus className="mr-1.5 size-3.5" />}
+                  {busy ? <IconLoader2 className="mr-1.5 size-3.5 animate-spin" /> : <IconPlus className="mr-1.5 size-3.5" />}
                   {type === 'ely.by' ? 'Sign in' : 'Add profile'}
                 </Button>
               </footer>

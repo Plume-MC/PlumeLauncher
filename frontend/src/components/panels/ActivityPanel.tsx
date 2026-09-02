@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useRef, useState } from "react";
-import { ArrowDown, Download, Terminal, Trash2, X } from "lucide-react";
+import { IconArrowDown, IconDownload, IconTerminal2, IconTrash, IconX } from '@tabler/icons-react';
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { useMotionPreference } from "@/components/motion";
@@ -83,11 +83,11 @@ export function ActivityPanel({ isOpen, onClose, onClearConsole, consoleLines, d
     >
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <Terminal className="size-4 text-muted-foreground" />
+          <IconTerminal2 className="size-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold">Activity</h2>
         </div>
         <Button variant="ghost" size="icon-xs" onClick={onClose} aria-label="Close activity panel">
-          <X className="size-3.5" />
+          <IconX className="size-3.5" />
         </Button>
       </header>
 
@@ -95,7 +95,7 @@ export function ActivityPanel({ isOpen, onClose, onClearConsole, consoleLines, d
         <section className="space-y-3 border-b border-border px-4 py-3" aria-live="polite">
           <div className="flex items-center justify-between gap-3 text-xs">
             <span className="flex items-center gap-2 font-medium">
-              <Download className="size-3.5" />
+              <IconDownload className="size-3.5" />
               {download.status === "repairing" ? "Repairing files" : "Installing files"}
             </span>
             {activeDownloadStates.has(download.status) ? (
@@ -131,11 +131,11 @@ export function ActivityPanel({ isOpen, onClose, onClearConsole, consoleLines, d
           <div className="flex items-center gap-1">
             {!following ? (
               <Button variant="ghost" size="icon-xs" onClick={() => setFollowing(true)} aria-label="Follow latest output" title="Follow latest output">
-                <ArrowDown className="size-3.5" />
+                <IconArrowDown className="size-3.5" />
               </Button>
             ) : null}
             <Button variant="ghost" size="icon-xs" onClick={onClearConsole} disabled={!consoleLines.length} aria-label="Clear console">
-              <Trash2 className="size-3.5" />
+              <IconTrash className="size-3.5" />
             </Button>
           </div>
         </div>

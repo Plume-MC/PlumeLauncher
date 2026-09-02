@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, Loader2, RefreshCw } from 'lucide-react';
+import { IconChevronLeft, IconLoader2, IconRefresh } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
@@ -65,14 +65,14 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-muted-foreground">Detected on this machine</span>
           <Button variant="ghost" size="sm" onClick={() => void scan()} disabled={loading} className="h-7 gap-1.5 text-xs">
-            <RefreshCw className={cn('size-3', loading && 'animate-spin')} />
+            <IconRefresh className={cn('size-3', loading && 'animate-spin')} />
             Rescan
           </Button>
         </div>
 
         {loading ? (
           <div className="flex h-28 items-center justify-center gap-2 rounded-lg border border-border bg-card/30 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
+            <IconLoader2 className="size-4 animate-spin" />
             Scanning...
           </div>
         ) : javaList.length === 0 ? (
@@ -140,7 +140,7 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
 
       <div className="flex gap-2">
         <Button variant="outline" onClick={onBack} className="flex-1 gap-1 border-border">
-          <ChevronLeft className="size-4" />
+          <IconChevronLeft className="size-4" />
           Back
         </Button>
         <Button

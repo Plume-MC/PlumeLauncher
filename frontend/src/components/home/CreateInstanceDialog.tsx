@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { IconLoader2, IconX } from '@tabler/icons-react';
 import { Dialog } from '@base-ui/react/dialog';
 import { AnimatePresence, motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
@@ -170,7 +170,7 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
                   aria-label="Close"
                   onClick={() => onOpenChange(false)}
                 >
-                  <X className="size-4" />
+                  <IconX className="size-4" />
                 </Button>
               </div>
 
@@ -306,7 +306,7 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
                     disabled={!canSubmit}
                     className="min-w-24 gap-1.5 bg-foreground font-semibold text-background hover:bg-foreground/90"
                   >
-                    {creating ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {creating ? <IconLoader2 className="size-4 animate-spin" /> : null}
                     {creating ? 'Creating...' : 'Create'}
                   </Button>
                 </div>

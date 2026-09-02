@@ -1,4 +1,4 @@
-import { User } from 'lucide-react';
+import { IconUser } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
 interface ContextStripProps {
@@ -21,7 +21,7 @@ export function ContextStrip({
       aria-live="polite"
     >
       <div className="flex items-center gap-1.5">
-        <User className="size-3 shrink-0" />
+        <IconUser className="size-3 shrink-0" />
         <span className="text-foreground/90">{accountName}</span>
         <span className="text-muted-foreground/60">({accountType})</span>
       </div>

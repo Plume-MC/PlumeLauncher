@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, FolderOpen, Trash2 } from 'lucide-react';
+import { IconX, IconFolderOpen, IconTrash } from '@tabler/icons-react';
 import { Dialog } from '@base-ui/react/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -155,7 +155,7 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
                   </div>
                 </div>
               </div>
-              <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={close} aria-label="Close instance details"><X className="size-4" /></Button>
+              <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={close} aria-label="Close instance details"><IconX className="size-4" /></Button>
             </header>
 
             <div className="min-h-0 flex-1 overflow-auto">
@@ -218,11 +218,11 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
             <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background/95 px-5 py-3 sm:px-6">
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="sm" disabled={!!busy} onClick={() => void openFolder()}>
-                  <FolderOpen className="mr-1.5 size-3.5" />
+                  <IconFolderOpen className="mr-1.5 size-3.5" />
                   Open folder
                 </Button>
                 <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" disabled={!!busy} onClick={onDelete}>
-                  <Trash2 className="mr-1.5 size-3.5" />
+                  <IconTrash className="mr-1.5 size-3.5" />
                   Delete
                 </Button>
               </div>

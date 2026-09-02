@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, RefreshCw } from 'lucide-react';
+import { IconCheck, IconRefresh } from '@tabler/icons-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,7 +59,7 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
           <p className="mt-1 text-[11px] text-muted-foreground">The system default comes from the current PATH.</p>
         </div>
         <Button variant="secondary" size="sm" disabled={busy} onClick={() => void refresh()} className="gap-1.5">
-          <RefreshCw className={cn('size-3', busy && 'animate-spin')} />
+          <IconRefresh className={cn('size-3', busy && 'animate-spin')} />
           {busy ? 'Scanning...' : 'Rescan'}
         </Button>
       </div>
@@ -92,7 +92,7 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
                 onClick={() => onDefaultPathChange(runtime.path)}
                 className="shrink-0 gap-1"
               >
-                {isSelected ? <><Check className="size-3" /> Selected</> : 'Use as default'}
+                {isSelected ? <><IconCheck className="size-3" /> Selected</> : 'Use as default'}
               </Button>
             </div>
           );
