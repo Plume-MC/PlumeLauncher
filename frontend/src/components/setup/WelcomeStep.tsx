@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { IconStack2, IconShield, IconTerminal2 } from '@tabler/icons-react';
+import plumeMark from '@/assets/plume-mark.webp';
 
 interface WelcomeStepProps {
   onNext: () => void;
@@ -15,6 +16,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
   return (
     <div className="space-y-8">
       <div className="space-y-3 text-center">
+        <img src={plumeMark} alt="Plume Launcher" className="mx-auto size-14 rounded-xl" />
         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
           Plume Launcher
         </p>

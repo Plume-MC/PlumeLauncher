@@ -10,6 +10,7 @@ import { SystemService } from '../../../bindings/plumelauncher/internal/services
 import type { LauncherDefaults } from '../../../bindings/plumelauncher/internal/instances/models.js';
 import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
+import plumeMark from '@/assets/plume-mark.webp';
 
 type SettingsTab = 'general' | 'java' | 'data' | 'about';
 
@@ -210,7 +211,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                 {tab === 'about' && (
                   <div className="space-y-4 animate-in fade-in">
                     <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">P</div>
+                      <img src={plumeMark} alt="Plume Launcher" className="size-10 rounded-lg" />
                       <div>
                         <p className="text-sm font-semibold text-foreground">Plume Launcher</p>
                         <p className="font-mono text-xs text-muted-foreground">v1.0.0</p>

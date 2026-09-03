@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import plumeMark from '@/assets/plume-mark.webp';
 import type { Account } from '../../../bindings/plumelauncher/internal/services/models.js';
 
 interface TopBarProps {
@@ -29,9 +30,7 @@ export function TopBar({
       data-slot="top-bar"
     >
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15)]">
-          P
-        </div>
+        <img src={plumeMark} alt="" className="size-8 shrink-0 rounded-lg" />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-semibold tracking-tight">Plume</span>

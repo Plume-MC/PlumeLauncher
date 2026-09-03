@@ -6,6 +6,7 @@ import { SetupWizard } from '@/components/setup/SetupWizard'
 import { AccountService, HomeService, SystemService } from '../bindings/plumelauncher/internal/services/index.js'
 import type { Account } from '../bindings/plumelauncher/internal/services/models.js'
 import type { Instance } from '../bindings/plumelauncher/internal/instances/models.js'
+import plumeMark from '@/assets/plume-mark.webp'
 
 function App() {
   const [account, setAccount] = useState<Account | null>(null)
@@ -29,7 +30,12 @@ function App() {
   }, [])
 
   if (loading) {
-    return <div className="grid min-h-[100dvh] place-items-center text-sm text-muted-foreground">Loading Plume Launcher...</div>
+    return (
+      <div className="grid min-h-[100dvh] place-items-center gap-3 text-sm text-muted-foreground">
+        <img src={plumeMark} alt="Plume Launcher" className="size-12 rounded-xl" />
+        <span>Loading Plume Launcher...</span>
+      </div>
+    )
   }
 
   if (setup) {
