@@ -195,7 +195,10 @@ func (o *Orchestrator) downloadTasks(ctx context.Context, tasks []Task) error {
 	o.pool = NewPool(o.workers, o.client)
 	o.pool.Start(ctx, filepath.Join(o.dataRoot, "cache"))
 	for _, task := range tasks {
-		if !o.pool.Submit(task) {
+		if !o.pool.Submit(ctx, task) {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			return fmt.Errorf("pool closed, cannot submit task")
 		}
 	}

@@ -39,13 +39,13 @@ func NewPool(workers int, client *http.Client) *Pool {
 	}
 	return &Pool{
 		workers: workers,
-		tasks:   make(chan Task, 10000),
+		tasks:   make(chan Task, workers),
 		client:  client,
 	}
 }
 
 // Submit adds a task to the pool. Returns false if the pool is shut down.
-func (p *Pool) Submit(task Task) bool {
+func (p *Pool) Submit(ctx context.Context, task Task) bool {
 	p.closedMu.Lock()
 	if p.closed {
 		p.closedMu.Unlock()
@@ -57,13 +57,13 @@ func (p *Pool) Submit(task Task) bool {
 	select {
 	case p.tasks <- task:
 		return true
-	default:
+	case <-ctx.Done():
 		p.wg.Done()
 		return false
 	}
 }
 
-// Start launches worker goroutines. Call Submit before Start.
+// Start launches worker goroutines before tasks are submitted.
 func (p *Pool) Start(ctx context.Context, cacheDir string) {
 	for i := 0; i < p.workers; i++ {
 		go p.worker(ctx, cacheDir)

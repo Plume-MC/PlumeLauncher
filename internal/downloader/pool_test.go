@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"plumelauncher/internal/downloader"
 )
@@ -26,7 +27,7 @@ func TestPoolBasicDownload(t *testing.T) {
 	pool := downloader.NewPool(2, &http.Client{})
 	pool.Start(context.Background(), cacheDir)
 
-	pool.Submit(downloader.Task{
+	pool.Submit(context.Background(), downloader.Task{
 		URL:  server.URL + "/file.txt",
 		Path: filepath.Join(dir, "file.txt"),
 	})
@@ -60,7 +61,7 @@ func TestPoolConcurrentDownloads(t *testing.T) {
 	pool.Start(context.Background(), cacheDir)
 
 	for i := 0; i < 10; i++ {
-		pool.Submit(downloader.Task{
+		pool.Submit(context.Background(), downloader.Task{
 			URL:  server.URL + "/file",
 			Path: filepath.Join(dir, "file"+string(rune('0'+i))),
 		})
@@ -95,7 +96,7 @@ func TestPoolSkipsValidFile(t *testing.T) {
 	pool := downloader.NewPool(1, &http.Client{})
 	pool.Start(context.Background(), cacheDir)
 
-	pool.Submit(downloader.Task{
+	pool.Submit(context.Background(), downloader.Task{
 		URL:  server.URL + "/file.txt",
 		Path: finalPath,
 		SHA1: "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d",
@@ -126,7 +127,7 @@ func TestPoolOnComplete(t *testing.T) {
 	pool := downloader.NewPool(1, &http.Client{})
 	pool.Start(context.Background(), cacheDir)
 
-	pool.Submit(downloader.Task{
+	pool.Submit(context.Background(), downloader.Task{
 		URL:  server.URL + "/file",
 		Path: filepath.Join(dir, "file.txt"),
 		OnComplete: func(bool) {
@@ -147,8 +148,33 @@ func TestPoolSubmitAfterWait(t *testing.T) {
 	pool.Wait()
 
 	// Submit after wait should return false
-	ok := pool.Submit(downloader.Task{URL: "http://example.com"})
+	ok := pool.Submit(context.Background(), downloader.Task{URL: "http://example.com"})
 	if ok {
 		t.Error("Submit after Wait should return false")
 	}
+}
+
+func TestPoolSubmitWaitsForCapacity(t *testing.T) {
+	pool := downloader.NewPool(1, &http.Client{})
+	ctx := context.Background()
+	if !pool.Submit(ctx, downloader.Task{}) {
+		t.Fatal("first Submit returned false")
+	}
+
+	submitted := make(chan bool, 1)
+	go func() {
+		submitted <- pool.Submit(ctx, downloader.Task{})
+	}()
+
+	select {
+	case <-submitted:
+		t.Fatal("Submit returned before a worker had capacity")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	pool.Start(ctx, t.TempDir())
+	if ok := <-submitted; !ok {
+		t.Fatal("blocked Submit returned false")
+	}
+	pool.Wait()
 }
