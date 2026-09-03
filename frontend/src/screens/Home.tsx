@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Events } from '@wailsio/runtime';
-import { IconPlus, IconSearch } from '@tabler/icons-react';
-import { motion } from 'motion/react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
-import { ContextStrip } from '@/components/home/ContextStrip';
-import { InstanceCard } from '@/components/home/InstanceCard';
+import { InstanceLibraryToolbar } from '@/components/home/InstanceLibraryToolbar';
+import { InstanceGrid } from '@/components/home/InstanceGrid';
 import { InstanceDetailSheet } from '@/components/home/InstanceDetailSheet';
 import { CreateInstanceDialog } from '@/components/home/CreateInstanceDialog';
 import { DeleteInstanceDialog } from '@/components/home/DeleteInstanceDialog';
@@ -196,125 +191,38 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1.5">
-          <h1 className="text-xl font-semibold tracking-tight">Instance Library</h1>
-          <ContextStrip
-            accountName={account?.displayName || account?.username}
-            accountType={account?.type === 'ely.by' ? 'ely.by' : 'offline'}
-            instanceCount={instances.length}
-            liveStatus={liveStatus}
-          />
-        </div>
-        <Button
-          size="sm"
-          className="h-9 shrink-0 gap-1.5 bg-foreground font-semibold text-background hover:bg-foreground/90"
-          onClick={() => setCreateOpen(true)}
-        >
-          <IconPlus className="size-3.5" />
-          New instance
-        </Button>
-      </div>
-
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <div className="relative min-w-0 flex-1 sm:min-w-[220px]">
-          <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search instances..."
-            className="h-9 pl-8 text-xs"
-            aria-label="Search instances"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Select
-            value={loaderFilter as string}
-            onValueChange={(value) => setLoaderFilter((value ?? 'all') as 'all' | LoaderType)}
-          >
-            <SelectTrigger aria-label="Filter by loader" className="h-9 w-[9.5rem] shrink-0">
-              <span className="truncate capitalize">{loaderFilter === 'all' ? 'All loaders' : loaderFilter}</span>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All loaders</SelectItem>
-              <SelectItem value="vanilla">Vanilla</SelectItem>
-              <SelectItem value="fabric">Fabric</SelectItem>
-              <SelectItem value="quilt">Quilt</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={sort} onValueChange={(value) => setSort((value ?? 'newest') as typeof sort)}>
-            <SelectTrigger aria-label="Sort instances" className="h-9 w-[7.5rem] shrink-0">
-              <span className="truncate capitalize">{sort === 'name' ? 'Name' : sort}</span>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="oldest">Oldest</SelectItem>
-              <SelectItem value="name">Name</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {instances.length === 0 ? (
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-1 flex-col items-center justify-center rounded-xl border border-border bg-card/30 px-6 py-12 text-center"
-        >
-          <p className="text-sm font-medium text-foreground">No instances yet</p>
-          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            Create a Vanilla, Fabric, or Quilt install. Files stay isolated under your game data root.
-          </p>
-          <Button
-            size="sm"
-            className="mt-5 gap-1.5 bg-foreground font-semibold text-background hover:bg-foreground/90"
-            onClick={() => setCreateOpen(true)}
-          >
-            <IconPlus className="size-3.5" />
-            Create instance
-          </Button>
-        </motion.div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {visibleInstances.length === 0 ? (
-            <div className="col-span-full py-12 text-center text-sm text-muted-foreground">No matching instances.</div>
-          ) : (
-            visibleInstances.map((instance) => (
-              <div key={instance.id}>
-                <InstanceCard
-                  name={instance.name}
-                  busy={busyId === instance.id}
-                  actionState={
-                    instance.id === launchingInstanceId
-                      ? 'preparing'
-                      : instance.id === stoppingInstanceId
-                        ? 'stopping'
-                        : null
-                  }
-                  crashExitCode={crashExitCodes[instance.id] ?? null}
-                  onOpenLogs={() => void SystemService.OpenLogFolder()}
-                  mcVersion={instance.mcVersion}
-                  loader={instance.loader}
-                  state={
-                    instance.id === downloadInstanceId
-                      ? InstanceState.StateDownloading
-                      : instance.id === runningInstanceId
-                        ? InstanceState.StateRunning
-                        : instance.state
-                  }
-                  downloadProgress={instance.id === downloadInstanceId ? downloadProgress : null}
-                  onAction={(action) => void runAction(instance.id, action)}
-                  onOpenDetail={() => {
-                    setDetailInstance(instance);
-                    setDetailOpen(true);
-                  }}
-                />
-              </div>
-            ))
-          )}
-        </div>
-      )}
+      <InstanceLibraryToolbar
+        accountName={account?.displayName || account?.username}
+        accountType={account?.type === 'ely.by' ? 'ely.by' : 'offline'}
+        instanceCount={instances.length}
+        liveStatus={liveStatus}
+        search={search}
+        loaderFilter={loaderFilter}
+        sort={sort}
+        onCreate={() => setCreateOpen(true)}
+        onSearchChange={setSearch}
+        onLoaderFilterChange={setLoaderFilter}
+        onSortChange={setSort}
+      />
+      <InstanceGrid
+        instances={instances}
+        visibleInstances={visibleInstances}
+        reduced={reduced}
+        busyId={busyId}
+        downloadInstanceId={downloadInstanceId}
+        downloadProgress={downloadProgress}
+        runningInstanceId={runningInstanceId}
+        launchingInstanceId={launchingInstanceId}
+        stoppingInstanceId={stoppingInstanceId}
+        crashExitCodes={crashExitCodes}
+        onCreate={() => setCreateOpen(true)}
+        onAction={(id, action) => void runAction(id, action)}
+        onOpenDetail={(instance) => {
+          setDetailInstance(instance);
+          setDetailOpen(true);
+        }}
+        onOpenLogs={() => void SystemService.OpenLogFolder()}
+      />
 
       <InstanceDetailSheet
         isOpen={detailOpen}

@@ -9,7 +9,6 @@ interface FadeInProps {
   duration?: number;
   direction?: 'up' | 'down' | 'left' | 'right' | 'none';
   distance?: number;
-  once?: boolean;
 }
 
 const directionOffset: Record<string, { x?: number; y?: number }> = {
@@ -27,7 +26,6 @@ export function FadeIn({
   duration = 0.35,
   direction = 'up',
   distance,
-  once = true,
 }: FadeInProps) {
   const { reduced } = useMotionPreference();
   const offset = directionOffset[direction];
@@ -57,7 +55,6 @@ export function FadeIn({
       initial="hidden"
       animate="visible"
       variants={variants}
-      {...(once ? {} : { whileInView: 'visible', viewport: { once: false } })}
     >
       {children}
     </motion.div>

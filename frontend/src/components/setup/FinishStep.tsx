@@ -1,14 +1,13 @@
 import { useEffect } from 'react';
 import { IconCheck } from '@tabler/icons-react';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { FadeIn } from '@/components/motion';
+import { FadeIn, useMotionPreference } from '@/components/motion';
 
 interface FinishStepProps {
   onComplete: () => void;
 }
 
 export function FinishStep({ onComplete }: FinishStepProps) {
-  const reduced = useReducedMotion();
+  const { reduced } = useMotionPreference();
 
   useEffect(() => {
     const delay = reduced ? 0 : 900;
