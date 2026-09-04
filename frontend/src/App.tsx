@@ -16,10 +16,14 @@ function App() {
   const [loading, setLoading] = useState(true)
 
   const refresh = async () => {
-    const nextAccounts = (await AccountService.ListAccounts()) ?? []
+    const [accountsResult, instancesResult] = await Promise.all([
+      AccountService.ListAccounts(),
+      HomeService.ListInstances(),
+    ])
+    const nextAccounts = accountsResult ?? []
     setAccounts(nextAccounts)
     setAccount(nextAccounts.find((item) => item.selected) ?? nextAccounts[0] ?? null)
-    setInstances((await HomeService.ListInstances()) ?? [])
+    setInstances(instancesResult ?? [])
     setSetup((current) => current && nextAccounts.length === 0)
   }
 
