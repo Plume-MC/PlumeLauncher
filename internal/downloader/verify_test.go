@@ -110,6 +110,28 @@ func TestVerifyArtifactHashMismatch(t *testing.T) {
 	}
 }
 
+func TestCheckPlanSkipsHashForWarmLaunch(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "lib"), 0o755)
+	os.WriteFile(filepath.Join(dir, "lib", "a.jar"), []byte("wrong data"), 0o644)
+
+	plan := &metadata.ArtifactPlan{
+		VersionID: "test",
+		Artifacts: []metadata.Artifact{{
+			Path: "lib/a.jar",
+			Size: 10,
+			Sha1: "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed",
+		}},
+	}
+
+	if status := downloader.CheckPlan(dir, plan)[0]; !status.Valid {
+		t.Fatalf("warm launch check marked same-size artifact invalid: %v", status.Error)
+	}
+	if status := downloader.VerifyPlan(dir, plan)[0]; status.Valid {
+		t.Fatal("full verification accepted a hash mismatch")
+	}
+}
+
 func TestVerifyPlanMixedStatuses(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "lib"), 0o755)

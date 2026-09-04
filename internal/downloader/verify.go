@@ -20,6 +20,15 @@ type VerifyStatus struct {
 
 // VerifyPlan checks all artifacts in a plan against local filesystem.
 func VerifyPlan(dataRoot string, plan *metadata.ArtifactPlan) []VerifyStatus {
+	return checkPlan(dataRoot, plan, true)
+}
+
+// CheckPlan checks that all artifacts required to launch are present and sized correctly.
+func CheckPlan(dataRoot string, plan *metadata.ArtifactPlan) []VerifyStatus {
+	return checkPlan(dataRoot, plan, false)
+}
+
+func checkPlan(dataRoot string, plan *metadata.ArtifactPlan, verifyHash bool) []VerifyStatus {
 	results := make([]VerifyStatus, 0, len(plan.Artifacts))
 
 	for _, artifact := range plan.Artifacts {
@@ -28,7 +37,7 @@ func VerifyPlan(dataRoot string, plan *metadata.ArtifactPlan) []VerifyStatus {
 			results = append(results, VerifyStatus{Artifact: artifact, Corrupt: true, Error: err})
 			continue
 		}
-		status := VerifyArtifact(fullPath, artifact)
+		status := checkArtifact(fullPath, artifact, verifyHash)
 		results = append(results, status)
 	}
 
@@ -37,6 +46,10 @@ func VerifyPlan(dataRoot string, plan *metadata.ArtifactPlan) []VerifyStatus {
 
 // VerifyArtifact checks a single artifact file.
 func VerifyArtifact(fullPath string, artifact metadata.Artifact) VerifyStatus {
+	return checkArtifact(fullPath, artifact, true)
+}
+
+func checkArtifact(fullPath string, artifact metadata.Artifact, verifyHash bool) VerifyStatus {
 	status := VerifyStatus{Artifact: artifact}
 
 	// Check file exists
@@ -55,7 +68,7 @@ func VerifyArtifact(fullPath string, artifact metadata.Artifact) VerifyStatus {
 	}
 
 	// Check hash if provided
-	if artifact.Sha1 != "" {
+	if verifyHash && artifact.Sha1 != "" {
 		ok, err := VerifyFileSHA1(fullPath, artifact.Sha1)
 		if err != nil {
 			status.Corrupt = true

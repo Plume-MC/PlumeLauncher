@@ -172,9 +172,9 @@ func (s *HomeService) RepairInstance(id string) error {
 	return s.repairArtifacts(id, inst, plan)
 }
 
-// ensureArtifacts repairs only when verify finds missing or corrupt files.
+// ensureArtifacts repairs only when an artifact needed to launch is missing or has the wrong size.
 func (s *HomeService) ensureArtifacts(id string, inst *instances.Instance, plan *metadata.ArtifactPlan) error {
-	for _, status := range downloader.VerifyPlan(s.DataRoot, plan) {
+	for _, status := range downloader.CheckPlan(s.DataRoot, plan) {
 		if !status.Valid {
 			return s.repairArtifacts(id, inst, plan)
 		}
