@@ -122,7 +122,7 @@ func (s *SystemService) appStateRoot() string {
 
 // ScanJava detects installed Java installations.
 func (s *SystemService) ScanJava() ([]java.JavaInfo, error) {
-	return java.ScanJavaInstallations()
+	return java.RescanJavaInstallations()
 }
 
 // JavaRuntimes returns all verified runtimes, marking the PATH runtime and custom entries.
