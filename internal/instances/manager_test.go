@@ -210,3 +210,76 @@ func TestInstancePersistence(t *testing.T) {
 		t.Errorf("Name = %q, want %q", got.Name, "Persistent")
 	}
 }
+
+func TestManagerIndexesCreatedInstance(t *testing.T) {
+	dir := t.TempDir()
+	mgr := instances.NewManager(dir, instances.DefaultLauncherDefaults())
+
+	created, err := mgr.Create("Indexed", "1.21.4", instances.LoaderVanilla)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	instanceJSON := filepath.Join(dir, "instances", "indexed", "instance.json")
+	if err := os.Remove(instanceJSON); err != nil {
+		t.Fatalf("Remove instance.json: %v", err)
+	}
+
+	if _, err := mgr.Dir(created.ID); err != nil {
+		t.Fatalf("Dir should use created index entry: %v", err)
+	}
+}
+
+func TestManagerIndexesPersistedInstanceAtInitialization(t *testing.T) {
+	dir := t.TempDir()
+	defaults := instances.DefaultLauncherDefaults()
+	created, err := instances.NewManager(dir, defaults).Create("Persisted", "1.21.4", instances.LoaderVanilla)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	mgr := instances.NewManager(dir, defaults)
+	if err := os.Remove(filepath.Join(dir, "instances", "persisted", "instance.json")); err != nil {
+		t.Fatalf("Remove instance.json: %v", err)
+	}
+
+	if _, err := mgr.Dir(created.ID); err != nil {
+		t.Fatalf("Dir should use startup index entry: %v", err)
+	}
+}
+
+func TestManagerRecoversIndexMiss(t *testing.T) {
+	dir := t.TempDir()
+	defaults := instances.DefaultLauncherDefaults()
+	mgr := instances.NewManager(dir, defaults)
+
+	created, err := instances.NewManager(dir, defaults).Create("Recovered", "1.21.4", instances.LoaderVanilla)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if got, err := mgr.Get(created.ID); err != nil || got.Name != "Recovered" {
+		t.Fatalf("Get recovered instance = %#v, %v", got, err)
+	}
+}
+
+func TestManagerRemovesDeletedInstanceFromIndex(t *testing.T) {
+	dir := t.TempDir()
+	mgr := instances.NewManager(dir, instances.DefaultLauncherDefaults())
+
+	created, err := mgr.Create("Deleted", "1.21.4", instances.LoaderVanilla)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := mgr.Delete(created.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	recreatedDir := filepath.Join(dir, "instances", "deleted")
+	if err := os.MkdirAll(recreatedDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(recreatedDir, "instance.json"), []byte("invalid"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	if _, err := mgr.Dir(created.ID); err == nil {
+		t.Fatal("Dir should not return a deleted index entry")
+	}
+}

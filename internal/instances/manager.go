@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"plumelauncher/internal/storage"
@@ -15,15 +16,18 @@ import (
 
 // Manager handles instance CRUD operations.
 type Manager struct {
-	dataRoot string
-	defaults LauncherDefaults
+	dataRoot    string
+	defaults    LauncherDefaults
+	mu          sync.RWMutex
+	directories map[string]string
 }
 
 // NewManager creates an instance manager for the given data root.
 func NewManager(dataRoot string, defaults LauncherDefaults) *Manager {
 	return &Manager{
-		dataRoot: dataRoot,
-		defaults: defaults,
+		dataRoot:    dataRoot,
+		defaults:    defaults,
+		directories: loadDirectoryIndex(dataRoot),
 	}
 }
 
@@ -73,6 +77,7 @@ func (m *Manager) CreateWithLoaderVersion(name, mcVersion string, loader LoaderT
 		os.RemoveAll(dir)
 		return nil, err
 	}
+	m.setDir(id, dir)
 
 	return inst, nil
 }
@@ -123,7 +128,11 @@ func (m *Manager) Delete(id string) error {
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(dir)
+	if err := os.RemoveAll(dir); err != nil {
+		return err
+	}
+	m.deleteDir(id)
+	return nil
 }
 
 // UpdateState performs a state transition on an instance.
@@ -181,8 +190,24 @@ func (m *Manager) load(id string) (*Instance, error) {
 	return inst, nil
 }
 
-// findDir scans instance directories to find the folder containing the given ID.
+// findDir returns the indexed directory, scanning only to recover an index miss.
 func (m *Manager) findDir(id string) (string, error) {
+	m.mu.RLock()
+	dir, ok := m.directories[id]
+	m.mu.RUnlock()
+	if ok {
+		return dir, nil
+	}
+
+	dir, err := m.recoverDir(id)
+	if err != nil {
+		return "", err
+	}
+	m.setDir(id, dir)
+	return dir, nil
+}
+
+func (m *Manager) recoverDir(id string) (string, error) {
 	instancesDir := filepath.Join(m.dataRoot, "instances")
 	entries, err := os.ReadDir(instancesDir)
 	if err != nil {
@@ -201,6 +226,40 @@ func (m *Manager) findDir(id string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("instance %s not found", id)
+}
+
+func (m *Manager) setDir(id, dir string) {
+	m.mu.Lock()
+	m.directories[id] = dir
+	m.mu.Unlock()
+}
+
+func (m *Manager) deleteDir(id string) {
+	m.mu.Lock()
+	delete(m.directories, id)
+	m.mu.Unlock()
+}
+
+func loadDirectoryIndex(dataRoot string) map[string]string {
+	index := make(map[string]string)
+	instancesDir := filepath.Join(dataRoot, "instances")
+	entries, err := os.ReadDir(instancesDir)
+	if err != nil {
+		return index
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		dir := filepath.Join(instancesDir, entry.Name())
+		inst, err := readInstanceJSON(filepath.Join(dir, "instance.json"))
+		if err == nil && inst.ID != "" {
+			if _, exists := index[inst.ID]; !exists {
+				index[inst.ID] = dir
+			}
+		}
+	}
+	return index
 }
 
 func instanceDirectory(dataRoot, id, name string) (string, error) {
