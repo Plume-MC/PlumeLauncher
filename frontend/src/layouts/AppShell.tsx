@@ -31,30 +31,65 @@ export function AppShell({
   const dismissedRef = useRef(false);
 
   useEffect(() => {
-    const unsubs = [
-      Events.On('download-progress', (event) => {
-        const data: DownloadProgressEvent = event.data;
+    let frame = 0;
+    let nextDownload: DownloadProgressEvent | null = null;
+    let nextLaunch: LaunchStateEvent | null = null;
+    let nextLines: ActivityLogLine[] = [];
+    const flush = () => {
+      frame = 0;
+      if (nextDownload) {
+        const data = nextDownload;
+        nextDownload = null;
         setDownload(data);
         const active = !['completed', 'failed', 'cancelled'].includes(data.status);
         setDownloadActive(active);
         if (!active) dismissedRef.current = false;
         if ((active || data.status === 'failed') && !dismissedRef.current) setActivityOpen(true);
-      }),
-      Events.On('launch-state', (event) => {
-        const data: LaunchStateEvent = event.data;
+      }
+      if (nextLaunch) {
+        const data = nextLaunch;
+        nextLaunch = null;
         const active = !['stopped', 'failed', 'crashed'].includes(data.state);
         setLaunchActive(active);
         if (data.state === 'failed' || data.state === 'crashed') setActivityOpen(true);
+      }
+      if (nextLines.length) {
+        const lines = nextLines;
+        nextLines = [];
+        setConsoleLines((current) => [...current, ...lines].slice(-500));
+      }
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(flush);
+    };
+    const flushNow = () => {
+      if (frame) cancelAnimationFrame(frame);
+      flush();
+    };
+    const unsubs = [
+      Events.On('download-progress', (event) => {
+        const data: DownloadProgressEvent = event.data;
+        nextDownload = data;
+        if (['completed', 'failed', 'cancelled'].includes(data.status)) flushNow();
+        else schedule();
+      }),
+      Events.On('launch-state', (event) => {
+        const data: LaunchStateEvent = event.data;
+        nextLaunch = data;
+        if (['stopped', 'failed', 'crashed'].includes(data.state)) flushNow();
+        else schedule();
       }),
       Events.On('log-line', (event) => {
         const data: LogLineEvent = event.data;
-        setConsoleLines((lines) => [
-          ...lines.slice(-499),
-          { level: data.level, message: data.message },
-        ]);
+        nextLines.push({ level: data.level, message: data.message });
+        if (data.level === 'error') flushNow();
+        else schedule();
       }),
     ];
-    return () => unsubs.forEach((unsubscribe) => unsubscribe());
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      unsubs.forEach((unsubscribe) => unsubscribe());
+    };
   }, []);
 
   const activityCount = Number(downloadActive) + Number(launchActive);

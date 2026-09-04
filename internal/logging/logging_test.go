@@ -53,6 +53,29 @@ func TestLoggerRotatesAndRetainsBoundedFiles(t *testing.T) {
 	}
 }
 
+func TestLoggerAccountsForExistingLogSize(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "launcher.log")
+	if err := os.WriteFile(path, []byte("existing log\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	logger, err := logging.NewWithLimits(dir, 1, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logger.Info("new log entry")
+	if err := logger.Close(); err != nil {
+		t.Fatal(err)
+	}
+	archived, err := os.ReadFile(path + ".1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(archived) != "existing log\n" {
+		t.Fatalf("existing log was not rotated: %q", archived)
+	}
+}
+
 func TestRedactMasksCredentialSyntax(t *testing.T) {
 	got := logging.Redact("password=hunter2 access_token=abc123 token=xyz")
 	if strings.Contains(got, "hunter2") || strings.Contains(got, "abc123") || strings.Contains(got, "xyz") {

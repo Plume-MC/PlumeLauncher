@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
 import { InstanceLibraryToolbar } from '@/components/home/InstanceLibraryToolbar';
 import { InstanceGrid } from '@/components/home/InstanceGrid';
@@ -36,11 +36,18 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
   const [launchingInstanceId, setLaunchingInstanceId] = useState('');
   const [stoppingInstanceId, setStoppingInstanceId] = useState('');
   const [crashExitCodes, setCrashExitCodes] = useState<Record<string, number>>({});
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
 
   useEffect(() => {
-    const unsubs = [
-      Events.On('download-progress', (event) => {
-        const data: DownloadProgressEvent = event.data;
+    let frame = 0;
+    let nextDownload: DownloadProgressEvent | null = null;
+    let nextLaunch: LaunchStateEvent | null = null;
+    const flush = () => {
+      frame = 0;
+      if (nextDownload) {
+        const data = nextDownload;
+        nextDownload = null;
         setLiveStatus(
           data.status === 'downloading'
             ? `Downloading ${data.fileProgress}/${data.totalFiles}`
@@ -58,11 +65,12 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
         } else if (data.status === 'completed' || data.status === 'cancelled' || data.status === 'failed') {
           setDownloadInstanceId('');
           setDownloadProgress(null);
-          void onRefresh();
+          void onRefreshRef.current();
         }
-      }),
-      Events.On('launch-state', (event) => {
-        const data: LaunchStateEvent = event.data;
+      }
+      if (nextLaunch) {
+        const data = nextLaunch;
+        nextLaunch = null;
         setLiveStatus(
           data.state === 'preparing'
             ? 'Preparing Minecraft'
@@ -91,12 +99,36 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
           if (data.state === 'crashed' && data.exitCode !== undefined && data.exitCode !== null) {
             setCrashExitCodes((current) => ({ ...current, [data.instanceId]: data.exitCode as number }));
           }
-          void onRefresh();
+          void onRefreshRef.current();
         }
+      }
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(flush);
+    };
+    const flushNow = () => {
+      if (frame) cancelAnimationFrame(frame);
+      flush();
+    };
+    const unsubs = [
+      Events.On('download-progress', (event) => {
+        const data: DownloadProgressEvent = event.data;
+        nextDownload = data;
+        if (['completed', 'failed', 'cancelled'].includes(data.status)) flushNow();
+        else schedule();
+      }),
+      Events.On('launch-state', (event) => {
+        const data: LaunchStateEvent = event.data;
+        nextLaunch = data;
+        if (['stopped', 'failed', 'crashed'].includes(data.state)) flushNow();
+        else schedule();
       }),
     ];
-    return () => unsubs.forEach((unsubscribe) => unsubscribe());
-  }, [onRefresh]);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      unsubs.forEach((unsubscribe) => unsubscribe());
+    };
+  }, []);
 
   const visibleInstances = [...instances]
     .filter((instance) => loaderFilter === 'all' || instance.loader === loaderFilter)

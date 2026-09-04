@@ -136,6 +136,7 @@ type rotatingWriter struct {
 	mu       sync.Mutex
 	file     *os.File
 	path     string
+	size     int64
 	maxBytes int64
 	maxFiles int
 }
@@ -152,20 +153,25 @@ func newRotatingWriter(logDir string, maxBytes int64, maxFiles int) (*rotatingWr
 	if err != nil {
 		return nil, fmt.Errorf("open launcher log: %w", err)
 	}
-	return &rotatingWriter{file: file, path: path, maxBytes: maxBytes, maxFiles: maxFiles}, nil
+	info, err := file.Stat()
+	if err != nil {
+		_ = file.Close()
+		return nil, fmt.Errorf("stat launcher log: %w", err)
+	}
+	return &rotatingWriter{file: file, path: path, size: info.Size(), maxBytes: maxBytes, maxFiles: maxFiles}, nil
 }
 
 func (w *rotatingWriter) Write(value []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if info, err := w.file.Stat(); err != nil {
-		return 0, err
-	} else if info.Size()+int64(len(value)) > w.maxBytes {
+	if w.size+int64(len(value)) > w.maxBytes {
 		if err := w.rotate(); err != nil {
 			return 0, err
 		}
 	}
-	return w.file.Write(value)
+	n, err := w.file.Write(value)
+	w.size += int64(n)
+	return n, err
 }
 
 func (w *rotatingWriter) Close() error {
@@ -203,6 +209,7 @@ func (w *rotatingWriter) rotate() error {
 		return err
 	}
 	w.file = file
+	w.size = 0
 	return nil
 }
 
