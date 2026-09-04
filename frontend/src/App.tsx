@@ -1,12 +1,17 @@
 import './index.css'
-import { useEffect, useState } from 'react'
-import { AppShell } from '@/layouts/AppShell'
-import { Home } from '@/screens/Home'
-import { SetupWizard } from '@/components/setup/SetupWizard'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { AccountService, HomeService, SystemService } from '../bindings/plumelauncher/internal/services/index.js'
 import type { Account } from '../bindings/plumelauncher/internal/services/models.js'
 import type { Instance } from '../bindings/plumelauncher/internal/instances/models.js'
 import plumeMark from '@/assets/plume-mark.webp'
+
+const AppShell = lazy(() => import('@/layouts/AppShell').then((module) => ({ default: module.AppShell })))
+const Home = lazy(() => import('@/screens/Home').then((module) => ({ default: module.Home })))
+const SetupWizard = lazy(() => import('@/components/setup/SetupWizard').then((module) => ({ default: module.SetupWizard })))
+
+function LoadingScreen() {
+  return <div className="grid min-h-[100dvh] place-items-center text-sm text-muted-foreground">Loading...</div>
+}
 
 function App() {
   const [account, setAccount] = useState<Account | null>(null)
@@ -43,13 +48,17 @@ function App() {
   }
 
   if (setup) {
-    return <SetupWizard onComplete={() => refresh().then(() => setSetup(false))} />
+    return <Suspense fallback={<LoadingScreen />}><SetupWizard onComplete={() => refresh().then(() => setSetup(false))} /></Suspense>
   }
 
   return (
-    <AppShell account={account} accounts={accounts} onAccountsChanged={refresh}>
-      <Home account={account} instances={instances} onRefresh={refresh} />
-    </AppShell>
+    <Suspense fallback={<LoadingScreen />}>
+      <AppShell account={account} accounts={accounts} onAccountsChanged={refresh}>
+        <Suspense fallback={<LoadingScreen />}>
+          <Home account={account} instances={instances} onRefresh={refresh} />
+        </Suspense>
+      </AppShell>
+    </Suspense>
   )
 }
 

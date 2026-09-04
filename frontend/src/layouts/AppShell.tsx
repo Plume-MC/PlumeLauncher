@@ -1,12 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
+import { lazy, Suspense, useState, useRef, useEffect } from 'react';
 import { Events } from '@wailsio/runtime';
-import { TopBar } from '@/components/home/TopBar';
-import { ActivityPanel } from '@/components/panels/ActivityPanel';
-import { SettingsSheet } from '@/components/home/SettingsSheet';
-import { AccountDialog } from '@/components/home/AccountDialog';
 import type { ActivityLogLine } from '@/components/panels/ActivityPanel';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
 import type { DownloadProgressEvent, LaunchStateEvent, LogLineEvent } from '../../bindings/plumelauncher/internal/services/models.js';
+
+const TopBar = lazy(() => import('@/components/home/TopBar').then((module) => ({ default: module.TopBar })));
+const ActivityPanel = lazy(() => import('@/components/panels/ActivityPanel').then((module) => ({ default: module.ActivityPanel })));
+const SettingsSheet = lazy(() => import('@/components/home/SettingsSheet').then((module) => ({ default: module.SettingsSheet })));
+const AccountDialog = lazy(() => import('@/components/home/AccountDialog').then((module) => ({ default: module.AccountDialog })));
+
+function LoadingOverlay() {
+  return <div className="sr-only" role="status">Loading...</div>;
+}
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -96,31 +101,35 @@ export function AppShell({
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
-      <TopBar
-        account={account}
-        activityCount={activityCount}
-        onActivityToggle={() => setActivityOpen((v) => !v)}
-        onSettingsClick={() => setSettingsOpen(true)}
-        onAccountsClick={() => setAccountsOpen(true)}
-      />
+      <Suspense fallback={<LoadingOverlay />}>
+        <TopBar
+          account={account}
+          activityCount={activityCount}
+          onActivityToggle={() => setActivityOpen((v) => !v)}
+          onSettingsClick={() => setSettingsOpen(true)}
+          onAccountsClick={() => setAccountsOpen(true)}
+        />
+      </Suspense>
       <main className="flex-1 overflow-auto">{children}</main>
-      <ActivityPanel
-        isOpen={activityOpen}
-        onClose={() => {
-          setActivityOpen(false);
-          dismissedRef.current = true;
-        }}
-        consoleLines={consoleLines}
-        download={download}
-        onClearConsole={() => setConsoleLines([])}
-      />
-      <SettingsSheet isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <AccountDialog
-        open={accountsOpen}
-        onOpenChange={setAccountsOpen}
-        accounts={accounts}
-        onChanged={onAccountsChanged ?? (async () => undefined)}
-      />
+      <Suspense fallback={<LoadingOverlay />}>
+        {activityOpen && <ActivityPanel
+          isOpen={activityOpen}
+          onClose={() => {
+            setActivityOpen(false);
+            dismissedRef.current = true;
+          }}
+          consoleLines={consoleLines}
+          download={download}
+          onClearConsole={() => setConsoleLines([])}
+        />}
+        {settingsOpen && <SettingsSheet isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />}
+        {accountsOpen && <AccountDialog
+          open={accountsOpen}
+          onOpenChange={setAccountsOpen}
+          accounts={accounts}
+          onChanged={onAccountsChanged ?? (async () => undefined)}
+        />}
+      </Suspense>
     </div>
   );
 }

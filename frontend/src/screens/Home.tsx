@@ -1,10 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
-import { InstanceLibraryToolbar } from '@/components/home/InstanceLibraryToolbar';
-import { InstanceGrid } from '@/components/home/InstanceGrid';
-import { InstanceDetailSheet } from '@/components/home/InstanceDetailSheet';
-import { CreateInstanceDialog } from '@/components/home/CreateInstanceDialog';
-import { DeleteInstanceDialog } from '@/components/home/DeleteInstanceDialog';
 import { HomeService, SystemService } from '../../bindings/plumelauncher/internal/services/index.js';
 import { toast } from '@/components/ui/toast';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
@@ -12,6 +7,16 @@ import type { Instance } from '../../bindings/plumelauncher/internal/instances/m
 import { InstanceState, LoaderType } from '../../bindings/plumelauncher/internal/instances/models.js';
 import type { DownloadProgressEvent, LaunchStateEvent } from '../../bindings/plumelauncher/internal/services/models.js';
 import { useMotionPreference } from '@/components/motion';
+
+const InstanceLibraryToolbar = lazy(() => import('@/components/home/InstanceLibraryToolbar').then((module) => ({ default: module.InstanceLibraryToolbar })));
+const InstanceGrid = lazy(() => import('@/components/home/InstanceGrid').then((module) => ({ default: module.InstanceGrid })));
+const InstanceDetailSheet = lazy(() => import('@/components/home/InstanceDetailSheet').then((module) => ({ default: module.InstanceDetailSheet })));
+const CreateInstanceDialog = lazy(() => import('@/components/home/CreateInstanceDialog').then((module) => ({ default: module.CreateInstanceDialog })));
+const DeleteInstanceDialog = lazy(() => import('@/components/home/DeleteInstanceDialog').then((module) => ({ default: module.DeleteInstanceDialog })));
+
+function LoadingOverlay() {
+  return <div className="sr-only" role="status">Loading...</div>;
+}
 
 interface HomeProps {
   account: Account | null;
@@ -223,58 +228,62 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
-      <InstanceLibraryToolbar
-        accountName={account?.displayName || account?.username}
-        accountType={account?.type === 'ely.by' ? 'ely.by' : 'offline'}
-        instanceCount={instances.length}
-        liveStatus={liveStatus}
-        search={search}
-        loaderFilter={loaderFilter}
-        sort={sort}
-        onCreate={() => setCreateOpen(true)}
-        onSearchChange={setSearch}
-        onLoaderFilterChange={setLoaderFilter}
-        onSortChange={setSort}
-      />
-      <InstanceGrid
-        instances={instances}
-        visibleInstances={visibleInstances}
-        reduced={reduced}
-        busyId={busyId}
-        downloadInstanceId={downloadInstanceId}
-        downloadProgress={downloadProgress}
-        runningInstanceId={runningInstanceId}
-        launchingInstanceId={launchingInstanceId}
-        stoppingInstanceId={stoppingInstanceId}
-        crashExitCodes={crashExitCodes}
-        onCreate={() => setCreateOpen(true)}
-        onAction={(id, action) => void runAction(id, action)}
-        onOpenDetail={(instance) => {
-          setDetailInstance(instance);
-          setDetailOpen(true);
-        }}
-        onOpenLogs={() => void SystemService.OpenLogFolder()}
-      />
+      <Suspense fallback={<LoadingOverlay />}>
+        <InstanceLibraryToolbar
+          accountName={account?.displayName || account?.username}
+          accountType={account?.type === 'ely.by' ? 'ely.by' : 'offline'}
+          instanceCount={instances.length}
+          liveStatus={liveStatus}
+          search={search}
+          loaderFilter={loaderFilter}
+          sort={sort}
+          onCreate={() => setCreateOpen(true)}
+          onSearchChange={setSearch}
+          onLoaderFilterChange={setLoaderFilter}
+          onSortChange={setSort}
+        />
+        <InstanceGrid
+          instances={instances}
+          visibleInstances={visibleInstances}
+          reduced={reduced}
+          busyId={busyId}
+          downloadInstanceId={downloadInstanceId}
+          downloadProgress={downloadProgress}
+          runningInstanceId={runningInstanceId}
+          launchingInstanceId={launchingInstanceId}
+          stoppingInstanceId={stoppingInstanceId}
+          crashExitCodes={crashExitCodes}
+          onCreate={() => setCreateOpen(true)}
+          onAction={(id, action) => void runAction(id, action)}
+          onOpenDetail={(instance) => {
+            setDetailInstance(instance);
+            setDetailOpen(true);
+          }}
+          onOpenLogs={() => void SystemService.OpenLogFolder()}
+        />
+      </Suspense>
 
-      <InstanceDetailSheet
-        isOpen={detailOpen}
-        onClose={() => setDetailOpen(false)}
-        instance={detailInstance}
-        onChanged={onRefresh}
-        onDelete={() => {
-          setDetailOpen(false);
-          setDeleteId(detailInstance?.id ?? null);
-        }}
-      />
-      <CreateInstanceDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={onRefresh} />
-      <DeleteInstanceDialog
-        instanceId={deleteId}
-        instanceName={detailInstance?.name}
-        onOpenChange={(open) => {
-          if (!open) setDeleteId(null);
-        }}
-        onDeleted={onRefresh}
-      />
+      <Suspense fallback={<LoadingOverlay />}>
+        {detailOpen && <InstanceDetailSheet
+          isOpen={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          instance={detailInstance}
+          onChanged={onRefresh}
+          onDelete={() => {
+            setDetailOpen(false);
+            setDeleteId(detailInstance?.id ?? null);
+          }}
+        />}
+        {createOpen && <CreateInstanceDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={onRefresh} />}
+        {deleteId && <DeleteInstanceDialog
+          instanceId={deleteId}
+          instanceName={detailInstance?.name}
+          onOpenChange={(open) => {
+            if (!open) setDeleteId(null);
+          }}
+          onDeleted={onRefresh}
+        />}
+      </Suspense>
     </div>
   );
 }
