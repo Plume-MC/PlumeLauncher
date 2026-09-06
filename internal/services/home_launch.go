@@ -30,7 +30,7 @@ func (s *HomeService) LaunchInstance(id string) error {
 	if err := s.ensureArtifacts(id, inst, plan); err != nil {
 		return err
 	}
-	defaults, err := instances.LoadConfig(s.appStateRoot())
+	defaults, err := instances.LoadConfig(s.DataRoot)
 	if err != nil {
 		return NewInternalError("load launcher settings: " + err.Error())
 	}

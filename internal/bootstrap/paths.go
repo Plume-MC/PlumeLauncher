@@ -30,8 +30,8 @@ func defaultAppRoot() string {
 	return filepath.Join(home, ".local", "share", "PlumeLauncher")
 }
 
-// ResolveGameRoot returns the game data directory (instances, assets, versions, cache).
-// Priority: customRoot arg → PLUME_DATA_ROOT → bootstrap.json → AppRoot.
+// ResolveGameRoot returns the canonical launcher data directory.
+// Priority: customRoot arg → PLUME_DATA_ROOT → bootstrap.json → platform default.
 func ResolveGameRoot(customRoot string) (string, error) {
 	root := customRoot
 	if root == "" {
@@ -70,8 +70,8 @@ func configuredGameRoot() (string, error) {
 	return config.DataRoot, nil
 }
 
-// SetDataRoot stores the game root to use on the next app start without moving data.
-// bootstrap.json always lives under the fixed AppRoot.
+// SetDataRoot stores the canonical data root to use on the next app start without moving data.
+// bootstrap.json remains in the platform bootstrap directory so the selected root can be discovered.
 func SetDataRoot(root string) error {
 	if root == "" {
 		return os.ErrInvalid

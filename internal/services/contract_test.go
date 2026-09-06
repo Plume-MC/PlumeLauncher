@@ -246,6 +246,13 @@ func TestSystemServiceUpdateSettings(t *testing.T) {
 	if svc.GetSettings().DefaultMinRamMB != 2048 {
 		t.Errorf("DefaultMinRamMB = %d, want 2048", svc.GetSettings().DefaultMinRamMB)
 	}
+	loaded, err := instances.LoadConfig(dir)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if loaded.DefaultMinRamMB != 2048 {
+		t.Errorf("persisted DefaultMinRamMB = %d, want 2048", loaded.DefaultMinRamMB)
+	}
 }
 
 func TestSystemServiceUpdateDataRootRejectsEmptyPath(t *testing.T) {
@@ -255,20 +262,18 @@ func TestSystemServiceUpdateDataRootRejectsEmptyPath(t *testing.T) {
 	}
 }
 
-func TestSystemServiceOpenLogFolderUsesAppRoot(t *testing.T) {
-	appRoot := t.TempDir()
-	gameRoot := t.TempDir()
-	svc := &services.SystemService{AppRoot: appRoot, DataRoot: gameRoot}
-	logDir := filepath.Join(appRoot, "logs")
+func TestSystemServiceUsesSingleDataRoot(t *testing.T) {
+	dataRoot := t.TempDir()
+	svc := &services.SystemService{DataRoot: dataRoot}
+	logDir := filepath.Join(dataRoot, "logs")
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// OpenLogFolder must resolve under AppRoot; call path builder indirectly via GetAppRoot.
-	if got := svc.GetAppRoot(); got != appRoot {
-		t.Fatalf("GetAppRoot = %q, want %q", got, appRoot)
+	if got := svc.GetAppRoot(); got != dataRoot {
+		t.Fatalf("GetAppRoot = %q, want %q", got, dataRoot)
 	}
-	if svc.GetDataRoot() != gameRoot {
-		t.Fatalf("GetDataRoot = %q, want game root", svc.GetDataRoot())
+	if svc.GetDataRoot() != dataRoot {
+		t.Fatalf("GetDataRoot = %q, want data root", svc.GetDataRoot())
 	}
 	want := filepath.Join(svc.GetAppRoot(), "logs")
 	if want != logDir {

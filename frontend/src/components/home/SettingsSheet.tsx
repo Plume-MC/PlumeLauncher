@@ -31,7 +31,6 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
   const [settings, setSettings] = useState<LauncherDefaults | null>(null);
   const [saved, setSaved] = useState<LauncherDefaults | null>(null);
   const [dataRoot, setDataRoot] = useState('');
-  const [appRoot, setAppRoot] = useState('');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [dataNotice, setDataNotice] = useState('');
@@ -42,11 +41,10 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
     setBusy('load');
     setError('');
     setDataNotice('');
-    void Promise.all([SystemService.GetSettings(), SystemService.GetDataRoot(), SystemService.GetAppRoot()]).then(([nextSettings, root, app]) => {
+    void Promise.all([SystemService.GetSettings(), SystemService.GetDataRoot()]).then(([nextSettings, root]) => {
       setSettings(nextSettings);
       setSaved(nextSettings);
       setDataRoot(root);
-      setAppRoot(app);
     }).catch((err) => setError(err instanceof Error ? err.message : 'Unable to load settings')).finally(() => setBusy(''));
   }, [isOpen]);
 
@@ -77,8 +75,8 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
     setDataNotice('');
     try {
       await SystemService.UpdateDataRoot(dataRoot);
-      setDataNotice('Game data root saved. Restart the launcher to apply. Accounts, settings, and logs stay in the app folder.');
-      toast.add({ type: 'info', title: 'Restart required', description: 'Game data root will apply after you restart the launcher.' });
+      setDataNotice('Data root saved. Restart the launcher to apply. Existing data is not moved.');
+      toast.add({ type: 'info', title: 'Restart required', description: 'The data root will apply after you restart the launcher.' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save data root');
     } finally {
@@ -86,12 +84,11 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
     }
   };
 
-  const openFolder = async (kind: 'app' | 'game') => {
-    setBusy(kind);
+  const openFolder = async () => {
+    setBusy('data');
     setError('');
     try {
-      if (kind === 'app') await SystemService.OpenAppRoot();
-      else await SystemService.OpenGameRoot();
+      await SystemService.OpenGameRoot();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to open folder');
     } finally {
@@ -186,21 +183,16 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                 {tab === 'data' && (
                   <div className="space-y-4 animate-in fade-in">
                     <div className="rounded-lg bg-card/40 p-4">
-                      <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Game data root</h3>
-                      <p className="mb-3 text-[11px] text-muted-foreground">Instances, assets, versions, cache. Applies after restart. Existing game data is not moved.</p>
+                      <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Data root</h3>
+                      <p className="mb-3 text-[11px] text-muted-foreground">Accounts, settings, logs, instances, assets, versions, and cache. Applies after restart. Existing data is not moved.</p>
                       <label className="flex flex-col gap-1 text-xs">Path<Input value={dataRoot} onChange={(event) => setDataRoot(event.target.value)} /></label>
                     </div>
 
                     <div className="rounded-lg bg-card/40 p-4">
-                      <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Folders</h3>
-                      {appRoot ? <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground"><span>App data (fixed): <span className="font-mono text-foreground/80">{appRoot}</span></span><Button size="sm" variant="ghost" disabled={!!busy} onClick={() => void openFolder('app')}>{busy === 'app' ? 'Opening...' : 'Open folder'}</Button></div> : null}
-                    </div>
-
-                    <div className="rounded-lg bg-card/40 p-4">
-                      <p className="mb-3 text-[11px] text-muted-foreground">Change applies after restart. Game data stays in place.</p>
+                      <p className="mb-3 text-[11px] text-muted-foreground">Change applies after restart. All launcher data uses this root.</p>
                       <div className="flex gap-2">
                         <Button size="sm" disabled={!dataRoot || !!busy} onClick={() => void saveDataRoot()}>{busy === 'data-root' ? 'Saving...' : 'Use after restart'}</Button>
-                        <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void openFolder('game')}>{busy === 'game' ? 'Opening...' : 'Open game folder'}</Button>
+                        <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void openFolder()}>{busy === 'data' ? 'Opening...' : 'Open data folder'}</Button>
                         <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void SystemService.OpenLogFolder()}>Open logs</Button>
                       </div>
                       {dataNotice ? <p className="mt-2 text-xs text-amber-500" role="status">{dataNotice}</p> : null}

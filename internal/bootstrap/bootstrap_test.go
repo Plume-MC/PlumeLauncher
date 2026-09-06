@@ -17,21 +17,15 @@ func TestInitializeDefaultRoot(t *testing.T) {
 		t.Fatalf("Initialize: %v", err)
 	}
 
-	if cfg.AppRoot == "" {
-		t.Fatal("AppRoot is empty")
+	if cfg.DataRoot == "" {
+		t.Fatal("DataRoot is empty")
 	}
-	if cfg.GameRoot == "" {
-		t.Fatal("GameRoot is empty")
-	}
-	if _, err := os.Stat(cfg.AppRoot); os.IsNotExist(err) {
-		t.Errorf("AppRoot dir was not created: %s", cfg.AppRoot)
-	}
-	if _, err := os.Stat(cfg.GameRoot); os.IsNotExist(err) {
-		t.Errorf("GameRoot dir was not created: %s", cfg.GameRoot)
+	if _, err := os.Stat(cfg.DataRoot); os.IsNotExist(err) {
+		t.Errorf("DataRoot dir was not created: %s", cfg.DataRoot)
 	}
 	if runtime.GOOS == "windows" {
-		if filepath.Base(cfg.AppRoot) != "PlumeLauncher" {
-			t.Errorf("AppRoot base = %q, want %q", filepath.Base(cfg.AppRoot), "PlumeLauncher")
+		if filepath.Base(cfg.DataRoot) != "PlumeLauncher" {
+			t.Errorf("DataRoot base = %q, want %q", filepath.Base(cfg.DataRoot), "PlumeLauncher")
 		}
 	}
 }
@@ -49,14 +43,8 @@ func TestInitializeCustomRoot(t *testing.T) {
 		t.Fatalf("Initialize: %v", err)
 	}
 
-	if cfg.GameRoot != custom {
-		t.Errorf("GameRoot = %q, want %q", cfg.GameRoot, custom)
-	}
-	if cfg.AppRoot != filepath.Join(base, "PlumeLauncher") && cfg.AppRoot != filepath.Join(base, "PlumeLauncher") {
-		// AppRoot always fixed under env base
-		if filepath.Base(cfg.AppRoot) != "PlumeLauncher" {
-			t.Errorf("AppRoot = %q, want fixed app root", cfg.AppRoot)
-		}
+	if cfg.DataRoot != custom {
+		t.Errorf("DataRoot = %q, want %q", cfg.DataRoot, custom)
 	}
 }
 
@@ -73,8 +61,8 @@ func TestInitializeEnvOverride(t *testing.T) {
 		t.Fatalf("Initialize: %v", err)
 	}
 
-	if cfg.GameRoot != envRoot {
-		t.Errorf("GameRoot = %q, want %q", cfg.GameRoot, envRoot)
+	if cfg.DataRoot != envRoot {
+		t.Errorf("DataRoot = %q, want %q", cfg.DataRoot, envRoot)
 	}
 }
 
@@ -93,16 +81,10 @@ func TestSetDataRootAppliesOnNextInitialize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Initialize: %v", err)
 	}
-	if config.GameRoot != target {
-		t.Errorf("GameRoot = %q, want %q", config.GameRoot, target)
+	if config.DataRoot != target {
+		t.Errorf("DataRoot = %q, want %q", config.DataRoot, target)
 	}
-	if config.AppRoot != filepath.Join(base, "PlumeLauncher") {
-		// linux uses XDG under base
-		if filepath.Base(config.AppRoot) != "PlumeLauncher" {
-			t.Errorf("AppRoot drifted: %q", config.AppRoot)
-		}
-	}
-	if _, err := os.Stat(filepath.Join(config.AppRoot, "bootstrap.json")); err != nil {
-		t.Fatalf("bootstrap.json missing under AppRoot: %v", err)
+	if _, err := os.Stat(filepath.Join(base, "PlumeLauncher", "bootstrap.json")); err != nil {
+		t.Fatalf("bootstrap.json missing under default bootstrap root: %v", err)
 	}
 }

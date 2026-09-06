@@ -25,14 +25,14 @@ export function AddCustomJava(path: string): $CancellablePromise<java$0.JavaInfo
 }
 
 /**
- * GetAppRoot returns the fixed launcher state directory.
+ * GetAppRoot returns the canonical data root for older clients.
  */
 export function GetAppRoot(): $CancellablePromise<string> {
     return $Call.ByID(1669461666);
 }
 
 /**
- * GetDataRoot returns the game data root path (instances, assets, versions, cache).
+ * GetDataRoot returns the canonical launcher data root.
  */
 export function GetDataRoot(): $CancellablePromise<string> {
     return $Call.ByID(4258469607);
@@ -61,7 +61,7 @@ export function OpenGameRoot(): $CancellablePromise<void> {
 }
 
 /**
- * OpenLogFolder opens the fixed app root's log directory.
+ * OpenLogFolder opens the canonical data root's log directory.
  */
 export function OpenLogFolder(): $CancellablePromise<void> {
     return $Call.ByID(739377113);
@@ -75,8 +75,7 @@ export function ScanJava(): $CancellablePromise<java$0.JavaInfo[] | null> {
 }
 
 /**
- * UpdateDataRoot stores a new game root to use after the launcher restarts.
- * Accounts, config, and logs stay under the fixed app root.
+ * UpdateDataRoot stores the canonical data root to use after the launcher restarts.
  */
 export function UpdateDataRoot(path: string): $CancellablePromise<void> {
     return $Call.ByID(3859935312, path);

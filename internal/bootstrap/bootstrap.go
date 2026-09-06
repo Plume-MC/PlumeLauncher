@@ -2,13 +2,12 @@ package bootstrap
 
 import "os"
 
-// Config holds immutable application state resolved at startup.
+// Config holds the canonical launcher data root resolved at startup.
 type Config struct {
-	AppRoot  string // fixed: accounts, config, logs, lock, bootstrap.json
-	GameRoot string // customizable: instances, assets, versions, cache
+	DataRoot string // accounts, config, logs, lock, instances, assets, versions, cache
 }
 
-// Initialize resolves app and game roots.
+// Initialize resolves the canonical launcher data root.
 // Pass an empty customRoot to use env, bootstrap.json, or the platform default.
 func Initialize(customRoot string) (*Config, error) {
 	appRoot := defaultAppRoot()
@@ -21,8 +20,5 @@ func Initialize(customRoot string) (*Config, error) {
 		return nil, err
 	}
 
-	return &Config{
-		AppRoot:  appRoot,
-		GameRoot: gameRoot,
-	}, nil
+	return &Config{DataRoot: gameRoot}, nil
 }

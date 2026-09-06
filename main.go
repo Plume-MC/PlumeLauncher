@@ -43,24 +43,24 @@ func main() {
 		showStartupError(err)
 		return
 	}
-	logger, err := logging.New(config.AppRoot)
+	logger, err := logging.New(config.DataRoot)
 	if err != nil {
 		showStartupError(err)
 		return
 	}
 	defer logger.Close()
-	logger.Info("launcher_started", "appRoot", config.AppRoot, "gameRoot", config.GameRoot)
-	dataRootLock, err := bootstrap.AcquireDataRootLock(config.AppRoot)
+	logger.Info("launcher_started", "dataRoot", config.DataRoot)
+	dataRootLock, err := bootstrap.AcquireDataRootLock(config.DataRoot)
 	if err != nil {
 		if errors.Is(err, bootstrap.ErrDataRootLocked) {
-			showStartupError(fmt.Errorf("another Plume Launcher is already using this data folder:\n\n%s", config.AppRoot))
+			showStartupError(fmt.Errorf("another Plume Launcher is already using this data folder:\n\n%s", config.DataRoot))
 		} else {
 			showStartupError(err)
 		}
 		return
 	}
 	defer dataRootLock.Release()
-	defaults, err := instances.LoadConfig(config.AppRoot)
+	defaults, err := instances.LoadConfig(config.DataRoot)
 	if err != nil {
 		showStartupError(err)
 		return
@@ -70,17 +70,17 @@ func main() {
 		if systemJava, err := java.SystemDefault(); err == nil && systemJava != nil {
 			defaults.DefaultJavaPath = systemJava.Path
 		}
-		if err := instances.SaveConfig(config.AppRoot, defaults); err != nil {
+		if err := instances.SaveConfig(config.DataRoot, defaults); err != nil {
 			showStartupError(err)
 			return
 		}
 	}
 	registry := instances.NewRegistry()
-	accountService := &services.AccountService{DataRoot: config.AppRoot}
-	instanceManager := instances.NewManager(config.GameRoot, defaults)
-	launchService := &services.LaunchService{DataRoot: config.GameRoot, Registry: registry, Instances: instanceManager, Logger: logger}
+	accountService := &services.AccountService{DataRoot: config.DataRoot}
+	instanceManager := instances.NewManager(config.DataRoot, defaults)
+	launchService := &services.LaunchService{DataRoot: config.DataRoot, Registry: registry, Instances: instanceManager, Logger: logger}
 	instanceService := &services.InstanceService{
-		DataRoot: config.GameRoot,
+		DataRoot: config.DataRoot,
 		Manager:  instanceManager,
 	}
 
@@ -95,7 +95,7 @@ func main() {
 		Services: []application.Service{
 			application.NewService(accountService),
 			application.NewService(instanceService),
-			application.NewService(&services.SystemService{AppRoot: config.AppRoot, DataRoot: config.GameRoot, Defaults: defaults}),
+			application.NewService(&services.SystemService{DataRoot: config.DataRoot, Defaults: defaults}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -106,8 +106,7 @@ func main() {
 	})
 	launchService.App = app
 	app.RegisterService(application.NewService(&services.HomeService{
-		AppRoot:   config.AppRoot,
-		DataRoot:  config.GameRoot,
+		DataRoot:  config.DataRoot,
 		Defaults:  defaults,
 		Instances: instanceManager,
 		Registry:  registry,

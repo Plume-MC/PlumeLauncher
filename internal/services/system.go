@@ -13,8 +13,7 @@ import (
 
 // SystemService manages launcher settings and system operations.
 type SystemService struct {
-	AppRoot  string // fixed: config, accounts path source, logs
-	DataRoot string // game root: instances/assets (shown as Data root in UI)
+	DataRoot string // canonical launcher data root
 	Defaults instances.LauncherDefaults
 }
 
@@ -47,9 +46,11 @@ func (s *SystemService) UpdateSettings(settings instances.LauncherDefaults) erro
 		}
 	}
 
+	if err := instances.SaveConfig(s.DataRoot, settings); err != nil {
+		return NewInternalError("save launcher settings: " + err.Error())
+	}
 	s.Defaults = settings
-
-	return instances.SaveConfig(s.appStateRoot(), settings)
+	return nil
 }
 
 // WrapperArgs converts the validated persisted wrapper command to an argv prefix.
@@ -61,18 +62,17 @@ func WrapperArgs(value string) []string {
 	return args
 }
 
-// GetDataRoot returns the game data root path (instances, assets, versions, cache).
+// GetDataRoot returns the canonical launcher data root.
 func (s *SystemService) GetDataRoot() string {
 	return s.DataRoot
 }
 
-// GetAppRoot returns the fixed launcher state directory.
+// GetAppRoot returns the canonical data root for older clients.
 func (s *SystemService) GetAppRoot() string {
-	return s.appStateRoot()
+	return s.DataRoot
 }
 
-// UpdateDataRoot stores a new game root to use after the launcher restarts.
-// Accounts, config, and logs stay under the fixed app root.
+// UpdateDataRoot stores the canonical data root to use after the launcher restarts.
 func (s *SystemService) UpdateDataRoot(path string) error {
 	if path == "" {
 		return NewValidationError("data root is required", "dataRoot")
@@ -83,9 +83,9 @@ func (s *SystemService) UpdateDataRoot(path string) error {
 	return nil
 }
 
-// OpenLogFolder opens the fixed app root's log directory.
+// OpenLogFolder opens the canonical data root's log directory.
 func (s *SystemService) OpenLogFolder() error {
-	logDir := filepath.Join(s.appStateRoot(), "logs")
+	logDir := filepath.Join(s.DataRoot, "logs")
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		return NewInternalError("create log folder: " + err.Error())
 	}
@@ -96,7 +96,7 @@ func (s *SystemService) OpenLogFolder() error {
 }
 
 func (s *SystemService) OpenAppRoot() error {
-	return s.openFolder(s.appStateRoot(), "app data")
+	return s.openFolder(s.DataRoot, "data")
 }
 
 func (s *SystemService) OpenGameRoot() error {
@@ -111,13 +111,6 @@ func (s *SystemService) openFolder(path, label string) error {
 		return NewInternalError("open " + label + " folder: " + err.Error())
 	}
 	return nil
-}
-
-func (s *SystemService) appStateRoot() string {
-	if s.AppRoot != "" {
-		return s.AppRoot
-	}
-	return s.DataRoot
 }
 
 // ScanJava detects installed Java installations.
@@ -170,10 +163,12 @@ func (s *SystemService) AddCustomJava(path string) (*java.JavaInfo, error) {
 			return info, nil
 		}
 	}
-	s.Defaults.CustomJavaPaths = append(s.Defaults.CustomJavaPaths, info.Path)
-	if err := instances.SaveConfig(s.appStateRoot(), s.Defaults); err != nil {
+	next := s.Defaults
+	next.CustomJavaPaths = append(append([]string(nil), s.Defaults.CustomJavaPaths...), info.Path)
+	if err := instances.SaveConfig(s.DataRoot, next); err != nil {
 		return nil, NewInternalError("save custom Java: " + err.Error())
 	}
+	s.Defaults = next
 	info.Source = "Custom"
 	return info, nil
 }
