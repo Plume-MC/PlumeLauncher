@@ -63,8 +63,9 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 		return NewInternalError("failed to build arguments: " + err.Error())
 	}
 
-	// Find Java
-	requiredMajor := java.RequiredJavaMajor(detail.ID)
+	// Find Java using the parent game version for loader metadata.
+	javaVersion := javaVersionForLaunch(detail)
+	requiredMajor := java.RequiredJavaMajor(javaVersion)
 	javaPath := opts.JavaPath
 	if javaPath != "" {
 		if _, err := java.ValidateJavaPath(javaPath, requiredMajor); err != nil {
@@ -75,7 +76,7 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 		if err != nil || len(installs) == 0 {
 			return NewIncompatibleError("no Java installation found")
 		}
-		selected, err := java.SelectJava(installs, detail.ID)
+		selected, err := java.SelectJava(installs, javaVersion)
 		if err != nil {
 			return NewIncompatibleError(err.Error())
 		}
@@ -94,6 +95,13 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	handedOff = true
 	go s.monitor(cmd, opts, op)
 	return nil
+}
+
+func javaVersionForLaunch(detail metadata.VersionDetail) string {
+	if detail.Jar != "" {
+		return detail.Jar
+	}
+	return detail.ID
 }
 
 func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instances.Operation) {

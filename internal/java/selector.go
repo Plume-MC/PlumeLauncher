@@ -8,13 +8,13 @@ import (
 
 // SelectJava picks the best Java installation for a Minecraft version.
 // Returns error if no compatible Java is found.
-// Strategy: select the highest patch release of the exact major, then the
-// nearest higher major when the exact runtime is not installed.
+// Strategy: select the highest patch release of the exact major. A different
+// major is rejected because Minecraft runtime compatibility is not monotonic.
 func SelectJava(installs []JavaInfo, mcVersion string) (*JavaInfo, error) {
 	required := RequiredJavaMajor(mcVersion)
 
 	if len(installs) == 0 {
-		return nil, fmt.Errorf("no Java found for Minecraft %s (need Java %d+)", mcVersion, required)
+		return nil, fmt.Errorf("no Java found for Minecraft %s (need Java %d)", mcVersion, required)
 	}
 
 	// 1. Exact major match — preferred, pick highest version
@@ -31,23 +31,7 @@ func SelectJava(installs []JavaInfo, mcVersion string) (*JavaInfo, error) {
 		return &exactMatches[0], nil
 	}
 
-	var compatible []JavaInfo
-	for _, inst := range installs {
-		if inst.Major > required {
-			compatible = append(compatible, inst)
-		}
-	}
-	if len(compatible) > 0 {
-		sort.Slice(compatible, func(i, j int) bool {
-			if compatible[i].Major != compatible[j].Major {
-				return compatible[i].Major < compatible[j].Major
-			}
-			return compareJavaVersion(compatible[i].Version, compatible[j].Version) > 0
-		})
-		return &compatible[0], nil
-	}
-
-	return nil, fmt.Errorf("no Java %d or newer found for Minecraft %s (found: %s)", required, mcVersion, formatInstalled(installs))
+	return nil, fmt.Errorf("no Java %d found for Minecraft %s (found: %s)", required, mcVersion, formatInstalled(installs))
 }
 
 // RequiredJavaMajor returns the required Java major version for a Minecraft version.
