@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+
+	"plumelauncher/internal/metadata"
 )
 
 // Task is a single download unit.
@@ -98,36 +100,45 @@ func (p *Pool) worker(ctx context.Context, cacheDir string) {
 }
 
 func (p *Pool) process(ctx context.Context, task Task, cacheDir string) {
-	// Check if file already exists and hash matches
-	if task.SHA1 != "" {
-		ok, err := VerifyFileSHA1(task.Path, task.SHA1)
-		if err == nil && ok {
-			if task.OnComplete != nil {
-				task.OnComplete(true)
-			}
-			return
+	if err := validateIntegrityMetadata(task.SHA1, task.Size); err != nil {
+		p.recordError(fmt.Errorf("validate %s: %w", task.Path, err))
+		return
+	}
+
+	// Reuse an existing artifact only after checking its supplied integrity data.
+	status := checkArtifact(task.Path, metadata.Artifact{Path: task.Path, Sha1: task.SHA1, Size: task.Size}, true)
+	if status.Valid {
+		if task.OnComplete != nil {
+			task.OnComplete(true)
 		}
+		return
 	}
 
 	partPath := task.Path + ".part"
 
 	written, err := DownloadWithResumeProgress(ctx, p.client, task.URL, partPath, task.OnProgress)
 	if err != nil {
-		p.errorsMu.Lock()
-		p.errors = append(p.errors, fmt.Errorf("download %s: %w", task.URL, err))
-		p.errorsMu.Unlock()
+		p.recordError(fmt.Errorf("download %s: %w", task.URL, err))
+		return
+	}
+	if err := ctx.Err(); err != nil {
+		p.recordError(err)
 		return
 	}
 	_ = written
 
 	if err := CommitFile(partPath, task.Path, task.SHA1, task.Size); err != nil {
-		p.errorsMu.Lock()
-		p.errors = append(p.errors, fmt.Errorf("commit %s: %w", task.Path, err))
-		p.errorsMu.Unlock()
+		p.recordError(fmt.Errorf("commit %s: %w", task.Path, err))
 		return
 	}
 
 	if task.OnComplete != nil {
 		task.OnComplete(false)
 	}
+}
+
+func (p *Pool) recordError(err error) {
+	p.errorsMu.Lock()
+	p.errors = append(p.errors, err)
+	p.errorsMu.Unlock()
 }

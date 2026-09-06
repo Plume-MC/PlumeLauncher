@@ -110,6 +110,45 @@ func TestVerifyArtifactHashMismatch(t *testing.T) {
 	}
 }
 
+func TestVerifyArtifactRejectsMissingIntegrityMetadata(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "lib", "a.jar")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	status := downloader.VerifyArtifact(path, metadata.Artifact{Path: "lib/a.jar"})
+	if status.Valid || !status.Corrupt {
+		t.Fatalf("expected missing integrity metadata to be invalid: %#v", status)
+	}
+	if status.Error != downloader.ErrMissingIntegrityMetadata {
+		t.Fatalf("error = %v, want ErrMissingIntegrityMetadata", status.Error)
+	}
+}
+
+func TestCheckPlanRequiresHashWhenSizeUnavailable(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "lib", "a.jar")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("hello world"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	artifact := metadata.Artifact{Path: "lib/a.jar", Sha1: "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed"}
+	plan := &metadata.ArtifactPlan{Artifacts: []metadata.Artifact{artifact}}
+
+	if status := downloader.CheckPlan(dir, plan)[0]; status.Valid {
+		t.Fatal("warm check accepted an un-sized artifact without hashing")
+	}
+	if status := downloader.VerifyPlan(dir, plan)[0]; !status.Valid {
+		t.Fatalf("full verification rejected valid hash: %v", status.Error)
+	}
+}
+
 func TestCheckPlanSkipsHashForWarmLaunch(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "lib"), 0o755)

@@ -2,6 +2,7 @@ package downloader_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -109,8 +110,7 @@ func TestOrchestratorCancellation(t *testing.T) {
 	cancel() // cancel immediately
 
 	err := orch.DownloadPlan(ctx, plan)
-	// Should fail due to cancelled context
-	if err == nil {
-		t.Log("download completed despite cancellation (may be fast)")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context cancellation", err)
 	}
 }

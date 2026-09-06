@@ -51,6 +51,11 @@ func VerifyArtifact(fullPath string, artifact metadata.Artifact) VerifyStatus {
 
 func checkArtifact(fullPath string, artifact metadata.Artifact, verifyHash bool) VerifyStatus {
 	status := VerifyStatus{Artifact: artifact}
+	if err := validateIntegrityMetadata(artifact.Sha1, artifact.Size); err != nil {
+		status.Corrupt = true
+		status.Error = err
+		return status
+	}
 
 	// Check file exists
 	info, err := os.Stat(fullPath)
@@ -64,6 +69,11 @@ func checkArtifact(fullPath string, artifact metadata.Artifact, verifyHash bool)
 	if artifact.Size > 0 && info.Size() != artifact.Size {
 		status.Corrupt = true
 		status.Error = fmt.Errorf("size mismatch: got %d, want %d", info.Size(), artifact.Size)
+		return status
+	}
+	if artifact.Sha1 != "" && !verifyHash && artifact.Size == 0 {
+		status.Corrupt = true
+		status.Error = ErrHashVerificationRequired
 		return status
 	}
 

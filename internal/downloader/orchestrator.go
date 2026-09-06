@@ -196,13 +196,20 @@ func (o *Orchestrator) downloadTasks(ctx context.Context, tasks []Task) error {
 	o.pool.Start(ctx, filepath.Join(o.dataRoot, "cache"))
 	for _, task := range tasks {
 		if !o.pool.Submit(ctx, task) {
+			waitErr := o.WaitForDownloads()
 			if err := ctx.Err(); err != nil {
 				return err
+			}
+			if waitErr != nil {
+				return waitErr
 			}
 			return fmt.Errorf("pool closed, cannot submit task")
 		}
 	}
-	return o.WaitForDownloads()
+	if err := o.WaitForDownloads(); err != nil {
+		return err
+	}
+	return ctx.Err()
 }
 
 // Progress returns the current download progress.

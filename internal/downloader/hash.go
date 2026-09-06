@@ -4,15 +4,40 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-// ErrHashMismatch is returned when a downloaded file's SHA1 does not match expected.
-var ErrHashMismatch = errors.New("sha1 hash mismatch")
-var ErrSizeMismatch = errors.New("file size mismatch")
+var (
+	// ErrHashMismatch is returned when a downloaded file's SHA1 does not match expected.
+	ErrHashMismatch = errors.New("sha1 hash mismatch")
+	ErrSizeMismatch = errors.New("file size mismatch")
+	// ErrMissingIntegrityMetadata prevents unverified artifacts from being committed.
+	ErrMissingIntegrityMetadata = errors.New("artifact integrity metadata missing")
+	ErrInvalidIntegrityMetadata = errors.New("invalid artifact integrity metadata")
+	ErrHashVerificationRequired = errors.New("hash verification required")
+)
+
+func validateIntegrityMetadata(expectedSHA1 string, expectedSize int64) error {
+	if expectedSize < 0 {
+		return ErrInvalidIntegrityMetadata
+	}
+	if expectedSHA1 == "" && expectedSize == 0 {
+		return ErrMissingIntegrityMetadata
+	}
+	if expectedSHA1 != "" {
+		if len(expectedSHA1) != sha1.Size*2 {
+			return fmt.Errorf("%w: SHA-1 must be %d hexadecimal characters", ErrInvalidIntegrityMetadata, sha1.Size*2)
+		}
+		if _, err := hex.DecodeString(expectedSHA1); err != nil {
+			return fmt.Errorf("%w: SHA-1 is not hexadecimal", ErrInvalidIntegrityMetadata)
+		}
+	}
+	return nil
+}
 
 // VerifyFileSHA1 checks if a file matches the expected SHA1 hash.
 // Returns (true, nil) if expected is empty (skip verification).
@@ -37,9 +62,11 @@ func VerifyFileSHA1(path string, expected string) (bool, error) {
 }
 
 // CommitFile verifies a .part file's expected size and SHA1, then atomically moves it to finalPath.
-// A size of zero and an empty SHA1 mean the corresponding metadata was unavailable.
-// On any error, the .part file is cleaned up.
+// At least one integrity signal (size or SHA1) is required.
 func CommitFile(partPath string, finalPath string, expectedSHA1 string, expectedSize int64) error {
+	if err := validateIntegrityMetadata(expectedSHA1, expectedSize); err != nil {
+		return err
+	}
 	if expectedSize > 0 {
 		info, err := os.Stat(partPath)
 		if err != nil {

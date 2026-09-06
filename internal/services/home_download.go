@@ -55,6 +55,9 @@ func (s *HomeService) InstallInstance(id string) error {
 			remaining = append(remaining, status.Artifact)
 		}
 	}
+	if err := op.CancelContext.Err(); err != nil {
+		return s.cancelInstall(id, op, inst.State)
+	}
 	if len(remaining) == 0 {
 		if err := s.Instances.UpdateState(id, instances.StateVerifying); err != nil {
 			return err

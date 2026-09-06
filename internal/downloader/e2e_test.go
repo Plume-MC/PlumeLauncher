@@ -2,6 +2,7 @@ package downloader_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -162,7 +163,9 @@ func TestE2ECancellationLeavesPartFiles(t *testing.T) {
 	defer cancel()
 
 	orch := downloader.NewOrchestrator(dir, 1)
-	orch.DownloadPlan(ctx, plan)
+	if err := orch.DownloadPlan(ctx, plan); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("error = %v, want context deadline", err)
+	}
 
 	// .part file should exist (recoverable)
 	partPath := filepath.Join(dir, "big.bin.part")

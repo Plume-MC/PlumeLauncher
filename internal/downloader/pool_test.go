@@ -30,6 +30,7 @@ func TestPoolBasicDownload(t *testing.T) {
 	pool.Submit(context.Background(), downloader.Task{
 		URL:  server.URL + "/file.txt",
 		Path: filepath.Join(dir, "file.txt"),
+		Size: 5,
 	})
 
 	pool.Wait()
@@ -64,6 +65,7 @@ func TestPoolConcurrentDownloads(t *testing.T) {
 		pool.Submit(context.Background(), downloader.Task{
 			URL:  server.URL + "/file",
 			Path: filepath.Join(dir, "file"+string(rune('0'+i))),
+			Size: 4,
 		})
 	}
 
@@ -100,6 +102,7 @@ func TestPoolSkipsValidFile(t *testing.T) {
 		URL:  server.URL + "/file.txt",
 		Path: finalPath,
 		SHA1: "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d",
+		Size: 5,
 	})
 
 	pool.Wait()
@@ -130,6 +133,7 @@ func TestPoolOnComplete(t *testing.T) {
 	pool.Submit(context.Background(), downloader.Task{
 		URL:  server.URL + "/file",
 		Path: filepath.Join(dir, "file.txt"),
+		Size: 4,
 		OnComplete: func(bool) {
 			called.Store(true)
 		},
@@ -148,7 +152,7 @@ func TestPoolSubmitAfterWait(t *testing.T) {
 	pool.Wait()
 
 	// Submit after wait should return false
-	ok := pool.Submit(context.Background(), downloader.Task{URL: "http://example.com"})
+	ok := pool.Submit(context.Background(), downloader.Task{URL: "http://example.com", Size: 1})
 	if ok {
 		t.Error("Submit after Wait should return false")
 	}
@@ -157,13 +161,13 @@ func TestPoolSubmitAfterWait(t *testing.T) {
 func TestPoolSubmitWaitsForCapacity(t *testing.T) {
 	pool := downloader.NewPool(1, &http.Client{})
 	ctx := context.Background()
-	if !pool.Submit(ctx, downloader.Task{}) {
+	if !pool.Submit(ctx, downloader.Task{Size: 1}) {
 		t.Fatal("first Submit returned false")
 	}
 
 	submitted := make(chan bool, 1)
 	go func() {
-		submitted <- pool.Submit(ctx, downloader.Task{})
+		submitted <- pool.Submit(ctx, downloader.Task{Size: 1})
 	}()
 
 	select {

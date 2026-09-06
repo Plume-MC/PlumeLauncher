@@ -64,7 +64,7 @@ func TestCommitFileSuccess(t *testing.T) {
 	finalPath := filepath.Join(dir, "file.txt")
 	os.WriteFile(partPath, []byte("content"), 0o644)
 
-	err := downloader.CommitFile(partPath, finalPath, "", 0)
+	err := downloader.CommitFile(partPath, finalPath, "", 7)
 	if err != nil {
 		t.Fatalf("CommitFile: %v", err)
 	}
@@ -118,7 +118,7 @@ func TestCommitFileCreatesNestedDir(t *testing.T) {
 	finalPath := filepath.Join(dir, "sub", "dir", "file.txt")
 	os.WriteFile(partPath, []byte("data"), 0o644)
 
-	err := downloader.CommitFile(partPath, finalPath, "", 0)
+	err := downloader.CommitFile(partPath, finalPath, "", 4)
 	if err != nil {
 		t.Fatalf("CommitFile: %v", err)
 	}
@@ -126,5 +126,22 @@ func TestCommitFileCreatesNestedDir(t *testing.T) {
 	data, _ := os.ReadFile(finalPath)
 	if string(data) != "data" {
 		t.Errorf("content = %q", string(data))
+	}
+}
+
+func TestCommitFileRejectsMissingIntegrityMetadata(t *testing.T) {
+	dir := t.TempDir()
+	partPath := filepath.Join(dir, "file.txt.part")
+	finalPath := filepath.Join(dir, "file.txt")
+	if err := os.WriteFile(partPath, []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := downloader.CommitFile(partPath, finalPath, "", 0)
+	if err != downloader.ErrMissingIntegrityMetadata {
+		t.Fatalf("expected ErrMissingIntegrityMetadata, got %v", err)
+	}
+	if _, err := os.Stat(finalPath); !os.IsNotExist(err) {
+		t.Fatal("final file should not exist without integrity metadata")
 	}
 }
