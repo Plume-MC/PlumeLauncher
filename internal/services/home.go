@@ -25,7 +25,11 @@ type HomeService struct {
 }
 
 func (s *HomeService) ListInstances() ([]instances.Instance, error) {
-	return s.Instances.List()
+	items, err := s.Instances.List()
+	if err != nil {
+		return nil, NewInternalError("list instances: " + err.Error())
+	}
+	return items, nil
 }
 
 // SupportedVersions returns stable releases listed by the selected metadata source.
@@ -74,14 +78,27 @@ func (s *HomeService) CreateInstance(name, version, loader, loaderVersion string
 	if loaderType != instances.LoaderVanilla && loaderVersion == "" {
 		return nil, NewValidationError("loaderVersion is required", "loaderVersion")
 	}
-	return s.Instances.CreateWithLoaderVersion(name, version, loaderType, loaderVersion)
+	if name == "" {
+		return nil, NewValidationError("name is required", "name")
+	}
+	if version == "" {
+		return nil, NewValidationError("version is required", "version")
+	}
+	inst, err := s.Instances.CreateWithLoaderVersion(name, version, loaderType, loaderVersion)
+	if err != nil {
+		return nil, NewInternalError("create instance: " + err.Error())
+	}
+	return inst, nil
 }
 
 func (s *HomeService) DeleteInstance(id string) error {
 	if s.Registry != nil && s.Registry.IsActive(id) {
 		return NewConflictError("stop the instance before deleting it")
 	}
-	return s.Instances.Delete(id)
+	if err := s.Instances.Delete(id); err != nil {
+		return NewNotFoundError("instance not found")
+	}
+	return nil
 }
 
 func parseLoader(value string) (instances.LoaderType, error) {

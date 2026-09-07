@@ -41,7 +41,11 @@ func (s *InstanceService) CreateInstance(name, mcVersion string, loader string) 
 
 // ListInstances returns all instances.
 func (s *InstanceService) ListInstances() ([]instances.Instance, error) {
-	return s.Manager.List()
+	items, err := s.Manager.List()
+	if err != nil {
+		return nil, NewInternalError("list instances: " + err.Error())
+	}
+	return items, nil
 }
 
 // GetInstance returns an instance by ID.
@@ -80,7 +84,13 @@ func (s *InstanceService) UpdateInstanceSettings(id string, settings instances.S
 		return NewValidationError("invalid wrapper command", "wrapperCommand")
 	}
 
-	return s.Manager.UpdateSettings(id, settings)
+	if _, err := s.Manager.Get(id); err != nil {
+		return NewNotFoundError("instance not found: " + id)
+	}
+	if err := s.Manager.UpdateSettings(id, settings); err != nil {
+		return NewInternalError("update instance settings: " + err.Error())
+	}
+	return nil
 }
 
 // OpenInstanceFolder opens a selected instance through the platform file manager.

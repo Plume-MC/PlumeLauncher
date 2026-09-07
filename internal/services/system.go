@@ -115,14 +115,18 @@ func (s *SystemService) openFolder(path, label string) error {
 
 // ScanJava detects installed Java installations.
 func (s *SystemService) ScanJava() ([]java.JavaInfo, error) {
-	return java.RescanJavaInstallations()
+	installed, err := java.RescanJavaInstallations()
+	if err != nil {
+		return nil, NewInternalError("scan Java installations: " + err.Error())
+	}
+	return installed, nil
 }
 
 // JavaRuntimes returns all verified runtimes, marking the PATH runtime and custom entries.
 func (s *SystemService) JavaRuntimes() ([]java.JavaInfo, error) {
 	installed, err := java.ScanJavaInstallations()
 	if err != nil {
-		return nil, err
+		return nil, NewInternalError("scan Java installations: " + err.Error())
 	}
 	for i := range installed {
 		installed[i].Source = "Detected"
@@ -178,5 +182,9 @@ func (s *SystemService) ValidateJavaPath(path string, requiredMajor int) (*java.
 	if path == "" {
 		return nil, NewValidationError("path is required", "path")
 	}
-	return java.ValidateJavaPath(path, requiredMajor)
+	info, err := java.ValidateJavaPath(path, requiredMajor)
+	if err != nil {
+		return nil, NewIncompatibleError(err.Error())
+	}
+	return info, nil
 }

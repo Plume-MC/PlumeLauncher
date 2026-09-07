@@ -127,7 +127,7 @@ func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instance
 			}
 			stderrMu.Unlock()
 		}
-		emit(s.App, EventLogLine, LogLineEvent{Level: level, Message: launch.Redact(line, opts.AccessToken), InstanceID: opts.VersionID})
+		emit(s.App, EventLogLine, LogLineEvent{Level: level, Message: launch.Redact(line, opts.AccessToken), OperationID: op.ID, InstanceID: opts.VersionID})
 		if s.Logger != nil {
 			s.Logger.Info("game_output", "instanceId", opts.VersionID, "level", level, "message", line)
 		}
@@ -140,40 +140,41 @@ func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instance
 		s.processes[opts.VersionID] = cmd
 		s.mu.Unlock()
 		if s.Instances != nil {
-			_ = s.Instances.UpdateState(opts.VersionID, instances.StateRunning)
+			_ = transitionInstanceState(s.App, s.Instances, opts.VersionID, instances.StateRunning, op.ID)
 		}
-		emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "running"})
+		emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: opts.VersionID, State: "running"})
 	})
 
 	if err != nil {
+		launchError := launch.Redact(err.Error(), opts.AccessToken)
 		if s.Logger != nil {
-			s.Logger.Error("launch_failed", "instanceId", opts.VersionID, "error", launch.Redact(err.Error(), opts.AccessToken))
+			s.Logger.Error("launch_failed", "instanceId", opts.VersionID, "operationId", op.ID, "error", launchError)
 		}
 		if !started {
 			s.Registry.Fail(opts.VersionID)
-			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "failed"})
+			emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: opts.VersionID, State: "failed", Error: launchError})
 			return
 		}
 		if current := s.Registry.Get(opts.VersionID); current != nil && current.Status == instances.OpStatusCancelled {
 			if s.Instances != nil {
-				_ = s.Instances.UpdateState(opts.VersionID, instances.StateStopped)
+				_ = transitionInstanceState(s.App, s.Instances, opts.VersionID, instances.StateStopped, op.ID)
 			}
-			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "stopped"})
+			emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: opts.VersionID, State: "stopped"})
 			return
 		}
 		var exitErr *launch.ProcessExitError
 		if errors.As(err, &exitErr) {
 			if s.Instances != nil {
-				_ = s.Instances.UpdateState(opts.VersionID, instances.StateCrashed)
+				_ = transitionInstanceState(s.App, s.Instances, opts.VersionID, instances.StateCrashed, op.ID)
 			}
 			s.Registry.Fail(opts.VersionID)
-			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "crashed", ExitCode: &exitErr.Code})
+			emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: opts.VersionID, State: "crashed", ExitCode: &exitErr.Code, Error: launchError})
 		} else {
 			if s.Instances != nil {
-				_ = s.Instances.UpdateState(opts.VersionID, instances.StateFailed)
+				_ = transitionInstanceState(s.App, s.Instances, opts.VersionID, instances.StateFailed, op.ID)
 			}
 			s.Registry.Fail(opts.VersionID)
-			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "failed"})
+			emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: opts.VersionID, State: "failed", Error: launchError})
 		}
 		if len(stderr) > 0 && s.Logger != nil {
 			s.Logger.Error("game_process_error", "instanceId", opts.VersionID, "error", launch.Redact(strings.Join(stderr, "\n"), opts.AccessToken))
@@ -182,13 +183,13 @@ func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instance
 	}
 
 	if s.Instances != nil {
-		_ = s.Instances.UpdateState(opts.VersionID, instances.StateStopped)
+		_ = transitionInstanceState(s.App, s.Instances, opts.VersionID, instances.StateStopped, op.ID)
 	}
 	s.Registry.Complete(opts.VersionID)
 	if s.Logger != nil {
 		s.Logger.Info("launch_stopped", "instanceId", opts.VersionID, "operationId", op.ID)
 	}
-	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: opts.VersionID, State: "stopped"})
+	emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: opts.VersionID, State: "stopped"})
 }
 
 func launchLogLevel(line string, isStderr bool) string {
@@ -218,7 +219,7 @@ func (s *LaunchService) Stop(instanceID string) error {
 	if cmd == nil {
 		return NewNotFoundError("no process for active launch")
 	}
-	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: instanceID, State: "stopping"})
+	emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: instanceID, State: "stopping"})
 	if err := launch.Stop(cmd); err != nil {
 		return NewInternalError("failed to stop launch: " + err.Error())
 	}

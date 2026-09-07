@@ -13,6 +13,7 @@ const (
 	ErrCodeIntegrity    ErrorCode = "INTEGRITY"
 	ErrCodeUpstream     ErrorCode = "UPSTREAM"
 	ErrCodeInternal     ErrorCode = "INTERNAL"
+	ErrCodeCancelled    ErrorCode = "CANCELLED"
 )
 
 // ServiceError is a structured error returned by service methods.
@@ -59,4 +60,9 @@ func NewUpstreamError(message string) *ServiceError {
 // NewInternalError creates an internal error.
 func NewInternalError(message string) *ServiceError {
 	return &ServiceError{Code: ErrCodeInternal, Message: message}
+}
+
+// NewCancelledError creates an operation cancellation error.
+func NewCancelledError(message string) *ServiceError {
+	return &ServiceError{Code: ErrCodeCancelled, Message: message}
 }

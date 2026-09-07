@@ -38,6 +38,7 @@ func TestAllErrorCodes(t *testing.T) {
 		{services.ErrCodeIntegrity},
 		{services.ErrCodeUpstream},
 		{services.ErrCodeInternal},
+		{services.ErrCodeCancelled},
 	}
 
 	for _, tt := range tests {
@@ -58,6 +59,8 @@ func TestAllErrorCodes(t *testing.T) {
 				err = services.NewUpstreamError("test")
 			case services.ErrCodeInternal:
 				err = services.NewInternalError("test")
+			case services.ErrCodeCancelled:
+				err = services.NewCancelledError("test")
 			}
 			if err == nil {
 				t.Fatal("expected non-nil error")

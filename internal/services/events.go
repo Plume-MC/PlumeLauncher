@@ -26,16 +26,19 @@ type DownloadProgressEvent struct {
 
 // InstanceStateEvent is emitted when instance state changes.
 type InstanceStateEvent struct {
-	InstanceID string `json:"instanceId"`
-	OldState   string `json:"oldState"`
-	NewState   string `json:"newState"`
+	OperationID string `json:"operationId,omitempty"`
+	InstanceID  string `json:"instanceId"`
+	OldState    string `json:"oldState"`
+	NewState    string `json:"newState"`
 }
 
 // LaunchStateEvent is emitted during launch lifecycle.
 type LaunchStateEvent struct {
-	InstanceID string `json:"instanceId"`
-	State      string `json:"state"`
-	ExitCode   *int   `json:"exitCode,omitempty"`
+	OperationID string `json:"operationId,omitempty"`
+	InstanceID  string `json:"instanceId"`
+	State       string `json:"state"`
+	ExitCode    *int   `json:"exitCode,omitempty"`
+	Error       string `json:"error,omitempty"`
 }
 
 // LogLineEvent is emitted for console/log output.

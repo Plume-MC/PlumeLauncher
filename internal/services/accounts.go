@@ -234,7 +234,10 @@ func (s *AccountService) CreateOffline(username string) (*Account, error) {
 	}
 
 	// Load existing accounts
-	accounts, _ := s.loadAccounts()
+	accounts, err := s.loadAccounts()
+	if err != nil {
+		return nil, NewInternalError("failed to load accounts")
+	}
 	if len(accounts) == 0 {
 		acc.Selected = true
 	}

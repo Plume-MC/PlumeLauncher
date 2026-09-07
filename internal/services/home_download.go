@@ -59,20 +59,21 @@ func (s *HomeService) InstallInstance(id string) error {
 		return s.cancelInstall(id, op, inst.State)
 	}
 	if len(remaining) == 0 {
-		if err := s.Instances.UpdateState(id, instances.StateVerifying); err != nil {
+		if err := transitionInstanceState(s.App, s.Instances, id, instances.StateVerifying, op.ID); err != nil {
 			return err
 		}
-		if err := s.Instances.UpdateState(id, instances.StateReady); err != nil {
+		if err := transitionInstanceState(s.App, s.Instances, id, instances.StateReady, op.ID); err != nil {
 			return err
 		}
+		emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "completed", FileProgress: len(plan.Artifacts), TotalFiles: len(plan.Artifacts)})
 		s.Registry.Complete(id)
 		return nil
 	}
 	plan.Artifacts = remaining
-	if err := s.Instances.UpdateState(id, instances.StatePlanning); err != nil {
+	if err := transitionInstanceState(s.App, s.Instances, id, instances.StatePlanning, op.ID); err != nil {
 		return err
 	}
-	if err := s.Instances.UpdateState(id, instances.StateDownloading); err != nil {
+	if err := transitionInstanceState(s.App, s.Instances, id, instances.StateDownloading, op.ID); err != nil {
 		return err
 	}
 	if err := op.CancelContext.Err(); err != nil {
@@ -115,16 +116,16 @@ func (s *HomeService) InstallInstance(id string) error {
 			return s.cancelInstall(id, op, inst.State)
 		}
 		emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "failed", Error: err.Error()})
-		_ = s.Instances.UpdateState(id, instances.StateFailed)
-		return err
+		_ = transitionInstanceState(s.App, s.Instances, id, instances.StateFailed, op.ID)
+		return NewIntegrityError("download artifacts: " + err.Error())
 	}
 	if err := op.CancelContext.Err(); err != nil {
 		return s.cancelInstall(id, op, inst.State)
 	}
-	if err := s.Instances.UpdateState(id, instances.StateVerifying); err != nil {
+	if err := transitionInstanceState(s.App, s.Instances, id, instances.StateVerifying, op.ID); err != nil {
 		return err
 	}
-	if err := s.Instances.UpdateState(id, instances.StateReady); err != nil {
+	if err := transitionInstanceState(s.App, s.Instances, id, instances.StateReady, op.ID); err != nil {
 		return err
 	}
 	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "completed", FileProgress: len(plan.Artifacts), TotalFiles: len(plan.Artifacts)})
@@ -183,10 +184,10 @@ func (s *HomeService) ensureArtifacts(id string, inst *instances.Instance, plan 
 		}
 	}
 	if inst.State == instances.StateCrashed {
-		if err := s.Instances.UpdateState(id, instances.StateVerifying); err != nil {
+		if err := transitionInstanceState(s.App, s.Instances, id, instances.StateVerifying, ""); err != nil {
 			return err
 		}
-		return s.Instances.UpdateState(id, instances.StateReady)
+		return transitionInstanceState(s.App, s.Instances, id, instances.StateReady, "")
 	}
 	return nil
 }
@@ -210,10 +211,10 @@ func (s *HomeService) repairArtifacts(id string, inst *instances.Instance, plan 
 		}
 	}
 	if inst.State == instances.StateFailed || inst.State == instances.StateCrashed {
-		if err := s.Instances.UpdateState(id, instances.StatePlanning); err != nil {
+		if err := transitionInstanceState(s.App, s.Instances, id, instances.StatePlanning, op.ID); err != nil {
 			return err
 		}
-		if err := s.Instances.UpdateState(id, instances.StateDownloading); err != nil {
+		if err := transitionInstanceState(s.App, s.Instances, id, instances.StateDownloading, op.ID); err != nil {
 			return err
 		}
 	}
@@ -224,18 +225,18 @@ func (s *HomeService) repairArtifacts(id string, inst *instances.Instance, plan 
 		}
 		emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "failed", Error: err.Error()})
 		if inst.State == instances.StateFailed || inst.State == instances.StateCrashed {
-			_ = s.Instances.UpdateState(id, instances.StateFailed)
+			_ = transitionInstanceState(s.App, s.Instances, id, instances.StateFailed, op.ID)
 		}
-		return err
+		return NewIntegrityError("repair artifacts: " + err.Error())
 	}
 	if err := op.CancelContext.Err(); err != nil {
 		return s.cancelRepair(id, op, inst.State)
 	}
 	if inst.State == instances.StateFailed || inst.State == instances.StateCrashed {
-		if err := s.Instances.UpdateState(id, instances.StateVerifying); err != nil {
+		if err := transitionInstanceState(s.App, s.Instances, id, instances.StateVerifying, op.ID); err != nil {
 			return err
 		}
-		if err := s.Instances.UpdateState(id, instances.StateReady); err != nil {
+		if err := transitionInstanceState(s.App, s.Instances, id, instances.StateReady, op.ID); err != nil {
 			return err
 		}
 	}
@@ -245,17 +246,17 @@ func (s *HomeService) repairArtifacts(id string, inst *instances.Instance, plan 
 }
 
 func (s *HomeService) cancelInstall(id string, op *instances.Operation, previous instances.InstanceState) error {
-	_ = s.Instances.UpdateState(id, previous)
+	_ = transitionInstanceState(s.App, s.Instances, id, previous, op.ID)
 	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "cancelled"})
-	return context.Canceled
+	return NewCancelledError("install cancelled")
 }
 
 func (s *HomeService) cancelRepair(id string, op *instances.Operation, previous instances.InstanceState) error {
 	if previous == instances.StateFailed || previous == instances.StateCrashed {
-		_ = s.Instances.UpdateState(id, previous)
+		_ = transitionInstanceState(s.App, s.Instances, id, previous, op.ID)
 	}
 	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "cancelled"})
-	return context.Canceled
+	return NewCancelledError("repair cancelled")
 }
 
 // CancelInstance cancels the active download or launch operation.

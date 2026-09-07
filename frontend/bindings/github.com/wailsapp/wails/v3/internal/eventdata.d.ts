@@ -13,6 +13,7 @@ declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
             "download-progress": services$0.DownloadProgressEvent;
+            "instance-state": services$0.InstanceStateEvent;
             "launch-state": services$0.LaunchStateEvent;
             "log-line": services$0.LogLineEvent;
         }

@@ -30,6 +30,7 @@ func init() {
 	// This is not required, but the binding generator will pick up registered events
 	// and provide a strongly typed JS/TS API for them.
 	application.RegisterEvent[services.DownloadProgressEvent](services.EventDownloadProgress)
+	application.RegisterEvent[services.InstanceStateEvent](services.EventInstanceState)
 	application.RegisterEvent[services.LaunchStateEvent](services.EventLaunchState)
 	application.RegisterEvent[services.LogLineEvent](services.EventLogLine)
 }

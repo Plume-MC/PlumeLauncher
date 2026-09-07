@@ -15,6 +15,7 @@ export {
 export type {
     Account,
     DownloadProgressEvent,
+    InstanceStateEvent,
     LaunchStateEvent,
     LogLineEvent
 } from "./models.js";

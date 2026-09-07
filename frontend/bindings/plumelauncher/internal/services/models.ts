@@ -29,12 +29,24 @@ export interface DownloadProgressEvent {
 }
 
 /**
+ * InstanceStateEvent is emitted when instance state changes.
+ */
+export interface InstanceStateEvent {
+    "operationId"?: string;
+    "instanceId": string;
+    "oldState": string;
+    "newState": string;
+}
+
+/**
  * LaunchStateEvent is emitted during launch lifecycle.
  */
 export interface LaunchStateEvent {
+    "operationId"?: string;
     "instanceId": string;
     "state": string;
     "exitCode"?: number | null;
+    "error"?: string;
 }
 
 /**
