@@ -117,6 +117,10 @@ func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instance
 
 	var stderr []string
 	var stderrMu sync.Mutex
+	if op.CancelContext.Err() != nil {
+		emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: opts.VersionID, State: "stopped"})
+		return
+	}
 	err := launch.MonitorWithStart(cmd, func(line string, isStderr bool) {
 		level := launchLogLevel(line, isStderr)
 		if isStderr {
@@ -133,6 +137,12 @@ func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instance
 		}
 	}, func() {
 		started = true
+		if op.CancelContext.Err() != nil {
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+			}
+			return
+		}
 		s.mu.Lock()
 		if s.processes == nil {
 			s.processes = make(map[string]*exec.Cmd)
@@ -217,7 +227,9 @@ func (s *LaunchService) Stop(instanceID string) error {
 	cmd := s.processes[instanceID]
 	s.mu.Unlock()
 	if cmd == nil {
-		return NewNotFoundError("no process for active launch")
+		emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: instanceID, State: "stopping"})
+		s.Registry.Cancel(instanceID)
+		return nil
 	}
 	emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: instanceID, State: "stopping"})
 	if err := launch.Stop(cmd); err != nil {

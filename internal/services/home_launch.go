@@ -13,7 +13,7 @@ import (
 	"plumelauncher/internal/metadata"
 )
 
-func (s *HomeService) LaunchInstance(id string) error {
+func (s *HomeService) LaunchInstance(id string) (err error) {
 	inst, err := s.Instances.Get(id)
 	if err != nil {
 		return NewNotFoundError("instance not found")
@@ -22,6 +22,11 @@ func (s *HomeService) LaunchInstance(id string) error {
 		return NewConflictError("instance is not ready; install it first")
 	}
 	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: id, State: "preparing"})
+	defer func() {
+		if err != nil {
+			emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: id, State: "failed", Error: err.Error()})
+		}
+	}()
 	detail, err := s.resolveInstanceDetail(context.Background(), inst)
 	if err != nil {
 		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))

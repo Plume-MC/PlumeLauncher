@@ -3,6 +3,7 @@ package services
 import (
 	"testing"
 
+	"plumelauncher/internal/instances"
 	"plumelauncher/internal/metadata"
 )
 
@@ -17,6 +18,21 @@ func TestJavaVersionForLaunchUsesVersionIDForVanilla(t *testing.T) {
 	detail := metadata.VersionDetail{ID: "1.21.4"}
 	if got := javaVersionForLaunch(detail); got != "1.21.4" {
 		t.Fatalf("javaVersionForLaunch() = %q, want 1.21.4", got)
+	}
+}
+
+func TestLaunchServiceStopCancelsBeforeProcessIsRegistered(t *testing.T) {
+	registry := instances.NewRegistry()
+	if _, err := registry.Start("instance", instances.OpLaunch); err != nil {
+		t.Fatal(err)
+	}
+
+	service := &LaunchService{Registry: registry}
+	if err := service.Stop("instance"); err != nil {
+		t.Fatalf("Stop: %v", err)
+	}
+	if registry.IsActive("instance") {
+		t.Fatal("launch operation remains active")
 	}
 }
 
