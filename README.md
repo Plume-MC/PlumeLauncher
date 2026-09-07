@@ -1,3 +1,46 @@
+# Plume Launcher
+
+Plume Launcher is a compact Minecraft launcher and instance manager built on Wails v3 (Go + React).
+
+## Development
+
+```sh
+wails3 dev
+```
+
+## Build & Package
+
+| OS      | Command                                           | Output                                         |
+| ------- | ------------------------------------------------- | ---------------------------------------------- |
+| Windows | `wails3 task windows:package ARCH=amd64`          | `bin/plume-launcher-installer-amd64.exe` (NSIS) |
+| Linux   | `wails3 task linux:package ARCH=amd64`            | AppImage + deb/rpm/Arch in `bin/`              |
+| macOS   | `wails3 task darwin:package`                      | `bin/plume-launcher.app`                       |
+
+Linux builds from non-Linux hosts (or without a C compiler) use the Docker
+cross-compile image: `wails3 task setup:docker` once, then `linux:build:docker`.
+
+## Release Status
+
+Production remains **NO-GO** until the following deferred steps land:
+
+- **STEP-001** — top-level product metadata in `wails.json` and bundle identifiers.
+- **STEP-009** — release-quality error pages and user-facing copy.
+- **STEP-011** — Linux tray + system integration (notifications, autostart).
+
+`STEP-010` (Windows/Linux packaging) is in progress:
+
+- Linux DEB/RPM/AUR metadata now points at the real `plume-launcher` binary
+  (commit `9fa7268`).
+- Windows NSIS / MSIX templates and `darwin/Info.plist` still reference the
+  legacy `My Product` / `Rozelith Corporation` / `com.drenzzz.myapp` strings.
+  Regenerate them with `wails3 update build-assets -config build/config.yml
+  -dir build -name plume-launcher -binaryname plume-launcher -productname "Plume Launcher" -productidentifier com.plume.launcher -productversion 1.0.0 -productcompany Plume -productcopyright "(c) 2026, Plume" -productdescription "A compact Minecraft launcher and instance manager"`, then
+  review and commit the rewrite. `makensis` (NSIS) and `appimagetool` (AppImage)
+  must be available on `PATH` for the actual `package` invocation.
+
+Frontend lint is blocked by the TypeScript 7.0 / `typescript-eslint`
+incompatibility; bump `@typescript-eslint` packages once upstream support lands.
+
 # Welcome to Your New Wails3 Project!
 
 Congratulations on generating your Wails3 application! This README will guide you through the next steps to get your project up and running.
