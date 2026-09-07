@@ -2,6 +2,7 @@ version: '3'
 
 vars:
   APP_NAME: "plume-launcher"
+  APP_DISPLAY_NAME: "Plume Launcher"
   BIN_DIR: "bin"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "bun"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
