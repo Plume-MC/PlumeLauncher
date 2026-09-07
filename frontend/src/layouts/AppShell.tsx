@@ -33,6 +33,7 @@ export function AppShell({
   const [launchActive, setLaunchActive] = useState(false);
   const [consoleLines, setConsoleLines] = useState<ActivityLogLine[]>([]);
   const [download, setDownload] = useState<DownloadProgressEvent | null>(null);
+  const [launch, setLaunch] = useState<LaunchStateEvent | null>(null);
   const dismissedRef = useRef(false);
 
   useEffect(() => {
@@ -54,8 +55,10 @@ export function AppShell({
       if (nextLaunch) {
         const data = nextLaunch;
         nextLaunch = null;
+        setLaunch(data);
         const active = !['stopped', 'failed', 'crashed'].includes(data.state);
         setLaunchActive(active);
+        if (active && !dismissedRef.current) setActivityOpen(true);
         if (data.state === 'failed' || data.state === 'crashed') setActivityOpen(true);
       }
       if (nextLines.length) {
@@ -120,6 +123,7 @@ export function AppShell({
           }}
           consoleLines={consoleLines}
           download={download}
+          launch={launch}
           onClearConsole={() => setConsoleLines([])}
         />}
         {settingsOpen && <SettingsSheet isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />}

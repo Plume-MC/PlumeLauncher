@@ -5,14 +5,23 @@ import { toast } from '@/components/ui/toast';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
 import type { Instance } from '../../bindings/plumelauncher/internal/instances/models.js';
 import { InstanceState, LoaderType } from '../../bindings/plumelauncher/internal/instances/models.js';
-import type { DownloadProgressEvent, LaunchStateEvent } from '../../bindings/plumelauncher/internal/services/models.js';
+import type { DownloadProgressEvent, InstanceStateEvent, LaunchStateEvent } from '../../bindings/plumelauncher/internal/services/models.js';
 import { useMotionPreference } from '@/components/motion';
+import type { InstanceAction } from '@/components/home/InstanceCard';
 
 const InstanceLibraryToolbar = lazy(() => import('@/components/home/InstanceLibraryToolbar').then((module) => ({ default: module.InstanceLibraryToolbar })));
 const InstanceGrid = lazy(() => import('@/components/home/InstanceGrid').then((module) => ({ default: module.InstanceGrid })));
 const InstanceDetailSheet = lazy(() => import('@/components/home/InstanceDetailSheet').then((module) => ({ default: module.InstanceDetailSheet })));
 const CreateInstanceDialog = lazy(() => import('@/components/home/CreateInstanceDialog').then((module) => ({ default: module.CreateInstanceDialog })));
 const DeleteInstanceDialog = lazy(() => import('@/components/home/DeleteInstanceDialog').then((module) => ({ default: module.DeleteInstanceDialog })));
+
+const terminalInstanceStates = new Set<InstanceState>([
+  InstanceState.StateNotInstalled,
+  InstanceState.StateReady,
+  InstanceState.StateStopped,
+  InstanceState.StateCrashed,
+  InstanceState.StateFailed,
+]);
 
 function LoadingOverlay() {
   return <div className="sr-only" role="status">Loading...</div>;
@@ -40,6 +49,7 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
   const [runningInstanceId, setRunningInstanceId] = useState('');
   const [launchingInstanceId, setLaunchingInstanceId] = useState('');
   const [stoppingInstanceId, setStoppingInstanceId] = useState('');
+  const [stateOverrides, setStateOverrides] = useState<Record<string, InstanceState>>({});
   const [crashExitCodes, setCrashExitCodes] = useState<Record<string, number>>({});
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
@@ -47,6 +57,7 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
   useEffect(() => {
     let frame = 0;
     let nextDownload: DownloadProgressEvent | null = null;
+    let nextInstanceState: InstanceStateEvent | null = null;
     let nextLaunch: LaunchStateEvent | null = null;
     const flush = () => {
       frame = 0;
@@ -71,6 +82,26 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
           setDownloadInstanceId('');
           setDownloadProgress(null);
           void onRefreshRef.current();
+        }
+      }
+      if (nextInstanceState) {
+        const data = nextInstanceState;
+        nextInstanceState = null;
+        const nextState = data.newState as InstanceState;
+        if (Object.values(InstanceState).includes(nextState)) {
+          setStateOverrides((current) => ({ ...current, [data.instanceId]: nextState }));
+          if (terminalInstanceStates.has(nextState)) {
+            void onRefreshRef.current()
+              .then(() => {
+                setStateOverrides((current) => {
+                  if (current[data.instanceId] !== nextState) return current;
+                  const next = { ...current };
+                  delete next[data.instanceId];
+                  return next;
+                });
+              })
+              .catch(() => undefined);
+          }
         }
       }
       if (nextLaunch) {
@@ -122,6 +153,12 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
         if (['completed', 'failed', 'cancelled'].includes(data.status)) flushNow();
         else schedule();
       }),
+      Events.On('instance-state', (event) => {
+        const data: InstanceStateEvent = event.data;
+        nextInstanceState = data;
+        if (terminalInstanceStates.has(data.newState as InstanceState)) flushNow();
+        else schedule();
+      }),
       Events.On('launch-state', (event) => {
         const data: LaunchStateEvent = event.data;
         nextLaunch = data;
@@ -146,26 +183,32 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
           : String(b.createdAt).localeCompare(String(a.createdAt))
     );
 
-  const runAction = async (id: string, action: 'play' | 'install' | 'stop' | 'cancel') => {
+  const runAction = async (id: string, action: InstanceAction) => {
     // Cancel must work while install/play holds the card busy.
     if (busyId && action !== 'cancel') return;
 
-    if (action === 'install') {
+    if (action === 'install' || action === 'retry' || action === 'repair') {
       setBusyId(id);
-      toast.add({ type: 'success', title: 'Install requested' });
-      void HomeService.InstallInstance(id)
+      const operation = action === 'repair'
+        ? HomeService.RepairInstance
+        : action === 'retry'
+          ? HomeService.RetryInstance
+          : HomeService.InstallInstance;
+      const actionLabel = action === 'repair' ? 'Repair' : action === 'retry' ? 'Retry' : 'Install';
+      toast.add({ type: 'success', title: `${actionLabel} requested` });
+      void operation(id)
         .catch((error) => {
           if (error instanceof Error && /cancelled|canceled/i.test(error.message)) {
             toast.add({
               type: 'info',
-              title: 'Install cancelled',
+              title: `${actionLabel} cancelled`,
               description: 'The instance was returned to its previous state.',
             });
             return;
           }
           toast.add({
             type: 'error',
-            title: 'Action failed',
+            title: `${actionLabel} failed`,
             description: error instanceof Error ? error.message : 'Please check the launcher logs.',
             priority: 'high',
           });
@@ -252,6 +295,7 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
           runningInstanceId={runningInstanceId}
           launchingInstanceId={launchingInstanceId}
           stoppingInstanceId={stoppingInstanceId}
+          stateOverrides={stateOverrides}
           crashExitCodes={crashExitCodes}
           onCreate={() => setCreateOpen(true)}
           onAction={(id, action) => void runAction(id, action)}

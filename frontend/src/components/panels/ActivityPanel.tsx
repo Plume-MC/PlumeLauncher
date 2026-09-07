@@ -1,10 +1,11 @@
 import { useDeferredValue, useEffect, useRef, useState } from "react";
-import { IconArrowDown, IconDownload, IconTerminal2, IconTrash, IconX } from '@tabler/icons-react';
+import { IconArrowDown, IconDownload, IconPlayerPlay, IconPlayerStop, IconTerminal2, IconTrash, IconX } from '@tabler/icons-react';
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { useMotionPreference } from "@/components/motion";
+import { toast } from "@/components/ui/toast";
 import { HomeService } from "../../../bindings/plumelauncher/internal/services/index.js";
-import type { DownloadProgressEvent } from "../../../bindings/plumelauncher/internal/services/models.js";
+import type { DownloadProgressEvent, LaunchStateEvent } from "../../../bindings/plumelauncher/internal/services/models.js";
 
 export interface ActivityLogLine {
   level: string;
@@ -17,9 +18,11 @@ interface ActivityPanelProps {
   onClearConsole: () => void;
   consoleLines: ActivityLogLine[];
   download: DownloadProgressEvent | null;
+  launch: LaunchStateEvent | null;
 }
 
 const activeDownloadStates = new Set(["downloading", "repairing"]);
+const activeLaunchStates = new Set(["preparing", "running", "stopping"]);
 
 function formatBytes(bytes: number) {
   return `${Math.round(bytes / 1024 / 1024)} MB`;
@@ -36,13 +39,14 @@ function logTone(level: string) {
   return "text-muted-foreground";
 }
 
-export function ActivityPanel({ isOpen, onClose, onClearConsole, consoleLines, download }: ActivityPanelProps) {
+export function ActivityPanel({ isOpen, onClose, onClearConsole, consoleLines, download, launch }: ActivityPanelProps) {
   const { reduced } = useMotionPreference();
   const [cancelling, setCancelling] = useState(false);
   const [following, setFollowing] = useState(true);
   const deferredConsoleLines = useDeferredValue(consoleLines);
   const consoleRef = useRef<HTMLDivElement>(null);
-  const showOperation = !!download && (activeDownloadStates.has(download.status) || download.status === "failed");
+  const showDownload = !!download && (activeDownloadStates.has(download.status) || download.status === "failed");
+  const showLaunch = !!launch && (activeLaunchStates.has(launch.state) || launch.state === "failed" || launch.state === "crashed");
 
   useEffect(() => {
     if (!isOpen || !following || !consoleRef.current) return;
@@ -65,6 +69,32 @@ export function ActivityPanel({ isOpen, onClose, onClearConsole, consoleLines, d
     setCancelling(true);
     try {
       await HomeService.CancelInstance(download.instanceId);
+      toast.add({ type: "info", title: "Cancellation requested" });
+    } catch (error) {
+      toast.add({
+        type: "error",
+        title: "Cancel failed",
+        description: error instanceof Error ? error.message : "Please check the launcher logs.",
+        priority: "high",
+      });
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const stopLaunch = async () => {
+    if (!launch?.instanceId || launch.state !== "running") return;
+    setCancelling(true);
+    try {
+      await HomeService.StopInstance(launch.instanceId);
+      toast.add({ type: "info", title: "Stop requested" });
+    } catch (error) {
+      toast.add({
+        type: "error",
+        title: "Stop failed",
+        description: error instanceof Error ? error.message : "Please check the launcher logs.",
+        priority: "high",
+      });
     } finally {
       setCancelling(false);
     }
@@ -91,12 +121,12 @@ export function ActivityPanel({ isOpen, onClose, onClearConsole, consoleLines, d
         </Button>
       </header>
 
-      {showOperation ? (
+      {showDownload && download ? (
         <section className="space-y-3 border-b border-border px-4 py-3" aria-live="polite">
           <div className="flex items-center justify-between gap-3 text-xs">
             <span className="flex items-center gap-2 font-medium">
               <IconDownload className="size-3.5" />
-              {download.status === "repairing" ? "Repairing files" : "Installing files"}
+              {download.status === "repairing" ? "Repairing files" : download.status === "failed" ? "Install failed" : "Installing files"}
             </span>
             {activeDownloadStates.has(download.status) ? (
               <Button variant="destructive" size="sm" disabled={cancelling} onClick={() => void cancelDownload()}>
@@ -121,6 +151,42 @@ export function ActivityPanel({ isOpen, onClose, onClearConsole, consoleLines, d
             <p role="alert" className="text-xs text-destructive">
               {download.error}
             </p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {showLaunch && launch ? (
+        <section className="space-y-3 border-b border-border px-4 py-3" aria-live="polite">
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <span className="flex items-center gap-2 font-medium">
+              <IconPlayerPlay className="size-3.5" />
+              {launch.state === "preparing"
+                ? "Preparing Minecraft"
+                : launch.state === "running"
+                  ? "Minecraft is running"
+                  : launch.state === "stopping"
+                    ? "Stopping Minecraft"
+                    : launch.state === "crashed"
+                      ? "Minecraft crashed"
+                      : "Launch failed"}
+            </span>
+            {launch.state === "running" ? (
+              <Button variant="destructive" size="sm" disabled={cancelling} onClick={() => void stopLaunch()}>
+                {cancelling ? "Stopping..." : "Stop"}
+              </Button>
+            ) : null}
+          </div>
+          {launch.exitCode !== undefined && launch.exitCode !== null ? (
+            <p className="font-mono text-xs text-destructive">Exit code {launch.exitCode}</p>
+          ) : null}
+          {launch.error ? (
+            <p role="alert" className="text-xs text-destructive">{launch.error}</p>
+          ) : null}
+          {launch.state === "running" ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <IconPlayerStop className="size-3.5" />
+              Stop the game from this panel when you are finished.
+            </div>
           ) : null}
         </section>
       ) : null}

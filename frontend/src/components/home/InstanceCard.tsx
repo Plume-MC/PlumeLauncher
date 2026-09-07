@@ -1,4 +1,4 @@
-import { IconPlayerPlay, IconDownload, IconDotsVertical, IconPlayerStop, IconLoader2 } from '@tabler/icons-react';
+import { IconPlayerPlay, IconDownload, IconDotsVertical, IconPlayerStop, IconLoader2, IconRefresh } from '@tabler/icons-react';
 import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -6,6 +6,8 @@ import { InstanceState, LoaderType } from '../../../bindings/plumelauncher/inter
 import vanillaLogo from '@/assets/loaders/vanilla.png';
 import fabricLogo from '@/assets/loaders/fabric.png';
 import quiltLogo from '@/assets/loaders/quilt.png';
+
+export type InstanceAction = 'play' | 'install' | 'stop' | 'cancel' | 'retry' | 'repair';
 
 interface InstanceCardProps {
   name: string;
@@ -15,7 +17,7 @@ interface InstanceCardProps {
   onPlay?: () => void;
   onDownload?: () => void;
   onOpenDetail?: () => void;
-  onAction?: (action: 'play' | 'install' | 'stop' | 'cancel') => void;
+  onAction?: (action: InstanceAction) => void;
   busy?: boolean;
   downloadProgress?: { fileProgress: number; totalFiles: number } | null;
   actionState?: 'preparing' | 'stopping' | null;
@@ -81,6 +83,14 @@ export function InstanceCard({
       : 0;
 
   const primaryAction = () => {
+    if (actionState === 'preparing') {
+      return (
+        <Button size="sm" variant="secondary" disabled className="h-9 w-full gap-1.5">
+          <IconLoader2 className="size-3.5 animate-spin" />
+          Launching...
+        </Button>
+      );
+    }
     if (state === InstanceState.StateReady || state === InstanceState.StateStopped) {
       return (
         <Button
@@ -101,12 +111,12 @@ export function InstanceCard({
     }
     if (state === InstanceState.StateCrashed) {
       return (
-        <div className="flex w-full gap-2">
+        <div className="flex w-full flex-wrap gap-2">
           <Button
             size="sm"
             variant="secondary"
             disabled={actionBusy}
-            className="h-9 flex-1 gap-1.5"
+            className="h-9 min-w-[8rem] flex-1 gap-1.5"
             onClick={(e) => {
               e.stopPropagation();
               onAction?.('play');
@@ -115,6 +125,20 @@ export function InstanceCard({
           >
             <IconPlayerPlay className="size-3.5" />
             Play again
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={actionBusy}
+            className="h-9 gap-1.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAction?.('repair');
+            }}
+            aria-label={`Repair ${name}`}
+          >
+            <IconDownload className="size-3.5" />
+            Repair
           </Button>
           {onOpenLogs && (
             <Button
@@ -132,7 +156,41 @@ export function InstanceCard({
         </div>
       );
     }
-    if (state === InstanceState.StateNotInstalled || state === InstanceState.StateFailed) {
+    if (state === InstanceState.StateFailed) {
+      return (
+        <div className="flex w-full gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={actionBusy}
+            className="h-9 flex-1 gap-1.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAction?.('retry');
+            }}
+            aria-label={`Retry ${name}`}
+          >
+            <IconRefresh className="size-3.5" />
+            Retry
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={actionBusy}
+            className="h-9 gap-1.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAction?.('repair');
+            }}
+            aria-label={`Repair ${name}`}
+          >
+            <IconDownload className="size-3.5" />
+            Repair
+          </Button>
+        </div>
+      );
+    }
+    if (state === InstanceState.StateNotInstalled) {
       return (
         <Button
           size="sm"
@@ -190,14 +248,6 @@ export function InstanceCard({
             <IconPlayerStop className="size-3.5" />
           )}
           {actionState === 'stopping' ? 'Stopping...' : 'Stop'}
-        </Button>
-      );
-    }
-    if (actionState === 'preparing') {
-      return (
-        <Button size="sm" variant="secondary" disabled className="h-9 w-full gap-1.5">
-          <IconLoader2 className="size-3.5 animate-spin" />
-          Launching...
         </Button>
       );
     }

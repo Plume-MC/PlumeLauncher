@@ -1,7 +1,7 @@
 import { IconPlus } from '@tabler/icons-react';
 import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
-import { InstanceCard } from './InstanceCard';
+import { InstanceCard, type InstanceAction } from './InstanceCard';
 import type { Instance } from '../../../bindings/plumelauncher/internal/instances/models.js';
 import { InstanceState } from '../../../bindings/plumelauncher/internal/instances/models.js';
 
@@ -15,9 +15,10 @@ interface InstanceGridProps {
   runningInstanceId: string;
   launchingInstanceId: string;
   stoppingInstanceId: string;
+  stateOverrides: Record<string, InstanceState>;
   crashExitCodes: Record<string, number>;
   onCreate: () => void;
-  onAction: (id: string, action: 'play' | 'install' | 'stop' | 'cancel') => void;
+  onAction: (id: string, action: InstanceAction) => void;
   onOpenDetail: (instance: Instance) => void;
   onOpenLogs: () => void;
 }
@@ -32,6 +33,7 @@ export function InstanceGrid({
   runningInstanceId,
   launchingInstanceId,
   stoppingInstanceId,
+  stateOverrides,
   crashExitCodes,
   onCreate,
   onAction,
@@ -80,11 +82,11 @@ export function InstanceGrid({
               mcVersion={instance.mcVersion}
               loader={instance.loader}
               state={
-                instance.id === downloadInstanceId
+                stateOverrides[instance.id] ?? (instance.id === downloadInstanceId
                   ? InstanceState.StateDownloading
                   : instance.id === runningInstanceId
                     ? InstanceState.StateRunning
-                    : instance.state
+                    : instance.state)
               }
               downloadProgress={instance.id === downloadInstanceId ? downloadProgress : null}
               onAction={(action) => onAction(instance.id, action)}
