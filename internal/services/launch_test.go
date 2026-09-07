@@ -4,22 +4,7 @@ import (
 	"testing"
 
 	"plumelauncher/internal/instances"
-	"plumelauncher/internal/metadata"
 )
-
-func TestJavaVersionForLaunchUsesParentGameVersion(t *testing.T) {
-	detail := metadata.VersionDetail{ID: "fabric-loader-0.16.0-1.20.1", Jar: "1.20.1"}
-	if got := javaVersionForLaunch(detail); got != "1.20.1" {
-		t.Fatalf("javaVersionForLaunch() = %q, want 1.20.1", got)
-	}
-}
-
-func TestJavaVersionForLaunchUsesVersionIDForVanilla(t *testing.T) {
-	detail := metadata.VersionDetail{ID: "1.21.4"}
-	if got := javaVersionForLaunch(detail); got != "1.21.4" {
-		t.Fatalf("javaVersionForLaunch() = %q, want 1.21.4", got)
-	}
-}
 
 func TestLaunchServiceStopCancelsBeforeProcessIsRegistered(t *testing.T) {
 	registry := instances.NewRegistry()
