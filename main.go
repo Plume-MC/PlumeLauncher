@@ -127,6 +127,12 @@ func main() {
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
 		Width:  1600,
 		Height: 900,
+		// Minimum window size keeps the launcher layout responsive: the
+		// `lg:` (3-column) instance grid, AccountDialog (860), SettingsSheet
+		// (720 + 140 nav) and InstanceDetailSheet (640) all fit with breathing
+		// room, and the TopBar + toolbar + at least one card row remain visible.
+		MinWidth:  1024,
+		MinHeight: 640,
 		Mac: application.MacWindow{
 			InvisibleTitleBarHeight: 50,
 			Backdrop:                application.MacBackdropTranslucent,
