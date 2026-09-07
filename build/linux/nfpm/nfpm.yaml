@@ -3,26 +3,26 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "myapp.exe"
+name: "plume-launcher"
 arch: ${GOARCH}
 platform: "linux"
-version: "0.1.0"
+version: "1.0.0"
 section: "default"
 priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
-description: "A myapp application"
-vendor: "Rozelith Corporation"
-homepage: "https://wails.io"
+description: "A compact Minecraft launcher and instance manager"
+vendor: "Plume"
+homepage: "https://github.com/PlumeMC/PlumeLauncher"
 license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/myapp.exe"
-    dst: "/usr/local/bin/myapp.exe"
+  - src: "./bin/plume-launcher"
+    dst: "/usr/local/bin/plume-launcher"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/myapp.exe.png"
-  - src: "./build/linux/myapp.exe.desktop"
-    dst: "/usr/share/applications/myapp.exe.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/plume-launcher.png"
+  - src: "./build/linux/plume-launcher.desktop"
+    dst: "/usr/share/applications/plume-launcher.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:
