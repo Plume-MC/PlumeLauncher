@@ -34,9 +34,6 @@ export function TopBar({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-semibold tracking-tight">Plume</span>
-            <span className="hidden rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline">
-              v1.0.0
-            </span>
           </div>
           <p className="hidden text-[10px] text-muted-foreground sm:block">Launcher</p>
         </div>

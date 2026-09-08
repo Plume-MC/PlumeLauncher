@@ -6,8 +6,6 @@ import { ContextStrip } from './ContextStrip';
 import type { LoaderType } from '../../../bindings/plumelauncher/internal/instances/models.js';
 
 interface InstanceLibraryToolbarProps {
-  accountName?: string;
-  accountType: 'ely.by' | 'offline';
   instanceCount: number;
   liveStatus: string;
   search: string;
@@ -20,8 +18,6 @@ interface InstanceLibraryToolbarProps {
 }
 
 export function InstanceLibraryToolbar({
-  accountName,
-  accountType,
   instanceCount,
   liveStatus,
   search,
@@ -38,8 +34,6 @@ export function InstanceLibraryToolbar({
         <div className="space-y-1.5">
           <h1 className="text-xl font-semibold tracking-tight">Instance Library</h1>
           <ContextStrip
-            accountName={accountName}
-            accountType={accountType}
             instanceCount={instanceCount}
             liveStatus={liveStatus}
           />

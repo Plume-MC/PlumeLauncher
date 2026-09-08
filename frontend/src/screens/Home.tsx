@@ -273,8 +273,6 @@ export function Home({ account, instances, onRefresh }: HomeProps) {
     <div className="mx-auto flex h-full w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
       <Suspense fallback={<LoadingOverlay />}>
         <InstanceLibraryToolbar
-          accountName={account?.displayName || account?.username}
-          accountType={account?.type === 'ely.by' ? 'ely.by' : 'offline'}
           instanceCount={instances.length}
           liveStatus={liveStatus}
           search={search}

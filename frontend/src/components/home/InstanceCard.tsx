@@ -259,6 +259,7 @@ export function InstanceCard({
       layout
       data-slot="instance-card"
       whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.985 }}
       transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
       className="flex flex-col rounded-xl border border-border bg-card/70 p-3.5 transition-colors hover:border-border hover:bg-card"
     >
@@ -291,13 +292,15 @@ export function InstanceCard({
             <span className={cn('rounded-md px-1.5 py-0.5 text-[10px] font-medium capitalize', meta.chip)}>
               {loader}
             </span>
-            <span className={cn('rounded-md px-1.5 py-0.5 text-[10px] font-medium', statusChip(state))}>
-              {actionState === 'preparing'
-                ? 'Launching'
-                : actionState === 'stopping'
-                  ? 'Stopping'
-                  : stateLabel[state]}
-            </span>
+            {state !== InstanceState.StateNotInstalled && (
+              <span className={cn('rounded-md px-1.5 py-0.5 text-[10px] font-medium', statusChip(state))}>
+                {actionState === 'preparing'
+                  ? 'Launching'
+                  : actionState === 'stopping'
+                    ? 'Stopping'
+                    : stateLabel[state]}
+              </span>
+            )}
           </div>
         </div>
       </div>

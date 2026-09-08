@@ -1,7 +1,7 @@
 import { IconPlus } from '@tabler/icons-react';
 import { motion } from 'motion/react';
-import { Button } from '@/components/ui/button';
 import { InstanceCard, type InstanceAction } from './InstanceCard';
+import { EmptyState } from './EmptyState';
 import type { Instance } from '../../../bindings/plumelauncher/internal/instances/models.js';
 import { InstanceState } from '../../../bindings/plumelauncher/internal/instances/models.js';
 
@@ -41,27 +41,7 @@ export function InstanceGrid({
   onOpenLogs,
 }: InstanceGridProps) {
   if (instances.length === 0) {
-    return (
-      <motion.div
-        initial={reduced ? false : { opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        className="flex flex-1 flex-col items-center justify-center rounded-xl border border-border bg-card/30 px-6 py-12 text-center"
-      >
-        <p className="text-sm font-medium text-foreground">No instances yet</p>
-        <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-          Create a Vanilla, Fabric, or Quilt install. Files stay isolated under your game data root.
-        </p>
-        <Button
-          size="sm"
-          className="mt-5 gap-1.5 bg-foreground font-semibold text-background hover:bg-foreground/90"
-          onClick={onCreate}
-        >
-          <IconPlus className="size-3.5" />
-          Create instance
-        </Button>
-      </motion.div>
-    );
+    return <EmptyState reduced={reduced} onCreate={onCreate} />;
   }
 
   return (
@@ -95,6 +75,20 @@ export function InstanceGrid({
           </div>
         ))
       )}
+      <motion.button
+        type="button"
+        layout
+        whileHover={{ y: -2 }}
+        whileTap={{ scale: 0.985 }}
+        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+        onClick={onCreate}
+        aria-label="Create new instance"
+        data-slot="new-instance-tile"
+        className="flex min-h-[156px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 bg-transparent text-muted-foreground transition-colors hover:border-border hover:bg-card/40 hover:text-foreground"
+      >
+        <IconPlus className="size-5" />
+        <span className="text-sm font-medium">New instance</span>
+      </motion.button>
     </div>
   );
 }
