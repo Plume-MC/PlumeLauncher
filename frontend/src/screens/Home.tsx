@@ -33,7 +33,7 @@ interface HomeProps {
   onRefresh: () => Promise<void>;
 }
 
-export function Home({ account, instances, onRefresh }: HomeProps) {
+export function Home({ instances, onRefresh }: HomeProps) {
   const { reduced } = useMotionPreference();
   const [search, setSearch] = useState('');
   const [loaderFilter, setLoaderFilter] = useState<'all' | LoaderType>('all');

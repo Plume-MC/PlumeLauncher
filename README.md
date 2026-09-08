@@ -38,8 +38,7 @@ Production remains **NO-GO** until the following deferred steps land:
   review and commit the rewrite. `makensis` (NSIS) and `appimagetool` (AppImage)
   must be available on `PATH` for the actual `package` invocation.
 
-Frontend lint is blocked by the TypeScript 7.0 / `typescript-eslint`
-incompatibility; bump `@typescript-eslint` packages once upstream support lands.
+Frontend lint uses Oxlint. Run `bun run lint` from `frontend/`.
 
 # Welcome to Your New Wails3 Project!
 
