@@ -92,7 +92,7 @@ func main() {
 	// 'Mac' options tailor the application when running an macOS.
 	app := application.New(application.Options{
 		Name:        "Plume Launcher",
-		Description: "A compact Minecraft launcher and instance manager",
+		Description: "Plume Launcher",
 		Services: []application.Service{
 			application.NewService(accountService),
 			application.NewService(instanceService),

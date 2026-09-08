@@ -5,19 +5,19 @@
 !include "FileFunc.nsh"
 
 !ifndef INFO_PROJECTNAME
-    !define INFO_PROJECTNAME "myapp"
+    !define INFO_PROJECTNAME "plume-launcher"
 !endif
 !ifndef INFO_COMPANYNAME
-    !define INFO_COMPANYNAME "Rozelith Corporation"
+    !define INFO_COMPANYNAME "Plume"
 !endif
 !ifndef INFO_PRODUCTNAME
-    !define INFO_PRODUCTNAME "My Product"
+    !define INFO_PRODUCTNAME "Plume Launcher"
 !endif
 !ifndef INFO_PRODUCTVERSION
-    !define INFO_PRODUCTVERSION "0.1.0"
+    !define INFO_PRODUCTVERSION "1.0.0"
 !endif
 !ifndef INFO_COPYRIGHT
-    !define INFO_COPYRIGHT "© 2026, Rozelith Corporation"
+    !define INFO_COPYRIGHT "(c) 2026, Plume"
 !endif
 !ifndef PRODUCT_EXECUTABLE
     !define PRODUCT_EXECUTABLE "${INFO_PROJECTNAME}.exe"

@@ -8,7 +8,7 @@ info:
   companyName: "Plume"
   productName: "Plume Launcher"
   productIdentifier: "com.plume.launcher"
-  description: "A compact Minecraft launcher and instance manager"
+  description: "Plume Launcher"
   copyright: "(c) 2026, Plume"
   comments: "Plume Launcher v1.0.0"
   version: "1.0.0"

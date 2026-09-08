@@ -34,7 +34,7 @@ Production remains **NO-GO** until the following deferred steps land:
 - Windows NSIS / MSIX templates and `darwin/Info.plist` still reference the
   legacy `My Product` / `Rozelith Corporation` / `com.drenzzz.myapp` strings.
   Regenerate them with `wails3 update build-assets -config build/config.yml
-  -dir build -name plume-launcher -binaryname plume-launcher -productname "Plume Launcher" -productidentifier com.plume.launcher -productversion 1.0.0 -productcompany Plume -productcopyright "(c) 2026, Plume" -productdescription "A compact Minecraft launcher and instance manager"`, then
+  -dir build -name plume-launcher -binaryname plume-launcher -productname "Plume Launcher" -productidentifier com.plume.launcher -productversion 1.0.0 -productcompany Plume -productcopyright "(c) 2026, Plume" -productdescription "Plume Launcher"`, then
   review and commit the rewrite. `makensis` (NSIS) and `appimagetool` (AppImage)
   must be available on `PATH` for the actual `package` invocation.
 

@@ -7,16 +7,16 @@
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   IgnorableNamespaces="uap3">
   
-  <Identity 
-    Name="com.drenzzz.myapp"
-    Publisher="CN=Rozelith Corporation"
-    Version="0.1.0.0" 
+  <Identity
+    Name="com.plume.launcher"
+    Publisher="CN=Plume"
+    Version="1.0.0.0"
     ProcessorArchitecture="x64" />
-  
+
   <Properties>
-    <DisplayName>My Product</DisplayName>
-    <PublisherDisplayName>Rozelith Corporation</PublisherDisplayName>
-    <Description>A myapp application</Description>
+    <DisplayName>Plume Launcher</DisplayName>
+    <PublisherDisplayName>Plume</PublisherDisplayName>
+    <Description>Plume Launcher</Description>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   
@@ -29,21 +29,21 @@
   </Resources>
   
   <Applications>
-    <Application Id="com.drenzzz.myapp" Executable="myapp.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="com.plume.launcher" Executable="plume-launcher.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="My Product"
-        Description="A myapp application"
+        DisplayName="Plume Launcher"
+        Description="Plume Launcher"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
         <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
-      
+
       <Extensions>
-        <desktop:Extension Category="windows.fullTrustProcess" Executable="myapp.exe" />
-        
-        
+        <desktop:Extension Category="windows.fullTrustProcess" Executable="plume-launcher.exe" />
+
+
       </Extensions>
     </Application>
   </Applications>

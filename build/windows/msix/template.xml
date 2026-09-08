@@ -8,29 +8,29 @@
         AllowPromptForPassword="false">
     </Settings>
     <Installer
-        Path="myapp.exe"
+        Path="plume-launcher.exe"
         Arguments=""
-        InstallLocation="C:\Program Files\Rozelith Corporation\My Product">
+        InstallLocation="C:\Program Files\Plume\Plume Launcher">
     </Installer>
     <PackageInformation
-        PackageName="My Product"
-        PackageDisplayName="My Product"
-        PublisherName="CN=Rozelith Corporation"
-        PublisherDisplayName="Rozelith Corporation"
-        Version="0.1.0.0"
-        PackageDescription="A myapp application">
+        PackageName="Plume Launcher"
+        PackageDisplayName="Plume Launcher"
+        PublisherName="CN=Plume"
+        PublisherDisplayName="Plume"
+        Version="1.0.0.0"
+        PackageDescription="Plume Launcher">
         <Capabilities>
             <Capability Name="runFullTrust" />
-            
+
         </Capabilities>
         <Applications>
             <Application
-                Id="com.drenzzz.myapp"
-                Description="A myapp application"
-                DisplayName="My Product"
-                ExecutableName="myapp.exe"
+                Id="com.plume.launcher"
+                Description="Plume Launcher"
+                DisplayName="Plume Launcher"
+                ExecutableName="plume-launcher.exe"
                 EntryPoint="Windows.FullTrustApplication">
-                
+
             </Application>
         </Applications>
         <Resources>
@@ -41,13 +41,13 @@
         </Dependencies>
         <Properties>
             <Framework>false</Framework>
-            <DisplayName>My Product</DisplayName>
-            <PublisherDisplayName>Rozelith Corporation</PublisherDisplayName>
-            <Description>A myapp application</Description>
+            <DisplayName>Plume Launcher</DisplayName>
+            <PublisherDisplayName>Plume</PublisherDisplayName>
+            <Description>Plume Launcher</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
     </PackageInformation>
-    <SaveLocation PackagePath="myapp.msix" />
+    <SaveLocation PackagePath="plume-launcher.msix" />
     <PackageIntegrity>
         <CertificatePath></CertificatePath>
     </PackageIntegrity>
