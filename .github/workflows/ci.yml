@@ -1,0 +1,291 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  frontend-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        working-directory: frontend
+        run: bun run lint
+
+      - name: Typecheck
+        working-directory: frontend
+        run: bun run typecheck
+
+  go-test:
+    runs-on: ubuntu-latest
+    needs: [frontend-check]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend (needed for go:embed)
+        working-directory: frontend
+        run: bun run build
+
+      - name: Download Go dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Enforce minimum Go coverage (20%)
+        run: |
+          set -euo pipefail
+          go test -coverprofile=coverage.out -covermode=atomic ./...
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%", "", $3); print $3}')
+          echo "Go line coverage: ${total}%"
+          awk -v t="${total}" 'BEGIN{exit !(t+0 >= 20)}' \
+            || { echo "::error::Go line coverage ${total}% is below the 20% gate"; exit 1; }
+
+  go-build:
+    runs-on: ubuntu-latest
+    needs: [go-test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend (needed for go:embed)
+        working-directory: frontend
+        run: bun run build
+
+      - name: Download Go dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build ./...
+
+  linux-portable-build:
+    runs-on: ubuntu-latest
+    needs: [frontend-check]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.9
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend for Go embed
+        working-directory: frontend
+        run: bun run build
+
+      - name: Build portable Linux executable
+        run: wails3 build
+
+      - name: Upload portable executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: plume-launcher-linux-amd64
+          path: bin/plume-launcher
+
+  windows-portable-build:
+    runs-on: windows-latest
+    needs: [frontend-check]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.9
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Verify frontend
+        working-directory: frontend
+        run: |
+          bun run lint
+          bun run typecheck
+
+      - name: Build frontend for Go embed
+        working-directory: frontend
+        run: bun run build
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Build portable Windows executable
+        run: wails3 build
+
+      - name: Upload portable executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: plume-launcher-windows-amd64
+          path: bin/plume-launcher.exe
+
+  windows-signed-release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.9
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build signed release candidate
+        run: wails3 build
+
+      - name: Sign and verify executable
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
+          WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_BASE64) -or [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD)) {
+            throw "Windows signing certificate secrets are required."
+          }
+          $certificatePath = Join-Path $env:RUNNER_TEMP "plume-launcher-signing.pfx"
+          try {
+            [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERTIFICATE_BASE64))
+            $timestampUrl = $env:WINDOWS_TIMESTAMP_URL
+            if ([string]::IsNullOrWhiteSpace($timestampUrl)) {
+              $timestampUrl = "http://timestamp.digicert.com"
+            }
+            signtool sign /fd SHA256 /f $certificatePath /p $env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD /tr $timestampUrl /td SHA256 bin/plume-launcher.exe
+            signtool verify /pa /all /v bin/plume-launcher.exe
+          }
+          finally {
+            Remove-Item -Force -ErrorAction SilentlyContinue $certificatePath
+          }
+
+      - name: Upload signed executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: plume-launcher-windows-amd64-signed
+          path: bin/plume-launcher.exe
+
+  linux-packages:
+    runs-on: ubuntu-latest
+    needs: [go-build]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            pkg-config \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.9
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build Linux packages
+        run: make deb rpm arch appimage
+
+      - name: Build system-dependent AppImage
+        run: make appimage-lite
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: plume-launcher-linux-packages
+          path: |
+            bin/*.deb
+            bin/*.rpm
+            bin/*.AppImage
+            bin/*.pkg.tar.zst
