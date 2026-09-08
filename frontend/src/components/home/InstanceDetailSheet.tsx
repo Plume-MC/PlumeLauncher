@@ -47,7 +47,7 @@ const draftFrom = (settings: Settings | undefined): Draft => ({
 const numberOrNull = (value: string) => value.trim() ? Number(value) : null;
 const stringOrNull = (value: string) => value.trim() ? value : null;
 
-const loaderArtwork = {
+const loaderArtwork: Record<string, string> = {
   vanilla: vanillaLogo,
   fabric: fabricLogo,
   quilt: quiltLogo,

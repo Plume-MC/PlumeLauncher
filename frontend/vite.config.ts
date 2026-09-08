@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
 import wails from "@wailsio/runtime/plugins/vite";
-import path from "path";
+import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 
 // https://vite.dev/config/
@@ -15,7 +15,7 @@ export default defineConfig({
   plugins: [react(), babel({ presets: [reactCompilerPreset()] }), wails("./bindings"), tailwindcss()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": resolve(import.meta.dirname, "./src"),
     },
   },
 });

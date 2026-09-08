@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build:dev": "tsc && vite build --minify false --mode development",
-    "build": "tsc && vite build --mode production",
+    "build": "tsc -b && vite build",
     "lint": "oxlint .",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {
