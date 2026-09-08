@@ -144,7 +144,7 @@ jobs:
       - name: Upload portable executable
         uses: actions/upload-artifact@v4
         with:
-          name: plume-launcher-linux-amd64
+          name: plume-launcher-1.0.0-linux-amd64
           path: bin/plume-launcher
 
   windows-portable-build:
@@ -185,7 +185,7 @@ jobs:
       - name: Upload portable executable
         uses: actions/upload-artifact@v4
         with:
-          name: plume-launcher-windows-amd64
+          name: plume-launcher-1.0.0-windows-amd64
           path: bin/plume-launcher.exe
 
   windows-signed-release:
@@ -240,7 +240,7 @@ jobs:
       - name: Upload signed executable
         uses: actions/upload-artifact@v4
         with:
-          name: plume-launcher-windows-amd64-signed
+          name: plume-launcher-1.0.0-windows-amd64-signed
           path: bin/plume-launcher.exe
 
   linux-packages:
@@ -283,7 +283,7 @@ jobs:
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: plume-launcher-linux-packages
+          name: plume-launcher-1.0.0-linux-packages
           path: |
             bin/*.deb
             bin/*.rpm
