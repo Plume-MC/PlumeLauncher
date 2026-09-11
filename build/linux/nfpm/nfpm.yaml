@@ -12,7 +12,7 @@ priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
 description: "Plume Launcher"
 vendor: "Plume"
-homepage: "https://github.com/PlumeMC/PlumeLauncher"
+homepage: "https://github.com/Plume-MC/PlumeLauncher"
 license: "MIT"
 release: "1"
 
