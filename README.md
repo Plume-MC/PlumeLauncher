@@ -164,6 +164,19 @@ Default data locations:
 - Linux: `~/.local/share/PlumeLauncher` or `$XDG_DATA_HOME/PlumeLauncher`
 - Windows: `%LOCALAPPDATA%/PlumeLauncher`
 
+### Portable mode
+
+To keep data beside the application instead, create an empty file named
+`portable.txt` next to the executable and restart the launcher. The settings
+screen shows a portable-mode notice while it is active. Move the app folder to
+relocate everything together. Keep the folder somewhere writable; a system
+program folder is not a good portable location.
+
+Explicit overrides still win: a custom path argument beats `PLUME_DATA_ROOT`,
+which beats portable mode, which beats a saved data root. Signed-in Ely.by
+sessions stay on the machine because tokens live in the OS keyring, so expect
+to sign in again after moving portable data to another computer.
+
 ## Development
 
 ### Requirements

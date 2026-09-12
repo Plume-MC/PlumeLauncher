@@ -13,6 +13,46 @@ func dataRootEnvName() string {
 	return "PLUME_DATA_ROOT"
 }
 
+// portableMarkerName is the opt-in file that, when placed next to the
+// executable, makes the launcher store its data beside the app instead of
+// the platform default (portable mode).
+func portableMarkerName() string {
+	return "portable.txt"
+}
+
+// portableDataRoot returns exeDir when portable mode is active, else "".
+// It is a pure function of exeDir so tests do not depend on os.Executable.
+func portableDataRoot(exeDir string) string {
+	if exeDir == "" {
+		return ""
+	}
+	if _, err := os.Stat(filepath.Join(exeDir, portableMarkerName())); err != nil {
+		return ""
+	}
+	return exeDir
+}
+
+// executableDir returns the directory holding the running executable,
+// or "" when it cannot be determined (then portable mode stays off).
+func executableDir() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	return filepath.Dir(exe)
+}
+
+// IsPortableMode reports whether dataRoot is the portable folder beside
+// the running executable (i.e. portable.txt sits next to the exe and the
+// resolved data root is the exe directory).
+func IsPortableMode(dataRoot string) bool {
+	return isPortableRoot(dataRoot, executableDir())
+}
+
+func isPortableRoot(dataRoot, exeDir string) bool {
+	return exeDir != "" && dataRoot != "" && dataRoot == exeDir && portableDataRoot(exeDir) != ""
+}
+
 func defaultAppRoot() string {
 	if runtime.GOOS == "windows" {
 		localAppData := os.Getenv("LOCALAPPDATA")
@@ -31,14 +71,22 @@ func defaultAppRoot() string {
 }
 
 // ResolveGameRoot returns the canonical launcher data directory.
-// Priority: customRoot arg → PLUME_DATA_ROOT → bootstrap.json → platform default.
+// Priority: customRoot arg → PLUME_DATA_ROOT → portable marker next to the
+// executable → bootstrap.json → platform default.
 func ResolveGameRoot(customRoot string) (string, error) {
+	return resolveGameRoot(customRoot, os.Getenv(dataRootEnvName()), executableDir(), configuredGameRoot)
+}
+
+func resolveGameRoot(customRoot, envRoot, exeDir string, configured func() (string, error)) (string, error) {
 	root := customRoot
 	if root == "" {
-		root = os.Getenv(dataRootEnvName())
+		root = envRoot
 	}
 	if root == "" {
-		if configured, err := configuredGameRoot(); err != nil {
+		root = portableDataRoot(exeDir)
+	}
+	if root == "" {
+		if configured, err := configured(); err != nil {
 			return "", err
 		} else {
 			root = configured

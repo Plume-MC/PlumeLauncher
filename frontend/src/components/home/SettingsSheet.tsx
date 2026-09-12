@@ -31,6 +31,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
   const [settings, setSettings] = useState<LauncherDefaults | null>(null);
   const [saved, setSaved] = useState<LauncherDefaults | null>(null);
   const [dataRoot, setDataRoot] = useState('');
+  const [portable, setPortable] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [dataNotice, setDataNotice] = useState('');
@@ -41,10 +42,11 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
     setBusy('load');
     setError('');
     setDataNotice('');
-    void Promise.all([SystemService.GetSettings(), SystemService.GetDataRoot()]).then(([nextSettings, root]) => {
+    void Promise.all([SystemService.GetSettings(), SystemService.GetDataRoot(), SystemService.IsPortableMode()]).then(([nextSettings, root, nextPortable]) => {
       setSettings(nextSettings);
       setSaved(nextSettings);
       setDataRoot(root);
+      setPortable(nextPortable);
     }).catch((err) => setError(err instanceof Error ? err.message : 'Unable to load settings')).finally(() => setBusy(''));
   }, [isOpen]);
 
@@ -185,6 +187,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                     <div className="rounded-lg bg-card/40 p-4">
                       <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Data root</h3>
                       <p className="mb-3 text-[11px] text-muted-foreground">Accounts, settings, logs, instances, assets, versions, and cache. Applies after restart. Existing data is not moved.</p>
+                      {portable ? <p className="mb-3 text-[11px] text-emerald-500" role="status">Portable mode: data is stored beside the application. Move the app folder to relocate everything together.</p> : null}
                       <label className="flex flex-col gap-1 text-xs">Path<Input value={dataRoot} onChange={(event) => setDataRoot(event.target.value)} /></label>
                     </div>
 

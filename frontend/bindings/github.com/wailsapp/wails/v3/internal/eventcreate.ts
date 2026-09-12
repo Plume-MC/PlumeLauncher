@@ -6,4 +6,23 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
-Object.freeze($Create.Events);
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as services$0 from "../../../../../plumelauncher/internal/services/models.js";
+
+function configure() {
+    Object.freeze(Object.assign($Create.Events, {
+        "download-progress": $$createType0,
+        "instance-state": $$createType1,
+        "launch-state": $$createType2,
+        "log-line": $$createType3,
+    }));
+}
+
+// Private type creation functions
+const $$createType0 = services$0.DownloadProgressEvent.createFrom;
+const $$createType1 = services$0.InstanceStateEvent.createFrom;
+const $$createType2 = services$0.LaunchStateEvent.createFrom;
+const $$createType3 = services$0.LogLineEvent.createFrom;
+
+configure();

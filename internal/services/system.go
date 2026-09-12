@@ -72,6 +72,11 @@ func (s *SystemService) GetAppRoot() string {
 	return s.DataRoot
 }
 
+// IsPortableMode reports whether launcher data is stored beside the executable.
+func (s *SystemService) IsPortableMode() bool {
+	return bootstrap.IsPortableMode(s.DataRoot)
+}
+
 // UpdateDataRoot stores the canonical data root to use after the launcher restarts.
 func (s *SystemService) UpdateDataRoot(path string) error {
 	if path == "" {
