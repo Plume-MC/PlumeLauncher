@@ -102,20 +102,33 @@ func (d *JavaDownloader) Download(ctx context.Context, major int, emitFn func(st
 		return fmt.Errorf("untrusted URL: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		d.emitProgress(emitFn, major, "failed", bytesRead, totalBytes, err.Error())
-		return err
-	}
+	var resp *http.Response
+	for {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			d.emitProgress(emitFn, major, "failed", bytesRead, totalBytes, err.Error())
+			return err
+		}
 
-	if bytesRead > 0 {
-		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", bytesRead))
-	}
+		if bytesRead > 0 {
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-", bytesRead))
+		}
 
-	resp, err := d.httpClient.Do(req)
-	if err != nil {
-		d.emitProgress(emitFn, major, "failed", bytesRead, totalBytes, err.Error())
-		return err
+		resp, err = d.httpClient.Do(req)
+		if err != nil {
+			d.emitProgress(emitFn, major, "failed", bytesRead, totalBytes, err.Error())
+			return err
+		}
+		if resp.StatusCode != http.StatusRequestedRangeNotSatisfiable || bytesRead == 0 {
+			break
+		}
+
+		resp.Body.Close()
+		bytesRead = 0
+		if err := os.Remove(partPath); err != nil && !os.IsNotExist(err) {
+			d.emitProgress(emitFn, major, "failed", bytesRead, totalBytes, err.Error())
+			return err
+		}
 	}
 	defer resp.Body.Close()
 
@@ -126,10 +139,6 @@ func (d *JavaDownloader) Download(ctx context.Context, major int, emitFn func(st
 		os.Remove(partPath)
 	case http.StatusPartialContent:
 		// Resume — continue
-	case http.StatusRequestedRangeNotSatisfiable:
-		// Reset
-		bytesRead = 0
-		os.Remove(partPath)
 	default:
 		err := fmt.Errorf("HTTP %d from %s", resp.StatusCode, url)
 		d.emitProgress(emitFn, major, "failed", bytesRead, totalBytes, err.Error())
@@ -202,6 +211,14 @@ func (d *JavaDownloader) Download(ctx context.Context, major int, emitFn func(st
 		d.emitProgress(emitFn, major, "failed", bytesRead, totalBytes, "checksum mismatch")
 		return fmt.Errorf("checksum verification failed: %w", err)
 	}
+	if err := os.Remove(archivePath); err != nil && !os.IsNotExist(err) {
+		d.emitProgress(emitFn, major, "failed", bytesRead, totalBytes, err.Error())
+		return err
+	}
+	if err := os.Rename(partPath, archivePath); err != nil {
+		d.emitProgress(emitFn, major, "failed", bytesRead, totalBytes, err.Error())
+		return fmt.Errorf("finalize archive: %w", err)
+	}
 
 	// 5. Extract
 	d.emitProgress(emitFn, major, "extracting", totalBytes, totalBytes, "")
@@ -211,7 +228,7 @@ func (d *JavaDownloader) Download(ctx context.Context, major int, emitFn func(st
 		return err
 	}
 
-	if err := ExtractJDK(partPath, runtimeDir); err != nil {
+	if err := ExtractJDK(archivePath, runtimeDir); err != nil {
 		d.emitProgress(emitFn, major, "failed", totalBytes, totalBytes, err.Error())
 		return err
 	}

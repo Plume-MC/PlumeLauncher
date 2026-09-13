@@ -20,21 +20,25 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
   const [error, setError] = useState('');
   const [managedInstalled, setManagedInstalled] = useState<Record<number, boolean>>({});
 
-  const scan = async () => {
+  const scan = async (preferredMajor?: number) => {
     setLoading(true);
     setError('');
     try {
       const list = (await SystemService.JavaRuntimes()) ?? [];
       setJavaList(list);
+      const managed = (await SystemService.ListManagedRuntimes()) ?? [];
+      const preferredPath = preferredMajor === undefined
+        ? ''
+        : list.find((java) => java.major === preferredMajor && java.source === 'Managed')?.path ?? '';
       if (list.length > 0) {
         setSelected((current) => {
+          if (preferredPath) return preferredPath;
           if (current && list.some((j) => j.path === current)) return current;
           const best = list.find((j) => j.major >= 17) ?? list[0];
           return best.path;
         });
       }
       // Check managed runtimes
-      const managed = await SystemService.ListManagedRuntimes();
       const installed: Record<number, boolean> = {};
       for (const rt of managed) {
         installed[rt.major] = rt.installed;
@@ -54,8 +58,8 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
   const scanRef = useRef(scan);
   scanRef.current = scan;
 
-  const handleDownloadComplete = useCallback(() => {
-    void scanRef.current();
+  const handleDownloadComplete = useCallback((major: number) => {
+    void scanRef.current(major);
   }, []);
 
   const handleNext = async () => {

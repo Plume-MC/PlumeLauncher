@@ -20,7 +20,7 @@ const (
 )
 
 // ExtractJDK extracts a JDK archive (.tar.gz or .zip) into destDir.
-// It rejects path traversal, symlinks, and excessively large archives.
+// It rejects path traversal, non-metadata symlinks, and excessively large archives.
 func ExtractJDK(archivePath string, destDir string) error {
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return err
@@ -73,12 +73,17 @@ func extractTarGz(archivePath string, destDir string) error {
 		if header.Typeflag == tar.TypeDir {
 			continue
 		}
-
-		// Reject symlinks
-		if header.Typeflag == tar.TypeSymlink {
-			return fmt.Errorf("symlink entry not allowed: %s", name)
+		stripped := stripTopLevelDir(name)
+		if stripped == "" || stripped == "." {
+			continue
 		}
-		if os.FileMode(header.Mode)&os.ModeSymlink != 0 {
+
+		// Temurin uses symlinks for duplicate legal notices. They are not needed
+		// at runtime, so skip those metadata entries instead of creating links.
+		if header.Typeflag == tar.TypeSymlink || os.FileMode(header.Mode)&os.ModeSymlink != 0 {
+			if isJDKLegalSymlink(stripped) {
+				continue
+			}
 			return fmt.Errorf("symlink mode not allowed: %s", name)
 		}
 
@@ -92,12 +97,6 @@ func extractTarGz(archivePath string, destDir string) error {
 			return fmt.Errorf("archive exceeds extraction limit: %s", name)
 		}
 		totalBytes += uint64(header.Size)
-
-		// Strip the first path component (e.g., "jdk-25.0.4+1/" → "bin/java")
-		stripped := stripTopLevelDir(name)
-		if stripped == "" || stripped == "." {
-			continue
-		}
 
 		destPath, err := security.ResolveUnderRoot(destDir, stripped)
 		if err != nil {
@@ -148,9 +147,16 @@ func extractZip(archivePath string, destDir string) error {
 		}
 
 		name := filepath.ToSlash(f.Name)
+		stripped := stripTopLevelDir(name)
+		if stripped == "" || stripped == "." {
+			continue
+		}
 
-		// Reject symlinks
+		// See the tar extractor for why legal-document symlinks are skipped.
 		if f.Mode()&os.ModeSymlink != 0 {
+			if isJDKLegalSymlink(stripped) {
+				continue
+			}
 			return fmt.Errorf("symlink entry not allowed: %s", name)
 		}
 
@@ -159,12 +165,6 @@ func extractZip(archivePath string, destDir string) error {
 			return fmt.Errorf("archive exceeds extraction limit: %s", name)
 		}
 		totalBytes += f.UncompressedSize64
-
-		// Strip the first path component
-		stripped := stripTopLevelDir(name)
-		if stripped == "" || stripped == "." {
-			continue
-		}
 
 		destPath, err := security.ResolveUnderRoot(destDir, stripped)
 		if err != nil {
@@ -199,6 +199,10 @@ func extractZip(archivePath string, destDir string) error {
 	}
 
 	return nil
+}
+
+func isJDKLegalSymlink(name string) bool {
+	return name == "legal" || strings.HasPrefix(name, "legal/")
 }
 
 // stripTopLevelDir removes the first path component from a slash-separated path.

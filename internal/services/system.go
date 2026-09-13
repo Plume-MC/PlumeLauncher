@@ -144,6 +144,17 @@ func (s *SystemService) JavaRuntimes() ([]java.JavaInfo, error) {
 	if system, err := java.SystemDefault(); err == nil && system != nil {
 		installed = append([]java.JavaInfo{*system}, installed...)
 	}
+	if s.RuntimeM != nil {
+		for _, managed := range s.RuntimeM.ListManaged() {
+			if !managed.Installed || managed.Path == "" {
+				continue
+			}
+			if info, err := java.ValidateJavaPath(managed.Path, 0); err == nil {
+				info.Source = "Managed"
+				installed = append(installed, *info)
+			}
+		}
+	}
 	for _, path := range s.Defaults.CustomJavaPaths {
 		if info, err := java.ValidateJavaPath(path, 0); err == nil {
 			info.Source = "Custom"
@@ -224,7 +235,7 @@ func (s *SystemService) CancelJavaDownload(major int) error {
 // ListManagedRuntimes returns all installed managed JDK runtimes.
 func (s *SystemService) ListManagedRuntimes() []runtimes.ManagedRuntime {
 	if s.RuntimeM == nil {
-		return nil
+		return []runtimes.ManagedRuntime{}
 	}
 	return s.RuntimeM.ListManaged()
 }

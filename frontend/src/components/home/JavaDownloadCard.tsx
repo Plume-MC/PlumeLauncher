@@ -10,7 +10,7 @@ interface JavaDownloadCardProps {
   major: number;
   recommended?: boolean;
   installed?: boolean;
-  onDownloadComplete?: () => void;
+  onDownloadComplete?: (major: number) => void;
 }
 
 const VERSION_LABELS: Record<number, string> = {
@@ -40,7 +40,7 @@ export function JavaDownloadCard({ major, recommended, installed, onDownloadComp
 
     const setup = async () => {
       const { Events } = await import('@wailsio/runtime');
-      unsub = Events.on('java-download-progress', (event: { data: JavaDownloadProgressEvent }) => {
+      unsub = Events.On('java-download-progress', (event: { data: JavaDownloadProgressEvent }) => {
         const data = event.data;
         if (data.major !== major) return;
 
@@ -52,7 +52,7 @@ export function JavaDownloadCard({ major, recommended, installed, onDownloadComp
         } else if (data.status === 'completed') {
           setStatus('completed');
           setProgress({ bytesRead: data.totalBytes, totalBytes: data.totalBytes });
-          onDownloadComplete?.();
+          onDownloadComplete?.(major);
         } else if (data.status === 'failed') {
           setStatus('failed');
           setError(data.error || 'Download failed');

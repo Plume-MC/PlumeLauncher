@@ -22,12 +22,12 @@ func NewRuntimeManager(dataRoot string) *RuntimeManager {
 // ListManaged returns all installed managed JDK runtimes.
 func (m *RuntimeManager) ListManaged() []ManagedRuntime {
 	base := filepath.Join(m.dataRoot, "runtimes", "java")
+	result := make([]ManagedRuntime, 0)
 	entries, err := os.ReadDir(base)
 	if err != nil {
-		return nil
+		return result
 	}
 
-	var result []ManagedRuntime
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue

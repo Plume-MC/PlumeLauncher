@@ -122,6 +122,59 @@ func TestExtractTarGz(t *testing.T) {
 	}
 }
 
+func TestExtractTarGz_SkipsLegalSymlinks(t *testing.T) {
+	dir := t.TempDir()
+	archivePath := filepath.Join(dir, "test.tar.gz")
+	destDir := filepath.Join(dir, "extracted")
+
+	f, err := os.Create(archivePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gz := gzip.NewWriter(f)
+	tw := tar.NewWriter(gz)
+
+	if err := tw.WriteHeader(&tar.Header{
+		Name:     "jdk-test/legal/jdk.crypto.ec/ASSEMBLY_EXCEPTION",
+		Linkname: "../java.base/ASSEMBLY_EXCEPTION",
+		Typeflag: tar.TypeSymlink,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	content := []byte("#!/bin/sh\necho java")
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "jdk-test/bin/java",
+		Mode: 0o755,
+		Size: int64(len(content)),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(content); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ExtractJDK(archivePath, destDir); err != nil {
+		t.Fatalf("ExtractJDK failed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(destDir, "bin", "java")); err != nil {
+		t.Fatalf("runtime file was not extracted: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(destDir, "legal", "jdk.crypto.ec", "ASSEMBLY_EXCEPTION")); !os.IsNotExist(err) {
+		t.Fatalf("legal symlink should be skipped, got error: %v", err)
+	}
+}
+
 func TestExtractJDK_UnsupportedFormat(t *testing.T) {
 	dir := t.TempDir()
 	archivePath := filepath.Join(dir, "test.bin")

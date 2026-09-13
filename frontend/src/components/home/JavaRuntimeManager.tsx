@@ -28,7 +28,7 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
     setError('');
     try {
       setRuntimes(await SystemService.JavaRuntimes() ?? []);
-      const managed = await SystemService.ListManagedRuntimes();
+      const managed = (await SystemService.ListManagedRuntimes()) ?? [];
       const installed: Record<number, boolean> = {};
       for (const rt of managed) {
         installed[rt.major] = rt.installed;
