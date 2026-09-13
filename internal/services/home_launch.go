@@ -48,7 +48,11 @@ func (s *HomeService) LaunchInstance(id string) (err error) {
 		}
 		selected, selectErr := java.SelectJava(found, inst.MCVersion)
 		if selectErr != nil {
-			return NewIncompatibleError(selectErr.Error())
+			required := java.RequiredJavaMajor(inst.MCVersion)
+			return NewIncompatibleError(fmt.Sprintf(
+				"Java %d is required for Minecraft %s but was not found. Download it from Settings > Java, or install Java %d manually.",
+				required, inst.MCVersion, required,
+			))
 		}
 		javaPath = selected.Path
 	}

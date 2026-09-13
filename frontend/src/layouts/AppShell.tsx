@@ -2,7 +2,7 @@ import { lazy, Suspense, useState, useRef, useEffect } from 'react';
 import { Events } from '@wailsio/runtime';
 import type { ActivityLogLine } from '@/components/panels/ActivityPanel';
 import type { Account } from '../../bindings/plumelauncher/internal/services/models.js';
-import type { DownloadProgressEvent, LaunchStateEvent, LogLineEvent } from '../../bindings/plumelauncher/internal/services/models.js';
+import type { DownloadProgressEvent, LaunchStateEvent, LogLineEvent, JavaDownloadProgressEvent } from '../../bindings/plumelauncher/internal/services/models.js';
 
 const TopBar = lazy(() => import('@/components/home/TopBar').then((module) => ({ default: module.TopBar })));
 const ActivityPanel = lazy(() => import('@/components/panels/ActivityPanel').then((module) => ({ default: module.ActivityPanel })));
@@ -34,6 +34,9 @@ export function AppShell({
   const [consoleLines, setConsoleLines] = useState<ActivityLogLine[]>([]);
   const [download, setDownload] = useState<DownloadProgressEvent | null>(null);
   const [launch, setLaunch] = useState<LaunchStateEvent | null>(null);
+  const [javaDownloads, setJavaDownloads] = useState<JavaDownloadProgressEvent[]>([]);
+  const javaDownloadsRef = useRef(javaDownloads);
+  javaDownloadsRef.current = javaDownloads;
   const dismissedRef = useRef(false);
 
   useEffect(() => {
@@ -93,6 +96,21 @@ export function AppShell({
         if (data.level === 'error') flushNow();
         else schedule();
       }),
+      Events.On('java-download-progress', (event) => {
+        const data: JavaDownloadProgressEvent = event.data;
+        setJavaDownloads((current) => {
+          const existing = current.findIndex((dl) => dl.major === data.major);
+          if (existing >= 0) {
+            const next = [...current];
+            next[existing] = data;
+            return next;
+          }
+          return [...current, data];
+        });
+        if (['downloading', 'extracting'].includes(data.status) && !dismissedRef.current) {
+          setActivityOpen(true);
+        }
+      }),
     ];
     return () => {
       if (frame) cancelAnimationFrame(frame);
@@ -124,6 +142,7 @@ export function AppShell({
           consoleLines={consoleLines}
           download={download}
           launch={launch}
+          javaDownloads={javaDownloads}
           onClearConsole={() => setConsoleLines([])}
         />}
         {settingsOpen && <SettingsSheet isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />}

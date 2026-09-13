@@ -1,11 +1,11 @@
 import { useDeferredValue, useEffect, useRef, useState } from "react";
-import { IconArrowDown, IconDownload, IconPlayerPlay, IconPlayerStop, IconTerminal2, IconTrash, IconX } from '@tabler/icons-react';
+import { IconArrowDown, IconCoffee, IconDownload, IconPlayerPlay, IconPlayerStop, IconTerminal2, IconTrash, IconX } from '@tabler/icons-react';
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { useMotionPreference } from "@/components/motion";
 import { toast } from "@/components/ui/toast";
-import { HomeService } from "../../../bindings/plumelauncher/internal/services/index.js";
-import type { DownloadProgressEvent, LaunchStateEvent } from "../../../bindings/plumelauncher/internal/services/models.js";
+import { HomeService, SystemService } from "../../../bindings/plumelauncher/internal/services/index.js";
+import type { DownloadProgressEvent, LaunchStateEvent, JavaDownloadProgressEvent } from "../../../bindings/plumelauncher/internal/services/models.js";
 
 export interface ActivityLogLine {
   level: string;
@@ -19,6 +19,7 @@ interface ActivityPanelProps {
   consoleLines: ActivityLogLine[];
   download: DownloadProgressEvent | null;
   launch: LaunchStateEvent | null;
+  javaDownloads: JavaDownloadProgressEvent[];
 }
 
 const activeDownloadStates = new Set(["downloading", "repairing"]);
@@ -39,14 +40,16 @@ function logTone(level: string) {
   return "text-muted-foreground";
 }
 
-export function ActivityPanel({ isOpen, onClose, onClearConsole, consoleLines, download, launch }: ActivityPanelProps) {
+export function ActivityPanel({ isOpen, onClose, onClearConsole, consoleLines, download, launch, javaDownloads }: ActivityPanelProps) {
   const { reduced } = useMotionPreference();
   const [cancelling, setCancelling] = useState(false);
   const [following, setFollowing] = useState(true);
+  const [activeTab, setActiveTab] = useState<'console' | 'java'>('console');
   const deferredConsoleLines = useDeferredValue(consoleLines);
   const consoleRef = useRef<HTMLDivElement>(null);
   const showDownload = !!download && (activeDownloadStates.has(download.status) || download.status === "failed");
   const showLaunch = !!launch && (activeLaunchStates.has(launch.state) || launch.state === "failed" || launch.state === "crashed");
+  const activeJavaDownloads = javaDownloads.filter((dl) => dl.status === "downloading" || dl.status === "extracting");
 
   useEffect(() => {
     if (!isOpen || !following || !consoleRef.current) return;
@@ -192,37 +195,115 @@ export function ActivityPanel({ isOpen, onClose, onClearConsole, consoleLines, d
       ) : null}
 
       <section className="flex min-h-0 flex-1 flex-col">
-        <div className="flex items-center justify-between border-b border-border px-4 py-2">
-          <span className="text-xs font-medium text-muted-foreground">Console</span>
-          <div className="flex items-center gap-1">
-            {!following ? (
-              <Button variant="ghost" size="icon-xs" onClick={() => setFollowing(true)} aria-label="Follow latest output" title="Follow latest output">
-                <IconArrowDown className="size-3.5" />
+        <div className="flex items-center gap-1 border-b border-border px-4 py-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('console')}
+            className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+              activeTab === 'console' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Console
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('java')}
+            className={`relative rounded px-2 py-1 text-xs font-medium transition-colors ${
+              activeTab === 'java' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Java
+            {activeJavaDownloads.length > 0 && (
+              <span className="absolute -right-1 -top-1 size-2 rounded-full bg-cyan" />
+            )}
+          </button>
+          {activeTab === 'console' && (
+            <div className="ml-auto flex items-center gap-1">
+              {!following ? (
+                <Button variant="ghost" size="icon-xs" onClick={() => setFollowing(true)} aria-label="Follow latest output" title="Follow latest output">
+                  <IconArrowDown className="size-3.5" />
+                </Button>
+              ) : null}
+              <Button variant="ghost" size="icon-xs" onClick={onClearConsole} disabled={!consoleLines.length} aria-label="Clear console">
+                <IconTrash className="size-3.5" />
               </Button>
-            ) : null}
-            <Button variant="ghost" size="icon-xs" onClick={onClearConsole} disabled={!consoleLines.length} aria-label="Clear console">
-              <IconTrash className="size-3.5" />
-            </Button>
-          </div>
-        </div>
-        <div
-          ref={consoleRef}
-          className="min-h-0 flex-1 overflow-y-auto px-4 py-3 font-mono text-[11px] leading-5"
-          onScroll={() => {
-            const element = consoleRef.current;
-            if (element) setFollowing(element.scrollHeight - element.scrollTop - element.clientHeight < 24);
-          }}
-        >
-          {deferredConsoleLines.length ? (
-            deferredConsoleLines.map((line, index) => (
-              <p key={`${index}:${line.message}`} className={`break-words [content-visibility:auto] ${logTone(line.level)}`}>
-                {line.message}
-              </p>
-            ))
-          ) : (
-            <p className="text-muted-foreground/60">No console output.</p>
+            </div>
           )}
         </div>
+
+        {activeTab === 'console' ? (
+          <div
+            ref={consoleRef}
+            className="min-h-0 flex-1 overflow-y-auto px-4 py-3 font-mono text-[11px] leading-5"
+            onScroll={() => {
+              const element = consoleRef.current;
+              if (element) setFollowing(element.scrollHeight - element.scrollTop - element.clientHeight < 24);
+            }}
+          >
+            {deferredConsoleLines.length ? (
+              deferredConsoleLines.map((line, index) => (
+                <p key={`${index}:${line.message}`} className={`break-words [content-visibility:auto] ${logTone(line.level)}`}>
+                  {line.message}
+                </p>
+              ))
+            ) : (
+              <p className="text-muted-foreground/60">No console output.</p>
+            )}
+          </div>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+            {javaDownloads.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60">No JDK downloads.</p>
+            ) : (
+              <div className="space-y-2">
+                {javaDownloads.map((dl) => (
+                  <div key={dl.major} className="rounded-lg border border-border bg-card/30 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <IconCoffee className="size-3.5 text-muted-foreground" />
+                        <span className="text-xs font-semibold">Java {dl.major}</span>
+                        <span className={`text-[10px] font-medium ${
+                          dl.status === 'completed' ? 'text-success' :
+                          dl.status === 'failed' ? 'text-destructive' :
+                          dl.status === 'cancelled' ? 'text-muted-foreground' :
+                          'text-cyan'
+                        }`}>
+                          {dl.status === 'downloading' ? 'Downloading' :
+                           dl.status === 'extracting' ? 'Extracting' :
+                           dl.status === 'completed' ? 'Installed' :
+                           dl.status === 'failed' ? 'Failed' :
+                           dl.status === 'cancelled' ? 'Cancelled' :
+                           dl.status}
+                        </span>
+                      </div>
+                      {dl.status === 'downloading' && (
+                        <Button variant="outline" size="sm" onClick={() => void SystemService.CancelJavaDownload(dl.major)} className="h-6 gap-1 text-[10px]">
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                    {dl.status === 'downloading' && dl.totalBytes > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <div className="h-1 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-cyan transition-[width] duration-200"
+                            style={{ width: `${Math.round((dl.bytesRead / dl.totalBytes) * 100)}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] font-mono text-muted-foreground">
+                          {formatBytes(dl.bytesRead)} / {formatBytes(dl.totalBytes)}
+                        </p>
+                      </div>
+                    )}
+                    {dl.error && (
+                      <p className="mt-1 text-[10px] text-destructive">{dl.error}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </section>
     </motion.aside>
   );
