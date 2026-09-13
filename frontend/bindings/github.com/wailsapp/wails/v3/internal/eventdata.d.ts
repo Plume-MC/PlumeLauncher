@@ -14,6 +14,7 @@ declare module "@wailsio/runtime" {
         interface CustomEvents {
             "download-progress": services$0.DownloadProgressEvent;
             "instance-state": services$0.InstanceStateEvent;
+            "java-download-progress": services$0.JavaDownloadProgressEvent;
             "launch-state": services$0.LaunchStateEvent;
             "log-line": services$0.LogLineEvent;
         }

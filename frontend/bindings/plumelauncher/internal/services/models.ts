@@ -3,6 +3,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import { Create as $Create } from "@wailsio/runtime";
 
 /**
  * Account represents a user account.
@@ -125,6 +126,51 @@ export class InstanceStateEvent {
     static createFrom($$source: any = {}): InstanceStateEvent {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new InstanceStateEvent($$parsedSource as Partial<InstanceStateEvent>);
+    }
+}
+
+/**
+ * JavaDownloadProgressEvent is emitted during JDK download operations.
+ */
+export class JavaDownloadProgressEvent {
+    "major": number;
+    "status": string;
+    "bytesRead": number;
+    "totalBytes": number;
+    "speed": number;
+    "eta": number;
+    "error"?: string;
+
+    /** Creates a new JavaDownloadProgressEvent instance. */
+    constructor($$source: Partial<JavaDownloadProgressEvent> = {}) {
+        if (!("major" in $$source)) {
+            this["major"] = 0;
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("bytesRead" in $$source)) {
+            this["bytesRead"] = 0;
+        }
+        if (!("totalBytes" in $$source)) {
+            this["totalBytes"] = 0;
+        }
+        if (!("speed" in $$source)) {
+            this["speed"] = 0;
+        }
+        if (!("eta" in $$source)) {
+            this["eta"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new JavaDownloadProgressEvent instance from a string or object.
+     */
+    static createFrom($$source: any = {}): JavaDownloadProgressEvent {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new JavaDownloadProgressEvent($$parsedSource as Partial<JavaDownloadProgressEvent>);
     }
 }
 

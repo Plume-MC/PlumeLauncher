@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { IconChevronLeft, IconLoader2, IconRefresh } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { JavaDownloadCard } from '@/components/home/JavaDownloadCard';
 import { SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { JavaInfo } from '../../../bindings/plumelauncher/internal/java/models.js';
 
@@ -10,11 +11,14 @@ interface JavaStepProps {
   onBack: () => void;
 }
 
+const SUPPORTED_MAJORS = [25, 21, 17, 8];
+
 export function JavaStep({ onNext, onBack }: JavaStepProps) {
   const [loading, setLoading] = useState(true);
   const [javaList, setJavaList] = useState<JavaInfo[]>([]);
   const [selected, setSelected] = useState('');
   const [error, setError] = useState('');
+  const [managedInstalled, setManagedInstalled] = useState<Record<number, boolean>>({});
 
   const scan = async () => {
     setLoading(true);
@@ -29,6 +33,13 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
           return best.path;
         });
       }
+      // Check managed runtimes
+      const managed = await SystemService.ListManagedRuntimes();
+      const installed: Record<number, boolean> = {};
+      for (const rt of managed) {
+        installed[rt.major] = rt.installed;
+      }
+      setManagedInstalled(installed);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to scan Java');
     } finally {
@@ -38,6 +49,13 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
 
   useEffect(() => {
     void scan();
+  }, []);
+
+  const scanRef = useRef(scan);
+  scanRef.current = scan;
+
+  const handleDownloadComplete = useCallback(() => {
+    void scanRef.current();
   }, []);
 
   const handleNext = async () => {
@@ -51,6 +69,8 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
     }
     onNext();
   };
+
+  const hasJava = javaList.length > 0;
 
   return (
     <div className="space-y-6">
@@ -76,8 +96,8 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
             Scanning...
           </div>
         ) : javaList.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-card/20 p-6 text-center text-sm text-muted-foreground">
-            No Java found. You can skip and set a path later in Settings.
+          <div className="rounded-lg border border-dashed border-border bg-card/20 p-4 text-center text-sm text-muted-foreground">
+            No Java found. Download one below or skip to set a path later in Settings.
           </div>
         ) : (
           <div className="max-h-[200px] overflow-auto rounded-lg border border-border bg-card/30">
@@ -138,6 +158,22 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
         ) : null}
       </div>
 
+      {/* Download section */}
+      <div className="space-y-2">
+        <span className="text-xs font-medium text-muted-foreground">Download JDK (Temurin)</span>
+        <div className="grid grid-cols-2 gap-2">
+          {SUPPORTED_MAJORS.map((major) => (
+            <JavaDownloadCard
+              key={major}
+              major={major}
+              recommended={major === 25}
+              installed={managedInstalled[major] ?? false}
+              onDownloadComplete={handleDownloadComplete}
+            />
+          ))}
+        </div>
+      </div>
+
       <div className="flex gap-2">
         <Button variant="outline" onClick={onBack} className="flex-1 gap-1 border-border">
           <IconChevronLeft className="size-4" />
@@ -148,7 +184,7 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
           disabled={loading}
           className="flex-1 bg-foreground font-semibold text-background hover:bg-foreground/90"
         >
-          {javaList.length === 0 ? 'Skip' : 'Continue'}
+          {hasJava ? 'Continue' : 'Skip'}
         </Button>
       </div>
     </div>

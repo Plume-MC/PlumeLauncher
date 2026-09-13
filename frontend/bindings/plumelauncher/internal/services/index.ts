@@ -16,6 +16,7 @@ export {
     Account,
     DownloadProgressEvent,
     InstanceStateEvent,
+    JavaDownloadProgressEvent,
     LaunchStateEvent,
     LogLineEvent
 } from "./models.js";

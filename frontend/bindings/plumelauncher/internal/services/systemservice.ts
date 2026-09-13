@@ -16,6 +16,9 @@ import * as instances$0 from "../instances/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as java$0 from "../java/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as runtimes$0 from "../runtimes/models.js";
 
 /**
  * AddCustomJava verifies a Java executable before persisting it as a custom runtime.
@@ -24,6 +27,27 @@ export function AddCustomJava(path: string): $CancellablePromise<java$0.JavaInfo
     return $Call.ByID(3970252539, path).then(($result: any) => {
         return $$createType1($result);
     });
+}
+
+/**
+ * CancelJavaDownload cancels an active JDK download.
+ */
+export function CancelJavaDownload(major: number): $CancellablePromise<void> {
+    return $Call.ByID(1430642123, major);
+}
+
+/**
+ * DeleteManagedRuntime removes a managed JDK runtime.
+ */
+export function DeleteManagedRuntime(major: number): $CancellablePromise<void> {
+    return $Call.ByID(1950518885, major);
+}
+
+/**
+ * DownloadJava starts downloading a managed JDK for the given major version.
+ */
+export function DownloadJava(major: number): $CancellablePromise<void> {
+    return $Call.ByID(120327949, major);
 }
 
 /**
@@ -50,6 +74,13 @@ export function GetSettings(): $CancellablePromise<instances$0.LauncherDefaults>
 }
 
 /**
+ * IsJavaAvailable reports whether a Java runtime is available for the given major version.
+ */
+export function IsJavaAvailable(major: number): $CancellablePromise<boolean> {
+    return $Call.ByID(2173746164, major);
+}
+
+/**
  * IsPortableMode reports whether launcher data is stored beside the executable.
  */
 export function IsPortableMode(): $CancellablePromise<boolean> {
@@ -62,6 +93,15 @@ export function IsPortableMode(): $CancellablePromise<boolean> {
 export function JavaRuntimes(): $CancellablePromise<java$0.JavaInfo[]> {
     return $Call.ByID(1197596420).then(($result: any) => {
         return $$createType3($result);
+    });
+}
+
+/**
+ * ListManagedRuntimes returns all installed managed JDK runtimes.
+ */
+export function ListManagedRuntimes(): $CancellablePromise<runtimes$0.ManagedRuntime[]> {
+    return $Call.ByID(2972888975).then(($result: any) => {
+        return $$createType5($result);
     });
 }
 
@@ -117,3 +157,5 @@ const $$createType0 = java$0.JavaInfo.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = instances$0.LauncherDefaults.createFrom;
 const $$createType3 = $Create.Array($$createType0);
+const $$createType4 = runtimes$0.ManagedRuntime.createFrom;
+const $$createType5 = $Create.Array($$createType4);

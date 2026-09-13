@@ -14,15 +14,17 @@ function configure() {
     Object.freeze(Object.assign($Create.Events, {
         "download-progress": $$createType0,
         "instance-state": $$createType1,
-        "launch-state": $$createType2,
-        "log-line": $$createType3,
+        "java-download-progress": $$createType2,
+        "launch-state": $$createType3,
+        "log-line": $$createType4,
     }));
 }
 
 // Private type creation functions
 const $$createType0 = services$0.DownloadProgressEvent.createFrom;
 const $$createType1 = services$0.InstanceStateEvent.createFrom;
-const $$createType2 = services$0.LaunchStateEvent.createFrom;
-const $$createType3 = services$0.LogLineEvent.createFrom;
+const $$createType2 = services$0.JavaDownloadProgressEvent.createFrom;
+const $$createType3 = services$0.LaunchStateEvent.createFrom;
+const $$createType4 = services$0.LogLineEvent.createFrom;
 
 configure();
