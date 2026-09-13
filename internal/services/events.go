@@ -4,10 +4,11 @@ import "github.com/wailsapp/wails/v3/pkg/application"
 
 // Event types emitted via Wails app.Event.Emit
 const (
-	EventDownloadProgress = "download-progress"
-	EventInstanceState    = "instance-state"
-	EventLaunchState      = "launch-state"
-	EventLogLine          = "log-line"
+	EventDownloadProgress      = "download-progress"
+	EventInstanceState         = "instance-state"
+	EventLaunchState           = "launch-state"
+	EventLogLine               = "log-line"
+	EventJavaDownloadProgress  = "java-download-progress"
 )
 
 // DownloadProgressEvent is emitted during download operations.
@@ -47,6 +48,17 @@ type LogLineEvent struct {
 	Message     string `json:"message"`
 	OperationID string `json:"operationId,omitempty"`
 	InstanceID  string `json:"instanceId,omitempty"`
+}
+
+// JavaDownloadProgressEvent is emitted during JDK download operations.
+type JavaDownloadProgressEvent struct {
+	Major      int     `json:"major"`
+	Status     string  `json:"status"`
+	BytesRead  int64   `json:"bytesRead"`
+	TotalBytes int64   `json:"totalBytes"`
+	Speed      float64 `json:"speed"`
+	ETA        float64 `json:"eta"`
+	Error      string  `json:"error,omitempty"`
 }
 
 func emit(app *application.App, name string, data any) {

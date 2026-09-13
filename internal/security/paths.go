@@ -21,6 +21,7 @@ var trustedArtifactHosts = map[string]struct{}{
 	"meta.fabricmc.net":                {},
 	"maven.quiltmc.org":                {},
 	"meta.quiltmc.org":                 {},
+	"github.com":                       {},
 }
 
 // ValidateArtifactURL restricts downloads to the upstream artifact hosts.

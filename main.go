@@ -11,6 +11,7 @@ import (
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/logging"
+	"plumelauncher/internal/runtimes"
 	"plumelauncher/internal/services"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -33,6 +34,7 @@ func init() {
 	application.RegisterEvent[services.InstanceStateEvent](services.EventInstanceState)
 	application.RegisterEvent[services.LaunchStateEvent](services.EventLaunchState)
 	application.RegisterEvent[services.LogLineEvent](services.EventLogLine)
+	application.RegisterEvent[services.JavaDownloadProgressEvent](services.EventJavaDownloadProgress)
 }
 
 // main function serves as the application's entry point. It initializes the application, creates a window,
@@ -84,6 +86,8 @@ func main() {
 		DataRoot: config.DataRoot,
 		Manager:  instanceManager,
 	}
+	javaDL := runtimes.NewJavaDownloader(config.DataRoot)
+	runtimeM := runtimes.NewRuntimeManager(config.DataRoot)
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -96,7 +100,6 @@ func main() {
 		Services: []application.Service{
 			application.NewService(accountService),
 			application.NewService(instanceService),
-			application.NewService(&services.SystemService{DataRoot: config.DataRoot, Defaults: defaults}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -106,6 +109,14 @@ func main() {
 		},
 	})
 	launchService.App = app
+	systemSvc := &services.SystemService{
+		DataRoot: config.DataRoot,
+		Defaults: defaults,
+		JavaDL:   javaDL,
+		RuntimeM: runtimeM,
+		Emit:     func(name string, data any) { app.Event.Emit(name, data) },
+	}
+	app.RegisterService(application.NewService(systemSvc))
 	app.RegisterService(application.NewService(&services.HomeService{
 		DataRoot:  config.DataRoot,
 		Defaults:  defaults,

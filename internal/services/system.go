@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
@@ -9,12 +10,16 @@ import (
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/launch"
 	"plumelauncher/internal/platform"
+	"plumelauncher/internal/runtimes"
 )
 
 // SystemService manages launcher settings and system operations.
 type SystemService struct {
 	DataRoot string // canonical launcher data root
 	Defaults instances.LauncherDefaults
+	JavaDL   *runtimes.JavaDownloader
+	RuntimeM *runtimes.RuntimeManager
+	Emit     func(string, any) // event emitter
 }
 
 // GetSettings returns the current launcher settings.
@@ -192,4 +197,61 @@ func (s *SystemService) ValidateJavaPath(path string, requiredMajor int) (*java.
 		return nil, NewIncompatibleError(err.Error())
 	}
 	return info, nil
+}
+
+// DownloadJava starts downloading a managed JDK for the given major version.
+func (s *SystemService) DownloadJava(major int) error {
+	if s.JavaDL == nil {
+		return NewRuntimeError("Java downloader not initialized")
+	}
+	go func() {
+		err := s.JavaDL.Download(context.Background(), major, s.Emit)
+		if err != nil && s.Emit != nil {
+			s.Emit(EventLogLine, LogLineEvent{Level: "error", Message: "Java download failed: " + err.Error()})
+		}
+	}()
+	return nil
+}
+
+// CancelJavaDownload cancels an active JDK download.
+func (s *SystemService) CancelJavaDownload(major int) error {
+	if s.JavaDL == nil {
+		return NewRuntimeError("Java downloader not initialized")
+	}
+	return s.JavaDL.Cancel(major)
+}
+
+// ListManagedRuntimes returns all installed managed JDK runtimes.
+func (s *SystemService) ListManagedRuntimes() []runtimes.ManagedRuntime {
+	if s.RuntimeM == nil {
+		return nil
+	}
+	return s.RuntimeM.ListManaged()
+}
+
+// DeleteManagedRuntime removes a managed JDK runtime.
+func (s *SystemService) DeleteManagedRuntime(major int) error {
+	if s.RuntimeM == nil {
+		return NewRuntimeError("Runtime manager not initialized")
+	}
+	return s.RuntimeM.Delete(major)
+}
+
+// IsJavaAvailable reports whether a Java runtime is available for the given major version.
+func (s *SystemService) IsJavaAvailable(major int) bool {
+	// Check managed runtimes first
+	if s.RuntimeM != nil && s.RuntimeM.IsInstalled(major) {
+		return true
+	}
+	// Check system installations
+	installed, err := java.ScanJavaInstallations()
+	if err != nil {
+		return false
+	}
+	for _, info := range installed {
+		if info.Major == major {
+			return true
+		}
+	}
+	return false
 }
