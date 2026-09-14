@@ -10,7 +10,7 @@ interface JavaDownloadCardProps {
   major: number;
   recommended?: boolean;
   installed?: boolean;
-  onDownloadComplete?: (major: number) => void;
+  onDownloadComplete?: (major?: number) => void;
 }
 
 const VERSION_LABELS: Record<number, string> = {

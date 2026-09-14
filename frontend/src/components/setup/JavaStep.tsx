@@ -58,7 +58,7 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
   const scanRef = useRef(scan);
   scanRef.current = scan;
 
-  const handleDownloadComplete = useCallback((major: number) => {
+  const handleDownloadComplete = useCallback((major?: number) => {
     void scanRef.current(major);
   }, []);
 
