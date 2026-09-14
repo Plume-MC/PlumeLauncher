@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Plume Launcher
+Exec=plume-launcher
+Icon=plume-launcher
+Categories=Game;Development;
+Comment=Plume Launcher
+Terminal=false
+Keywords=wails
+Version=1.0
+StartupNotify=false
