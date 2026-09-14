@@ -8,6 +8,7 @@ import (
 	"log"
 
 	"plumelauncher/internal/bootstrap"
+	"plumelauncher/internal/cleanup"
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/logging"
@@ -53,6 +54,9 @@ func main() {
 	}
 	defer logger.Close()
 	logger.Info("launcher_started", "dataRoot", config.DataRoot)
+	if removed := cleanup.CleanupOrphanedPartFiles(config.DataRoot); removed > 0 {
+		logger.Info("cleanup", "removed_part_files", removed)
+	}
 	dataRootLock, err := bootstrap.AcquireDataRootLock(config.DataRoot)
 	if err != nil {
 		if errors.Is(err, bootstrap.ErrDataRootLocked) {
