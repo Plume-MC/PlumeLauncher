@@ -28,8 +28,16 @@ Unicode true
 !define PRODUCT_EXECUTABLE  "plume-launcher.exe"
 !define UNINST_KEY_NAME     "PlumePlume Launcher"
 ####
-!define REQUEST_EXECUTION_LEVEL "admin"
-!define WAILS_INSTALL_SCOPE     "machine"
+!ifndef WAILS_INSTALL_SCOPE
+    !define WAILS_INSTALL_SCOPE "user"
+!endif
+!ifndef REQUEST_EXECUTION_LEVEL
+    !if "${WAILS_INSTALL_SCOPE}" == "user"
+        !define REQUEST_EXECUTION_LEVEL "user"
+    !else
+        !define REQUEST_EXECUTION_LEVEL "admin"
+    !endif
+!endif
 ####
 ## Include the wails tools
 ####
@@ -63,6 +71,8 @@ ManifestDPIAware true
 !insertmacro MUI_PAGE_INSTFILES # Installing page.
 !insertmacro MUI_PAGE_FINISH # Finished installation page.
 
+!insertmacro MUI_UNPAGE_COMPONENTS
+!insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES # Uninstalling page
 
 !insertmacro MUI_LANGUAGE "English" # Set the Language of the installer
@@ -74,9 +84,9 @@ ManifestDPIAware true
 Name "${INFO_PRODUCTNAME}"
 OutFile "..\..\..\bin\${INFO_PROJECTNAME}-${INFO_PRODUCTVERSION}-windows-${ARCH}-installer.exe" # Name of the installer's file.
 !if "${WAILS_INSTALL_SCOPE}" == "user"
-    InstallDir "$LOCALAPPDATA\Programs\${INFO_PRODUCTNAME}"
+    InstallDir "$LOCALAPPDATA\PlumeLauncher"
 !else
-    InstallDir "$PROGRAMFILES64\${INFO_COMPANYNAME}\${INFO_PRODUCTNAME}"
+    InstallDir "$PROGRAMFILES64\${INFO_PRODUCTNAME}"
 !endif
 ShowInstDetails show # This will always show the installation details.
 
@@ -102,12 +112,13 @@ Section
     !insertmacro wails.writeUninstaller
 SectionEnd
 
-Section "uninstall" 
+Section "Uninstall"
+    SectionIn RO
     !insertmacro wails.setShellContext
 
     RMDir /r "$AppData\${PRODUCT_EXECUTABLE}" # Remove the WebView2 DataPath
 
-    RMDir /r $INSTDIR
+    Delete "$INSTDIR\${PRODUCT_EXECUTABLE}"
 
     Delete "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk"
     Delete "$DESKTOP\${INFO_PRODUCTNAME}.lnk"
@@ -116,4 +127,9 @@ Section "uninstall"
     !insertmacro wails.unassociateCustomProtocols
 
     !insertmacro wails.deleteUninstaller
+    RMDir "$INSTDIR"
+SectionEnd
+
+Section /o "un.Delete launcher data (instances, accounts, Java, and logs)"
+    RMDir /r "$LOCALAPPDATA\PlumeLauncher"
 SectionEnd
