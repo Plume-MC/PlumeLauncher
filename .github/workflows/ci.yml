@@ -319,6 +319,9 @@ jobs:
       - name: Build system-dependent AppImage
         run: make appimage-lite
 
+      - name: Generate SHA256 checksums
+        run: make checksums
+
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
@@ -328,3 +331,4 @@ jobs:
             bin/*.rpm
             bin/*.AppImage
             bin/*.pkg.tar.zst
+            bin/SHA256SUMS

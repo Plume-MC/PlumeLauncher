@@ -1,7 +1,7 @@
 APP_NAME := plume-launcher
 VERSION := 1.0.0
 
-.PHONY: help deps frontend-install doctor dev build build-upx windows run lint typecheck test test-coverage check check-all package deb rpm arch appimage appimage-lite all
+.PHONY: help deps frontend-install doctor dev build build-upx windows run lint typecheck test test-coverage check check-all package deb rpm arch appimage appimage-lite all checksums
 
 .DEFAULT_GOAL := help
 
@@ -86,3 +86,8 @@ appimage-lite:
 
 all:
 	wails3 task linux:package
+
+checksums:
+	@cd bin && sha256sum * > SHA256SUMS 2>/dev/null || { echo "no artifacts in bin/"; exit 1; }
+	@echo "SHA256SUMS written to bin/SHA256SUMS"
+	@cat bin/SHA256SUMS
