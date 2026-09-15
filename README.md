@@ -267,8 +267,9 @@ Generated bindings live in `frontend/bindings/`. Do not edit those files by hand
 
 ## Contributing
 
-Open an issue for a bug or feature request. Pull requests that change behavior
-should include tests for the affected path and pass `make check`.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or pull request.
+Behavior-changing pull requests should include tests for the affected path and
+pass `make check`.
 
 ## Disclaimer
 

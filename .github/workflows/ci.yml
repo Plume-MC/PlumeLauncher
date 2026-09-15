@@ -2,9 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'dev/**'
+      - 'release/**'
+      - 'hotfix/**'
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - 'dev/**'
+      - 'release/**'
+      - 'hotfix/**'
   workflow_dispatch:
 
 jobs:
