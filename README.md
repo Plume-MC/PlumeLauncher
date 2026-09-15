@@ -150,8 +150,12 @@ sudo pacman -U ./plume-launcher-1.0.0-1-x86_64.pkg.tar.zst
 
 ### Windows
 
-Run the downloaded `.exe`. On Windows 10 or managed machines, install the
-Evergreen WebView2 Runtime if the app window does not start.
+Run the downloaded `.exe` installer or portable executable. v1.0.0 is unsigned, so Windows SmartScreen may ask for confirmation. 
+Verify checksums where a `SHA256SUMS` file is attached to the release:
+
+```bash
+sha256sum -c SHA256SUMS
+```
 
 ### First launch
 
@@ -192,7 +196,7 @@ Clone the repository and install dependencies:
 
 ```bash
 git clone https://github.com/Plume-MC/PlumeLauncher.git
-cd PlumeLauncher/myapp
+cd PlumeLauncher
 go mod download
 cd frontend
 bun install
