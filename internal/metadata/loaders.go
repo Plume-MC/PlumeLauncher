@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -107,6 +109,9 @@ func (c *Client) LoaderVersions(ctx context.Context, loader, gameVersion string)
 			seen[source.Loader.Version] = struct{}{}
 		}
 	}
+	sort.SliceStable(versions, func(i, j int) bool {
+		return loaderVersionPreferred(versions[i], versions[j])
+	})
 	return versions, nil
 }
 
@@ -208,12 +213,87 @@ func (c *Client) resolveArtifactSHA1(ctx context.Context, library *Library) erro
 }
 
 func stableLoaderVersion(versions []loaderMetadata) loaderMetadata {
-	for _, version := range versions {
-		if version.Loader.Stable {
-			return version
+	if len(versions) == 0 {
+		return loaderMetadata{}
+	}
+	best := versions[0]
+	for _, version := range versions[1:] {
+		if loaderMetadataPreferred(version, best) {
+			best = version
 		}
 	}
-	return versions[0]
+	return best
+}
+
+func loaderMetadataPreferred(a, b loaderMetadata) bool {
+	aStable := a.Loader.Stable || !strings.Contains(a.Loader.Version, "-")
+	bStable := b.Loader.Stable || !strings.Contains(b.Loader.Version, "-")
+	if aStable != bStable {
+		return aStable
+	}
+	return loaderVersionPreferred(a.Loader.Version, b.Loader.Version)
+}
+
+func loaderVersionPreferred(a, b string) bool {
+	aStable := !strings.Contains(a, "-")
+	bStable := !strings.Contains(b, "-")
+	if aStable != bStable {
+		return aStable
+	}
+
+	aCore := strings.SplitN(a, "-", 2)[0]
+	bCore := strings.SplitN(b, "-", 2)[0]
+	aParts := strings.Split(aCore, ".")
+	bParts := strings.Split(bCore, ".")
+	for i := 0; i < len(aParts) && i < len(bParts); i++ {
+		aPart, aErr := strconv.Atoi(aParts[i])
+		bPart, bErr := strconv.Atoi(bParts[i])
+		if aErr != nil || bErr != nil || aPart != bPart {
+			if aErr != nil || bErr != nil {
+				return a > b
+			}
+			return aPart > bPart
+		}
+	}
+	if len(aParts) != len(bParts) {
+		return len(aParts) > len(bParts)
+	}
+
+	aSuffix := strings.TrimPrefix(a, aCore)
+	bSuffix := strings.TrimPrefix(b, bCore)
+	if aSuffix == bSuffix {
+		return a > b
+	}
+	return compareLoaderPrerelease(aSuffix, bSuffix) > 0
+}
+
+func compareLoaderPrerelease(a, b string) int {
+	aParts := strings.Split(strings.TrimPrefix(a, "-"), ".")
+	bParts := strings.Split(strings.TrimPrefix(b, "-"), ".")
+	for i := 0; i < len(aParts) && i < len(bParts); i++ {
+		if aParts[i] == bParts[i] {
+			continue
+		}
+		aPart, aErr := strconv.Atoi(aParts[i])
+		bPart, bErr := strconv.Atoi(bParts[i])
+		if aErr == nil && bErr == nil {
+			if aPart != bPart {
+				return aPart - bPart
+			}
+			continue
+		}
+		if aErr == nil {
+			return -1
+		}
+		if bErr == nil {
+			return 1
+		}
+		if aParts[i] < bParts[i] {
+			return -1
+		}
+		return 1
+	}
+	return len(aParts) - len(bParts)
 }
 
 // SupportsLoaderVersion reports whether the official loader metadata lists a game version.

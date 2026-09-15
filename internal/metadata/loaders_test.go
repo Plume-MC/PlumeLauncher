@@ -60,6 +60,27 @@ func TestLoaderVersionsReturnsAvailableLoaderVersions(t *testing.T) {
 	}
 }
 
+func TestLoaderVersionsPrefersLatestStableRelease(t *testing.T) {
+	client := NewClient(t.TempDir())
+	data := []byte(`[{"loader":{"version":"0.20.0-beta.9"}},{"loader":{"version":"0.30.1-beta.9"}},{"loader":{"version":"0.30.1-beta.10"}},{"loader":{"version":"0.30.2-beta.1"}},{"loader":{"version":"0.30.1"}}]`)
+	if err := os.WriteFile(filepath.Join(client.cacheDir, "quilt-26.2.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	versions, err := client.LoaderVersions(t.Context(), "quilt", "26.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"0.30.1", "0.30.2-beta.1", "0.30.1-beta.10", "0.30.1-beta.9", "0.20.0-beta.9"}
+	if len(versions) != len(want) {
+		t.Fatalf("versions = %#v, want %#v", versions, want)
+	}
+	for i := range want {
+		if versions[i] != want[i] {
+			t.Fatalf("versions = %#v, want %#v", versions, want)
+		}
+	}
+}
+
 func TestLoaderVersionUsesFabricMavenForQuiltIntermediary(t *testing.T) {
 	detail := loaderVersion("quilt", "1.21.11", loaderMetadata{
 		Loader:       loaderArtifact{Maven: "org.quiltmc:quilt-loader:0.25.0"},
