@@ -1,15 +1,15 @@
 {
 	"fixed": {
-		"file_version": "1.0.0"
+		"file_version": "1.0.1"
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "1.0.0",
+			"ProductVersion": "1.0.1",
 			"CompanyName": "Plume",
 			"FileDescription": "Plume Launcher",
 			"LegalCopyright": "© 2026, Plume",
 			"ProductName": "Plume Launcher",
-			"Comments": "Plume Launcher v1.0.0"
+			"Comments": "Plume Launcher v1.0.1"
 		}
 	}
 }

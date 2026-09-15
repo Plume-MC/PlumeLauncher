@@ -1,5 +1,5 @@
 APP_NAME := plume-launcher
-VERSION := 1.0.0
+VERSION := 1.0.1
 
 .PHONY: help deps frontend-install doctor dev build build-upx windows run lint typecheck test test-coverage check check-all package deb rpm arch appimage appimage-lite all checksums
 

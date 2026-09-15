@@ -22,7 +22,7 @@ Unicode true
 !define INFO_PROJECTNAME    "plume-launcher"
 !define INFO_COMPANYNAME    "Plume"
 !define INFO_PRODUCTNAME    "Plume Launcher"
-!define INFO_PRODUCTVERSION "1.0.0"
+!define INFO_PRODUCTVERSION "1.0.1"
 !define INFO_COPYRIGHT      "(c) 2026, Plume"
 ###
 !define PRODUCT_EXECUTABLE  "plume-launcher.exe"

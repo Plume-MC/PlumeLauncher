@@ -17,7 +17,7 @@
         PackageDisplayName="Plume Launcher"
         PublisherName="CN=Plume"
         PublisherDisplayName="Plume"
-        Version="1.0.0.0"
+        Version="1.0.1.0"
         PackageDescription="Plume Launcher">
         <Capabilities>
             <Capability Name="runFullTrust" />
