@@ -1,5 +1,7 @@
 package metadata
 
+import "reflect"
+
 // MergeVersions merges a child VersionDetail with its parent (from inheritsFrom).
 // Child fields take precedence; missing fields are filled from parent.
 func MergeVersions(child, parent *VersionDetail) *VersionDetail {
@@ -45,15 +47,18 @@ func MergeVersions(child, parent *VersionDetail) *VersionDetail {
 		result.Arguments.JVM = append(result.Arguments.JVM, parent.Arguments.JVM...)
 	}
 
-	// Merge libraries: child first, parent appended (skip duplicates by name)
-	seen := make(map[string]bool, len(result.Libraries))
-	for _, lib := range result.Libraries {
-		seen[lib.Name] = true
-	}
+	// Merge libraries: child first, parent appended (skip exact duplicates).
+	// Mojang metadata can repeat a name for its native classifiers.
 	for _, lib := range parent.Libraries {
-		if !seen[lib.Name] {
+		duplicate := false
+		for _, existing := range result.Libraries {
+			if reflect.DeepEqual(existing, lib) {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
 			result.Libraries = append(result.Libraries, lib)
-			seen[lib.Name] = true
 		}
 	}
 

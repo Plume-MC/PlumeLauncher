@@ -124,6 +124,39 @@ func TestBuildArgumentsLegacy(t *testing.T) {
 	}
 }
 
+func TestBuildArgumentsScopesLWJGLLibraryPathToModernVersions(t *testing.T) {
+	const expected = "-Dorg.lwjgl.librarypath=test/natives"
+	opts := launch.Options{GameDir: "test", NativesDir: "test/natives"}
+
+	modern, err := launch.BuildArguments(metadata.VersionDetail{
+		ID: "1.20.1", MainClass: "main", Arguments: &metadata.Arguments{},
+	}, opts)
+	if err != nil {
+		t.Fatalf("BuildArguments modern: %v", err)
+	}
+	legacy, err := launch.BuildArguments(metadata.VersionDetail{
+		ID: "1.7.10", MainClass: "main", MinecraftArguments: []byte("--username Player"),
+	}, opts)
+	if err != nil {
+		t.Fatalf("BuildArguments legacy: %v", err)
+	}
+
+	hasArgument := func(args []string) bool {
+		for _, arg := range args {
+			if arg == expected {
+				return true
+			}
+		}
+		return false
+	}
+	if !hasArgument(modern) {
+		t.Fatalf("modern arguments missing %q: %v", expected, modern)
+	}
+	if hasArgument(legacy) {
+		t.Fatalf("legacy arguments must not contain %q: %v", expected, legacy)
+	}
+}
+
 func TestBuildArgumentsLegacyQuotedValue(t *testing.T) {
 	version := metadata.VersionDetail{
 		ID:                 "1.0",

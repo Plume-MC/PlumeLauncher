@@ -254,11 +254,15 @@ func (c *Client) loaderMetadata(ctx context.Context, loader, gameVersion, endpoi
 }
 
 func loaderVersion(loader, gameVersion string, source loaderMetadata, mavenURL string) *VersionDetail {
+	libraries := []Library{loaderLibraryArtifact(source.Loader, mavenURL)}
+	if source.Intermediary.Maven != "" {
+		libraries = append(libraries, loaderLibraryArtifact(source.Intermediary, fabricMavenURL))
+	}
 	version := &VersionDetail{
 		ID:        loader + "-loader-" + source.Loader.Version + "-" + gameVersion,
 		Jar:       gameVersion,
 		MainClass: source.LauncherMeta.MainClass.Client,
-		Libraries: []Library{loaderLibraryArtifact(source.Loader, mavenURL), loaderLibraryArtifact(source.Intermediary, fabricMavenURL)},
+		Libraries: libraries,
 	}
 	if source.Hashed.Maven != "" {
 		version.Libraries = append(version.Libraries, loaderLibraryArtifact(source.Hashed, mavenURL))

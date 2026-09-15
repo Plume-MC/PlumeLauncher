@@ -136,8 +136,10 @@ func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {
 		args = append(args, fmt.Sprintf("-Djava.library.path=%s", opts.NativesDir))
 	}
 
-	// LWJGL library path (same as natives for modern MC)
-	args = append(args, fmt.Sprintf("-Dorg.lwjgl.librarypath=%s", opts.NativesDir))
+	// LWJGL2 loads natives through java.library.path; this flag is for modern LWJGL3.
+	if version.Arguments != nil {
+		args = append(args, fmt.Sprintf("-Dorg.lwjgl.librarypath=%s", opts.NativesDir))
+	}
 
 	// Language
 	args = append(args, "-Duser.language=en", "-Duser.country=US")

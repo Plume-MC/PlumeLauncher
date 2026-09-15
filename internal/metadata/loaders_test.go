@@ -115,6 +115,19 @@ func TestLoaderVersionUsesAuthoritativeClientLibraries(t *testing.T) {
 	}
 }
 
+func TestLoaderVersionSkipsMissingIntermediary(t *testing.T) {
+	detail := loaderVersion("quilt", "26.2", loaderMetadata{
+		Loader: loaderArtifact{Maven: "org.quiltmc:quilt-loader:0.20.0-beta.9", Version: "0.20.0-beta.9"},
+	}, quiltMavenURL)
+
+	if len(detail.Libraries) != 1 {
+		t.Fatalf("libraries = %d, want only the loader library", len(detail.Libraries))
+	}
+	if detail.Libraries[0].Name != "org.quiltmc:quilt-loader:0.20.0-beta.9" {
+		t.Fatalf("loader library = %q", detail.Libraries[0].Name)
+	}
+}
+
 func TestLoaderPlanIncludesLoaderArtifacts(t *testing.T) {
 	detail := loaderVersion("quilt", "1.20.1", loaderMetadata{
 		Loader:       loaderArtifact{Maven: "org.quiltmc:quilt-loader:0.21.0", Version: "0.21.0", FileSize: 12},

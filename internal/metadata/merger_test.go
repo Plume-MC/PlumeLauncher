@@ -13,10 +13,10 @@ func TestMergeVersionsFillsMissingAssetIndex(t *testing.T) {
 	parent := &metadata.VersionDetail{
 		ID: "1.20.1",
 		AssetIndex: metadata.AssetIndex{
-			ID:     "1.20",
-			SHA1:   "abc",
-			Size:   100,
-			URL:    "http://example.com/1.20.json",
+			ID:   "1.20",
+			SHA1: "abc",
+			Size: 100,
+			URL:  "http://example.com/1.20.json",
 		},
 		Assets: "1.20",
 	}
@@ -50,6 +50,45 @@ func TestMergeVersionsDeduplicatesLibraries(t *testing.T) {
 	if len(result.Libraries) != 3 {
 		t.Errorf("Libraries len = %d, want 3", len(result.Libraries))
 	}
+}
+
+func TestMergeVersionsPreservesNativeLibraryVariant(t *testing.T) {
+	child := &metadata.VersionDetail{ID: "fabric"}
+	parent := &metadata.VersionDetail{
+		ID: "1.16.5",
+		Libraries: []metadata.Library{
+			{
+				Name: "org.lwjgl:lwjgl:3.2.2",
+				Downloads: &metadata.LibraryDownloads{Artifact: metadata.DownloadInfo{
+					Path: "org/lwjgl/lwjgl/3.2.2/lwjgl-3.2.2.jar",
+				}},
+			},
+			{
+				Name:    "org.lwjgl:lwjgl:3.2.2",
+				Natives: map[string]string{"linux": "natives-linux"},
+				Downloads: &metadata.LibraryDownloads{
+					Artifact: metadata.DownloadInfo{Path: "org/lwjgl/lwjgl/3.2.2/lwjgl-3.2.2.jar"},
+					Classifiers: map[string]metadata.DownloadInfo{
+						"natives-linux": {Path: "org/lwjgl/lwjgl/3.2.2/lwjgl-3.2.2-natives-linux.jar"},
+					},
+				},
+			},
+		},
+	}
+
+	result := metadata.MergeVersions(child, parent)
+	if len(result.Libraries) != 2 {
+		t.Fatalf("Libraries len = %d, want 2", len(result.Libraries))
+	}
+	for _, library := range result.Libraries {
+		if path, ok := metadata.ResolveNativePath(library, metadata.SystemInfo{OS: "linux", Arch: "x64"}); ok {
+			if path != "org/lwjgl/lwjgl/3.2.2/lwjgl-3.2.2-natives-linux.jar" {
+				t.Fatalf("native path = %q", path)
+			}
+			return
+		}
+	}
+	t.Fatal("native library variant was discarded")
 }
 
 func TestMergeVersionsConcatenatesGameArgs(t *testing.T) {
@@ -116,7 +155,7 @@ func TestMergeVersionsChildJavaVersionOverridesParent(t *testing.T) {
 
 func TestMergeVersionsNilParent(t *testing.T) {
 	child := &metadata.VersionDetail{
-		ID: "1.0",
+		ID:          "1.0",
 		JavaVersion: metadata.JavaVersion{MajorVersion: 8},
 	}
 
