@@ -169,33 +169,39 @@ func (c *Client) resolveLoader(ctx context.Context, loader, gameVersion, request
 		}
 	}
 	detail := loaderVersion(loader, gameVersion, source, mavenURL)
-	for i := range detail.Libraries[:2] {
-		if err := c.resolveArtifactSHA1(ctx, &detail.Libraries[i]); err != nil {
-			return nil, err
-		}
-	}
-	if source.Hashed.Maven != "" {
-		if err := c.resolveArtifactSHA1(ctx, &detail.Libraries[2]); err != nil {
-			return nil, err
-		}
+	if err := c.backfillLoaderSHA1(ctx, detail); err != nil {
+		return nil, err
 	}
 	return MergeVersions(detail, base), nil
+}
+
+// backfillLoaderSHA1 resolves Maven .sha1 sidecars for every loader library,
+// including launcherMeta libraries that ship without integrity metadata
+// (e.g. Quilt). Fail-fast: a missing sidecar aborts resolution.
+func (c *Client) backfillLoaderSHA1(ctx context.Context, detail *VersionDetail) error {
+	for i := range detail.Libraries {
+		if err := c.resolveArtifactSHA1(ctx, &detail.Libraries[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *Client) resolveArtifactSHA1(ctx context.Context, library *Library) error {
 	if library.Downloads == nil || library.Downloads.Artifact.URL == "" {
 		return nil
 	}
-	sha1, err := c.fetchText(ctx, library.Downloads.Artifact.URL+".sha1")
+	url := library.Downloads.Artifact.URL + ".sha1"
+	sha1, err := c.fetchText(ctx, url)
 	if err != nil {
-		return fmt.Errorf("fetch %s checksum: %w", library.Name, err)
+		return fmt.Errorf("fetch %s checksum %s: %w", library.Name, url, err)
 	}
 	sha1 = strings.TrimSpace(sha1)
 	if len(sha1) != 40 {
-		return fmt.Errorf("invalid SHA-1 for %s", library.Name)
+		return fmt.Errorf("invalid SHA-1 for %s (%s)", library.Name, url)
 	}
 	if _, err := hex.DecodeString(sha1); err != nil {
-		return fmt.Errorf("invalid SHA-1 for %s", library.Name)
+		return fmt.Errorf("invalid SHA-1 for %s (%s)", library.Name, url)
 	}
 	library.Downloads.Artifact.SHA1 = sha1
 	return nil

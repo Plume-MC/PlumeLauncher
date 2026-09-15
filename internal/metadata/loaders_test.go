@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -127,6 +128,55 @@ func TestLoaderPlanIncludesLoaderArtifacts(t *testing.T) {
 	for _, artifact := range plan.Artifacts {
 		if artifact.Role != RoleLibrary || artifact.URL == "" || artifact.Path == "" {
 			t.Fatalf("invalid loader artifact: %#v", artifact)
+		}
+	}
+}
+
+type rewriteHostRoundTripper struct {
+	host string
+}
+
+func (rt rewriteHostRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.URL.Scheme = "http"
+	req.URL.Host = rt.host
+	return http.DefaultTransport.RoundTrip(req)
+}
+
+func TestBackfillLoaderSHA1CoversLauncherMetaLibraries(t *testing.T) {
+	const sidecarSHA1 = "f62a27adbfd8ab4d4fa5681793039f2c0b177155"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, ".jar.sha1") {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(sidecarSHA1 + "\n"))
+	}))
+	defer server.Close()
+	client := NewClient(t.TempDir())
+	// Route every sidecar fetch (including hardcoded maven hosts) to the
+	// fake server so the test never touches the network.
+	client.httpClient = &http.Client{Transport: rewriteHostRoundTripper{host: strings.TrimPrefix(server.URL, "http://")}}
+	// Quilt-style metadata: launcherMeta libraries carry no size/hash.
+	detail := loaderVersion("quilt", "1.20.1", loaderMetadata{
+		Loader:       loaderArtifact{Maven: "org.quiltmc:quilt-loader:0.24.0", Version: "0.24.0"},
+		Intermediary: loaderArtifact{Maven: "net.fabricmc:intermediary:1.20.1"},
+		Hashed:       loaderArtifact{Maven: "org.quiltmc:hashed:1.20.1"},
+		LauncherMeta: loaderLauncherMeta{
+			Libraries: map[string][]loaderLibrary{
+				"common": {
+					{Name: "net.fabricmc:access-widener:2.1.0", URL: server.URL + "/"},
+					{Name: "org.quiltmc:quilt-json5:1.0.4", URL: server.URL + "/"},
+				},
+			},
+			MainClass: loaderMainClass{Client: "org.quiltmc.loader.impl.launch.knot.KnotClient"},
+		},
+	}, server.URL)
+	if err := client.backfillLoaderSHA1(t.Context(), detail); err != nil {
+		t.Fatal(err)
+	}
+	for _, library := range detail.Libraries {
+		if got := library.Downloads.Artifact.SHA1; got != sidecarSHA1 {
+			t.Errorf("library %q SHA1 = %q, want sidecar %q", library.Name, got, sidecarSHA1)
 		}
 	}
 }
