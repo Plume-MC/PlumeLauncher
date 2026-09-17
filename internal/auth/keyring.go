@@ -53,3 +53,9 @@ func (OSKeyring) Delete(key string) error {
 func SessionKey(accountUUID string) string {
 	return "ely.by:" + accountUUID
 }
+
+// MicrosoftRefreshKey scopes a Microsoft refresh token to one account.
+// Refresh tokens live only in the OS keyring, never in JSON, logs, or bindings.
+func MicrosoftRefreshKey(accountUUID string) string {
+	return "microsoft-refresh:" + accountUUID
+}
