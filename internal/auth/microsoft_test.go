@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -100,6 +101,128 @@ func TestOAuthRefreshPostsRefreshGrant(t *testing.T) {
 		if !strings.Contains(sawForm, want) {
 			t.Fatalf("form missing %q: %s", want, sawForm)
 		}
+	}
+}
+
+func overrideChainURLs(t *testing.T, device, sisuAuth, sisuAuthz, xsts, mcLogin string) {
+	t.Helper()
+	prev := []struct {
+		ptr *string
+		val string
+	}{
+		{&deviceTokenURL, device}, {&sisuAuthURL, sisuAuth},
+		{&sisuAuthzURL, sisuAuthz}, {&xstsAuthzURL, xsts}, {&mcLoginURL, mcLogin},
+	}
+	saved := make([]string, len(prev))
+	for i, p := range prev {
+		saved[i] = *p.ptr
+		*p.ptr = p.val
+	}
+	t.Cleanup(func() {
+		for i, p := range prev {
+			*p.ptr = saved[i]
+		}
+	})
+}
+
+func tokenJSON(token string) string {
+	xui, _ := json.Marshal([]map[string]string{{"uhs": "userhash123"}})
+	return `{"Token":` + strconv.Quote(token) + `,"DisplayClaims":{"xui":` + string(xui) + `}}`
+}
+
+func TestXboxChainDeviceToMinecraftToken(t *testing.T) {
+	var sawSig, sawContract bool
+	mux := http.NewServeMux()
+	mux.HandleFunc("/device/authenticate", func(w http.ResponseWriter, r *http.Request) {
+		sawSig = r.Header.Get("Signature") != ""
+		sawContract = r.Header.Get("x-xbl-contract-version") == "1"
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(tokenJSON("device-tok")))
+	})
+	mux.HandleFunc("/authenticate", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-SessionId", "sess-1")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"MSAOAuthRedirect":"https://login.live.com/oauth?x=1"}`))
+	})
+	mux.HandleFunc("/authorize", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"TitleToken":` + tokenJSON("title-tok") + `,"UserToken":` + tokenJSON("user-tok") + `}`))
+	})
+	mux.HandleFunc("/xsts/authorize", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(tokenJSON("xsts-tok")))
+	})
+	mux.HandleFunc("/launcher/login", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if !strings.Contains(string(body), "XBL3.0 x=userhash123;xsts-tok") {
+			t.Errorf("xtoken malformed: %s", body)
+		}
+		if r.Header.Get("User-Agent") == "" {
+			t.Error("missing user agent")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"access_token":"mc-access","username":"Steve"}`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	overrideChainURLs(t, srv.URL+"/device/authenticate", srv.URL+"/authenticate",
+		srv.URL+"/authorize", srv.URL+"/xsts/authorize", srv.URL+"/launcher/login")
+
+	key, err := GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dev, err := GetDeviceToken(key)
+	if err != nil {
+		t.Fatalf("GetDeviceToken: %v", err)
+	}
+	if dev.Token != "device-tok" {
+		t.Fatalf("device token = %q", dev.Token)
+	}
+	if !sawSig || !sawContract {
+		t.Fatal("signed POST must carry Signature + x-xbl-contract-version headers")
+	}
+	sess, redirect, err := SisuAuthenticate(dev.Token, "challenge", key)
+	if err != nil {
+		t.Fatalf("SisuAuthenticate: %v", err)
+	}
+	if sess != "sess-1" || redirect == "" {
+		t.Fatalf("sisu = %q %q", sess, redirect)
+	}
+	authz, err := SisuAuthorize(sess, "ms-access", dev.Token, key)
+	if err != nil {
+		t.Fatalf("SisuAuthorize: %v", err)
+	}
+	xsts, err := XSTSAuthorize(authz.UserToken.Token, authz.TitleToken.Token, dev.Token, key)
+	if err != nil {
+		t.Fatalf("XSTSAuthorize: %v", err)
+	}
+	mc, err := GetMinecraftToken(xsts)
+	if err != nil {
+		t.Fatalf("GetMinecraftToken: %v", err)
+	}
+	if mc != "mc-access" {
+		t.Fatalf("mc token = %q", mc)
+	}
+}
+
+func TestSisuAuthenticateRejectsMissingSession(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"MSAOAuthRedirect":"https://x"}`))
+	}))
+	defer srv.Close()
+	overrideChainURLs(t, srv.URL, srv.URL, srv.URL, srv.URL, srv.URL)
+
+	key, _ := GenerateKey()
+	if _, _, err := SisuAuthenticate("dev", "c", key); err == nil {
+		t.Fatal("expected error when X-SessionId header is missing")
+	}
+}
+
+func TestGetMinecraftTokenRejectsMissingUHS(t *testing.T) {
+	if _, err := GetMinecraftToken(&DeviceToken{Token: "x"}); err == nil {
+		t.Fatal("expected error when xui/uhs is absent")
 	}
 }
 

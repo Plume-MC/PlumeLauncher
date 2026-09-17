@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -207,4 +208,261 @@ func encodeForm(values map[string]string) string {
 		b.WriteString(url.QueryEscape(v))
 	}
 	return b.String()
+}
+
+func appendUint32BE(buf []byte, v uint32) []byte {
+	return append(buf, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+}
+
+func appendUint64BE(buf []byte, v uint64) []byte {
+	return append(buf, byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+}
+
+func appendInt32BE(buf []byte, v int32) []byte {
+	return appendUint32BE(buf, uint32(v))
+}
+
+func signAndPost(url, urlPath string, body []byte, key *DeviceTokenKey, authorization string) ([]byte, http.Header, error) {
+	now := time.Now()
+	// Windows FILETIME (100-ns intervals since 1601-01-01)
+	windowsTime := uint64(now.Unix()+11644473600) * 10000000
+
+	var buf []byte
+	buf = appendUint32BE(buf, 1)
+	buf = append(buf, 0)
+	buf = appendUint64BE(buf, windowsTime)
+	buf = append(buf, 0)
+	buf = append(buf, []byte("POST")...)
+	buf = append(buf, 0)
+	buf = append(buf, []byte(urlPath)...)
+	buf = append(buf, 0)
+	if authorization != "" {
+		buf = append(buf, []byte(authorization)...)
+	}
+	buf = append(buf, 0)
+	buf = append(buf, body...)
+	buf = append(buf, 0)
+
+	// Xbox expects raw ES256 (r||s), not ASN.1. Sign the SHA-256 of the policy buffer.
+	hash := sha256.Sum256(buf)
+	r, s, err := ecdsa.Sign(rand.Reader, key.Key, hash[:])
+	if err != nil {
+		return nil, nil, fmt.Errorf("sign request: %w", err)
+	}
+
+	sigPayload := make([]byte, 0, 4+8+32+32)
+	sigPayload = appendInt32BE(sigPayload, 1)
+	sigPayload = appendUint64BE(sigPayload, windowsTime)
+	sigPayload = append(sigPayload, pad32(r.Bytes())...)
+	sigPayload = append(sigPayload, pad32(s.Bytes())...)
+
+	signature := base64.StdEncoding.EncodeToString(sigPayload)
+
+	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	if err != nil {
+		return nil, nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Signature", signature)
+	if url != sisuAuthzURL {
+		req.Header.Set("x-xbl-contract-version", "1")
+	}
+	if authorization != "" {
+		req.Header.Set("Authorization", authorization)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("POST %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, nil, fmt.Errorf("POST %s: %d %s", url, resp.StatusCode, string(respBody))
+	}
+	return respBody, resp.Header, nil
+}
+
+// GetDeviceToken requests an Xbox Live device token.
+func GetDeviceToken(key *DeviceTokenKey) (*DeviceToken, error) {
+	body, _ := json.Marshal(map[string]interface{}{
+		"Properties": map[string]interface{}{
+			"AuthMethod": "ProofOfPossession",
+			"Id":         "{" + strings.ToUpper(key.ID.String()) + "}",
+			"DeviceType": "Win32",
+			"Version":    "10.16.0",
+			"ProofKey": map[string]string{
+				"kty": "EC",
+				"x":   key.X,
+				"y":   key.Y,
+				"crv": "P-256",
+				"alg": "ES256",
+				"use": "sig",
+			},
+		},
+		"RelyingParty": "http://auth.xboxlive.com",
+		"TokenType":    DeviceTokenType,
+	})
+
+	respBody, _, err := signAndPost(deviceTokenURL, "/device/authenticate", body, key, "")
+	if err != nil {
+		return nil, fmt.Errorf("device token: %w", err)
+	}
+	var token DeviceToken
+	if err := json.Unmarshal(respBody, &token); err != nil {
+		return nil, fmt.Errorf("decode device token: %w", err)
+	}
+	return &token, nil
+}
+
+// SisuAuthenticate initiates the SISU authentication flow.
+func SisuAuthenticate(deviceToken string, challenge string, key *DeviceTokenKey) (sessionID string, redirectURI string, err error) {
+	state := generateRandomHex(32)
+	body, _ := json.Marshal(map[string]interface{}{
+		"AppId":       MicrosoftClientID,
+		"DeviceToken": deviceToken,
+		"Offers":      []string{MicrosoftScope},
+		"Query": map[string]string{
+			"code_challenge":        challenge,
+			"code_challenge_method": "S256",
+			"state":                 state,
+			"prompt":                "select_account",
+		},
+		"RedirectUri": microsoftRedirectURI,
+		"Sandbox":     "RETAIL",
+		"TokenType":   "code",
+		"TitleId":     "1794566092",
+	})
+
+	respBody, headers, err := signAndPost(sisuAuthURL, "/authenticate", body, key, "")
+	if err != nil {
+		return "", "", fmt.Errorf("sisu authenticate: %w", err)
+	}
+
+	sessionID = headers.Get("X-SessionId")
+	if sessionID == "" {
+		return "", "", fmt.Errorf("no X-SessionId header")
+	}
+
+	var result struct {
+		MSAOAuthRedirect string `json:"MSAOAuthRedirect"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return "", "", fmt.Errorf("decode sisu response: %w", err)
+	}
+	if result.MSAOAuthRedirect == "" {
+		return "", "", fmt.Errorf("sisu response did not include MSAOAuthRedirect")
+	}
+	return sessionID, result.MSAOAuthRedirect, nil
+}
+
+// SisuAuthorize performs SISU authorization with the OAuth token.
+func SisuAuthorize(sessionID, accessToken, deviceToken string, key *DeviceTokenKey) (*SisuAuthorizeResponse, error) {
+	body, _ := json.Marshal(map[string]interface{}{
+		"AccessToken": "t=" + accessToken,
+		"AppId":       MicrosoftClientID,
+		"DeviceToken": deviceToken,
+		"ProofKey": map[string]string{
+			"kty": "EC",
+			"x":   key.X,
+			"y":   key.Y,
+			"crv": "P-256",
+			"alg": "ES256",
+			"use": "sig",
+		},
+		"Sandbox":           "RETAIL",
+		"SessionId":         sessionID,
+		"SiteName":          "user.auth.xboxlive.com",
+		"RelyingParty":      "http://xboxlive.com",
+		"UseModernGamertag": true,
+	})
+
+	respBody, _, err := signAndPost(sisuAuthzURL, "/authorize", body, key, "")
+	if err != nil {
+		return nil, fmt.Errorf("sisu authorize: %w", err)
+	}
+	var result SisuAuthorizeResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("decode sisu authorize: %w", err)
+	}
+	return &result, nil
+}
+
+// XSTSAuthorize authorizes with XSTS for Minecraft services.
+func XSTSAuthorize(userToken, titleToken, deviceToken string, key *DeviceTokenKey) (*DeviceToken, error) {
+	body, _ := json.Marshal(map[string]interface{}{
+		"RelyingParty": "rp://api.minecraftservices.com/",
+		"TokenType":    DeviceTokenType,
+		"Properties": map[string]interface{}{
+			"SandboxId":   "RETAIL",
+			"UserTokens":  []string{userToken},
+			"DeviceToken": deviceToken,
+			"TitleToken":  titleToken,
+		},
+	})
+
+	respBody, _, err := signAndPost(xstsAuthzURL, "/xsts/authorize", body, key, "")
+	if err != nil {
+		return nil, fmt.Errorf("xsts authorize: %w", err)
+	}
+	var token DeviceToken
+	if err := json.Unmarshal(respBody, &token); err != nil {
+		return nil, fmt.Errorf("decode xsts token: %w", err)
+	}
+	return &token, nil
+}
+
+// GetMinecraftToken exchanges an XSTS token for a Minecraft access token.
+func GetMinecraftToken(xstsToken *DeviceToken) (string, error) {
+	uhs := getXUHS(xstsToken)
+	if uhs == "" {
+		return "", fmt.Errorf("no user hash in xsts token")
+	}
+	token := xstsToken.Token
+
+	body, _ := json.Marshal(map[string]string{
+		"platform": "PC_LAUNCHER",
+		"xtoken":   "XBL3.0 x=" + uhs + ";" + token,
+	})
+
+	req, err := http.NewRequest("POST", mcLoginURL, bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", MinecraftUserAgent)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("minecraft login: %w", err)
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("minecraft login: %d %s", resp.StatusCode, string(respBody))
+	}
+	var result MinecraftLoginResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return "", fmt.Errorf("decode minecraft token: %w", err)
+	}
+	if result.AccessToken == "" {
+		return "", fmt.Errorf("minecraft login returned empty access token: %s", string(respBody))
+	}
+	return result.AccessToken, nil
+}
+
+func getXUHS(token *DeviceToken) string {
+	var xui []struct {
+		UHS string `json:"uhs"`
+	}
+	if err := json.Unmarshal(token.DisplayClaims["xui"], &xui); err != nil || len(xui) == 0 {
+		return ""
+	}
+	return xui[0].UHS
 }
