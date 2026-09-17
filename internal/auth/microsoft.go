@@ -466,3 +466,200 @@ func getXUHS(token *DeviceToken) string {
 	}
 	return xui[0].UHS
 }
+
+// CheckMinecraftEntitlements verifies the account owns Minecraft.
+// A non-2xx response means no license: the caller must reject the account,
+// not retry silently.
+func CheckMinecraftEntitlements(accessToken string) error {
+	req, err := http.NewRequest("GET", mcEntitleURL+"?requestId="+uuid.New().String(), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", MinecraftUserAgent)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("entitlements: %w", err)
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("entitlements: %d %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+// GetMinecraftProfile fetches the player profile (read-only; no skin upload).
+func GetMinecraftProfile(accessToken string) (*MinecraftProfileResponse, error) {
+	req, err := http.NewRequest("GET", mcProfileURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", MinecraftUserAgent)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch profile: %w", err)
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("fetch profile: %d %s", resp.StatusCode, string(respBody))
+	}
+	var profile MinecraftProfileResponse
+	if err := json.Unmarshal(respBody, &profile); err != nil {
+		return nil, fmt.Errorf("decode profile: %w", err)
+	}
+	return &profile, nil
+}
+
+// LoginBegin starts the Microsoft login flow. The returned flow state
+// (key + device token) must be reused for LoginFinish.
+func LoginBegin() (*MicrosoftLoginFlow, error) {
+	key, err := GenerateKey()
+	if err != nil {
+		return nil, err
+	}
+	verifier, challenge := makePKCE()
+
+	deviceToken, err := GetDeviceToken(key)
+	if err != nil {
+		return nil, err
+	}
+
+	sessionID, redirectURI, err := SisuAuthenticate(deviceToken.Token, challenge, key)
+	if err != nil {
+		return nil, err
+	}
+
+	return &MicrosoftLoginFlow{
+		Verifier:       verifier,
+		Challenge:      challenge,
+		SessionID:      sessionID,
+		AuthRequestURI: redirectURI,
+		Key:            key,
+		DeviceToken:    deviceToken.Token,
+	}, nil
+}
+
+// LoginFinish completes the Microsoft login after receiving the auth code.
+// The refresh token is stored in the OS keyring; the returned credentials
+// are transient and must never be written to JSON, logs, or bindings.
+func LoginFinish(code string, flow *MicrosoftLoginFlow, store Keyring) (*MicrosoftCredentials, error) {
+	if flow == nil || flow.Key == nil || flow.DeviceToken == "" {
+		return nil, fmt.Errorf("microsoft login flow is incomplete")
+	}
+
+	oauthToken, err := OAuthTokenExchange(code, flow.Verifier)
+	if err != nil {
+		return nil, err
+	}
+
+	sisuAuth, err := SisuAuthorize(flow.SessionID, oauthToken.AccessToken, flow.DeviceToken, flow.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	xstsToken, err := XSTSAuthorize(sisuAuth.UserToken.Token, sisuAuth.TitleToken.Token, flow.DeviceToken, flow.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	mcToken, err := GetMinecraftToken(xstsToken)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := CheckMinecraftEntitlements(mcToken); err != nil {
+		return nil, err
+	}
+
+	profile, err := GetMinecraftProfile(mcToken)
+	if err != nil {
+		return nil, err
+	}
+
+	creds := &MicrosoftCredentials{
+		AccessToken:  mcToken,
+		RefreshToken: oauthToken.RefreshToken,
+		ExpiresAt:    time.Now().Add(time.Duration(oauthToken.ExpiresIn) * time.Second),
+		UUID:         profile.ID,
+		Username:     profile.Name,
+	}
+
+	if store != nil {
+		if err := store.Set(MicrosoftRefreshKey(profile.ID), oauthToken.RefreshToken); err != nil {
+			return nil, fmt.Errorf("store microsoft session: %w", err)
+		}
+	}
+
+	return creds, nil
+}
+
+// RefreshMicrosoft refreshes Microsoft credentials using a refresh token.
+func RefreshMicrosoft(refreshToken string, store Keyring) (*MicrosoftCredentials, error) {
+	oauthToken, err := OAuthRefresh(refreshToken)
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := GenerateKey()
+	if err != nil {
+		return nil, err
+	}
+	deviceToken, err := GetDeviceToken(key)
+	if err != nil {
+		return nil, err
+	}
+
+	sisuAuth, err := SisuAuthorize("", oauthToken.AccessToken, deviceToken.Token, key)
+	if err != nil {
+		return nil, err
+	}
+
+	xstsToken, err := XSTSAuthorize(sisuAuth.UserToken.Token, sisuAuth.TitleToken.Token, deviceToken.Token, key)
+	if err != nil {
+		return nil, err
+	}
+
+	mcToken, err := GetMinecraftToken(xstsToken)
+	if err != nil {
+		return nil, err
+	}
+
+	profile, err := GetMinecraftProfile(mcToken)
+	if err != nil {
+		return nil, err
+	}
+
+	if store != nil {
+		if err := store.Set(MicrosoftRefreshKey(profile.ID), oauthToken.RefreshToken); err != nil {
+			return nil, fmt.Errorf("store microsoft session: %w", err)
+		}
+	}
+
+	return &MicrosoftCredentials{
+		AccessToken:  mcToken,
+		RefreshToken: oauthToken.RefreshToken,
+		ExpiresAt:    time.Now().Add(time.Duration(oauthToken.ExpiresIn) * time.Second),
+		UUID:         profile.ID,
+		Username:     profile.Name,
+	}, nil
+}
+
+// EnsureValidMicrosoftToken returns refreshed credentials when the token
+// expires within 5 minutes, or empty access/refresh on a still-valid token.
+func EnsureValidMicrosoftToken(refreshToken string, expiresAt time.Time, store Keyring) (string, string, time.Time, error) {
+	if time.Until(expiresAt) > 5*time.Minute {
+		return "", "", expiresAt, nil
+	}
+	creds, err := RefreshMicrosoft(refreshToken, store)
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+	return creds.AccessToken, creds.RefreshToken, creds.ExpiresAt, nil
+}

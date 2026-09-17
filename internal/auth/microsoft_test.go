@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func overrideOAuthURL(t *testing.T, url string) {
@@ -239,5 +240,156 @@ func TestOAuthTokenExchangeRejectsUpstreamError(t *testing.T) {
 	}
 	if _, err := OAuthRefresh("bad-refresh"); err == nil {
 		t.Fatal("expected error for 400 response")
+	}
+}
+
+type memoryKeyring struct{ data map[string]string }
+
+func newMemoryKeyring() *memoryKeyring { return &memoryKeyring{data: map[string]string{}} }
+
+func (m *memoryKeyring) Set(key, value string) error { m.data[key] = value; return nil }
+func (m *memoryKeyring) Get(key string) (string, error) {
+	v, ok := m.data[key]
+	if !ok {
+		return "", ErrTokenNotFound
+	}
+	return v, nil
+}
+func (m *memoryKeyring) Delete(key string) error { delete(m.data, key); return nil }
+
+// fullMockServer serves the whole Microsoft chain: oauth + device + sisu +
+// xsts + mc login + entitlements + profile.
+func fullMockServer(t *testing.T, hasLicense bool) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/oauth20_token.srf", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"access_token":"ms-access","refresh_token":"ms-refresh-new","expires_in":3600}`))
+	})
+	mux.HandleFunc("/device/authenticate", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(tokenJSON("device-tok")))
+	})
+	mux.HandleFunc("/authenticate", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-SessionId", "sess-1")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"MSAOAuthRedirect":"https://login.live.com/oauth?x=1"}`))
+	})
+	mux.HandleFunc("/authorize", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"TitleToken":` + tokenJSON("title-tok") + `,"UserToken":` + tokenJSON("user-tok") + `}`))
+	})
+	mux.HandleFunc("/xsts/authorize", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(tokenJSON("xsts-tok")))
+	})
+	mux.HandleFunc("/launcher/login", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"access_token":"mc-access","username":"Steve"}`))
+	})
+	mux.HandleFunc("/entitlements/license", func(w http.ResponseWriter, r *http.Request) {
+		if !hasLicense {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"error":"no license"}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"items":[]}`))
+	})
+	mux.HandleFunc("/minecraft/profile", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer mc-access" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"id":"player-uuid-1","name":"Steve","skins":[],"capes":[]}`))
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	overrideOAuthURL(t, srv.URL+"/oauth20_token.srf")
+	overrideChainURLs(t, srv.URL+"/device/authenticate", srv.URL+"/authenticate",
+		srv.URL+"/authorize", srv.URL+"/xsts/authorize", srv.URL+"/launcher/login")
+	prevEnt, prevProf := mcEntitleURL, mcProfileURL
+	mcEntitleURL, mcProfileURL = srv.URL+"/entitlements/license", srv.URL+"/minecraft/profile"
+	t.Cleanup(func() { mcEntitleURL, mcProfileURL = prevEnt, prevProf })
+	return srv
+}
+
+func TestLoginFinishFullFlowStoresRefreshInKeyring(t *testing.T) {
+	fullMockServer(t, true)
+	store := newMemoryKeyring()
+
+	flow, err := LoginBegin()
+	if err != nil {
+		t.Fatalf("LoginBegin: %v", err)
+	}
+	if flow.AuthRequestURI == "" || flow.Verifier == "" || flow.Key == nil {
+		t.Fatal("flow must carry verifier, redirect URI and device key")
+	}
+
+	creds, err := LoginFinish("auth-code", flow, store)
+	if err != nil {
+		t.Fatalf("LoginFinish: %v", err)
+	}
+	if creds.UUID != "player-uuid-1" || creds.Username != "Steve" || creds.AccessToken != "mc-access" {
+		t.Fatalf("unexpected creds: %+v", creds)
+	}
+	got, err := store.Get(MicrosoftRefreshKey("player-uuid-1"))
+	if err != nil || got != "ms-refresh-new" {
+		t.Fatalf("refresh token must be in keyring, got %q err %v", got, err)
+	}
+}
+
+func TestLoginFinishRejectsAccountWithoutLicense(t *testing.T) {
+	fullMockServer(t, false)
+	flow, err := LoginBegin()
+	if err != nil {
+		t.Fatalf("LoginBegin: %v", err)
+	}
+	if _, err := LoginFinish("auth-code", flow, newMemoryKeyring()); err == nil {
+		t.Fatal("expected error for account without Minecraft license")
+	}
+}
+
+func TestLoginFinishRejectsIncompleteFlow(t *testing.T) {
+	if _, err := LoginFinish("code", nil, newMemoryKeyring()); err == nil {
+		t.Fatal("expected error for nil flow")
+	}
+	if _, err := LoginFinish("code", &MicrosoftLoginFlow{}, newMemoryKeyring()); err == nil {
+		t.Fatal("expected error for flow without device key")
+	}
+}
+
+func TestRefreshMicrosoftRotatesSession(t *testing.T) {
+	fullMockServer(t, true)
+	store := newMemoryKeyring()
+	creds, err := RefreshMicrosoft("old-refresh", store)
+	if err != nil {
+		t.Fatalf("RefreshMicrosoft: %v", err)
+	}
+	if creds.AccessToken != "mc-access" || creds.UUID != "player-uuid-1" {
+		t.Fatalf("unexpected creds: %+v", creds)
+	}
+	if got, _ := store.Get(MicrosoftRefreshKey("player-uuid-1")); got != "ms-refresh-new" {
+		t.Fatalf("rotated refresh token must be in keyring, got %q", got)
+	}
+}
+
+func TestEnsureValidMicrosoftTokenBuffer(t *testing.T) {
+	fullMockServer(t, true)
+	store := newMemoryKeyring()
+
+	// Far-future expiry: no refresh, empty tokens back.
+	access, refresh, _, err := EnsureValidMicrosoftToken("old", time.Now().Add(time.Hour), store)
+	if err != nil || access != "" || refresh != "" {
+		t.Fatalf("valid token must not refresh: %q %q %v", access, refresh, err)
+	}
+	// Near expiry: refresh happens.
+	access, refresh, exp, err := EnsureValidMicrosoftToken("old", time.Now().Add(time.Minute), store)
+	if err != nil || access != "mc-access" || refresh != "ms-refresh-new" {
+		t.Fatalf("near-expiry token must refresh: %q %q %v", access, refresh, err)
+	}
+	if time.Until(exp) < time.Minute {
+		t.Fatal("refreshed expiry must be in the future")
 	}
 }
