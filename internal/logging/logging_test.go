@@ -82,3 +82,14 @@ func TestRedactMasksCredentialSyntax(t *testing.T) {
 		t.Fatalf("credentials were not redacted: %s", got)
 	}
 }
+
+func TestRedactMasksOAuthCallbackURL(t *testing.T) {
+	raw := "redirect https://login.live.com/oauth20_desktop.srf?code=AUTHCODE123&state=ok refresh_token=REFRESH123"
+	got := logging.Redact(raw)
+	if strings.Contains(got, "AUTHCODE123") || strings.Contains(got, "REFRESH123") {
+		t.Fatalf("oauth artifacts were not redacted: %s", got)
+	}
+	if !strings.Contains(got, "code=[redacted]") {
+		t.Fatalf("code param must be visibly masked: %s", got)
+	}
+}
