@@ -345,3 +345,28 @@ func TestErrorCodes(t *testing.T) {
 		t.Errorf("Code = %q, want %q", svcErr.Code, services.ErrCodeNotFound)
 	}
 }
+
+func TestLegacyTokenFieldsStrippedOnLoad(t *testing.T) {
+	dir := t.TempDir()
+	legacy := `{"schemaVersion":1,"accounts":[{"uuid":"u-1","username":"Steve","type":"microsoft","accessToken":"plain-secret","refreshToken":"plain-refresh","expiresAt":"2026-01-01T00:00:00Z"}]}` + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "accounts.json"), []byte(legacy), 0600); err != nil {
+		t.Fatal(err)
+	}
+	svc := &services.AccountService{DataRoot: dir}
+	accounts, err := svc.ListAccounts()
+	if err != nil {
+		t.Fatalf("ListAccounts: %v", err)
+	}
+	if len(accounts) != 1 || accounts[0].Type != "microsoft" {
+		t.Fatalf("accounts = %+v", accounts)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "accounts.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{"plain-secret", "plain-refresh", "accessToken", "refreshToken", "expiresAt"} {
+		if strings.Contains(string(raw), secret) {
+			t.Fatalf("accounts.json still contains %q: %s", secret, raw)
+		}
+	}
+}

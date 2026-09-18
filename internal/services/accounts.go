@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -200,7 +201,9 @@ func (s *AccountService) selectedAccount() (Account, string, error) {
 	return Account{}, "", NewNotFoundError("no account selected")
 }
 
-// Account represents a user account.
+// Account represents a user account. Accounts.json stores metadata only:
+// uuid, username, type, display name and selection. Tokens, passwords and
+// OAuth codes must never be added here; they live in the OS keyring.
 type Account struct {
 	UUID        string `json:"uuid"`
 	Username    string `json:"username"`
@@ -208,6 +211,16 @@ type Account struct {
 	DisplayName string `json:"displayName,omitempty"`
 	Selected    bool   `json:"selected,omitempty"`
 }
+
+const (
+	AccountTypeOffline   = "offline"
+	AccountTypeElyBy     = "ely.by"
+	AccountTypeMicrosoft = "microsoft"
+)
+
+// legacySecretFields are token-bearing keys from older account records.
+// They are stripped on load so plaintext secrets never survive in accounts.json.
+var legacySecretFields = []string{"accessToken", "refreshToken", "access_token", "refresh_token", "expiresAt", "expires_at"}
 
 // accountsFile is the JSON structure for accounts.json.
 type accountsFile struct {
@@ -264,6 +277,8 @@ func (s *AccountService) ListAccounts() ([]Account, error) {
 
 func (s *AccountService) loadAccounts() ([]Account, error) {
 	path := filepath.Join(s.DataRoot, "accounts.json")
+	// Best-effort: purge legacy plaintext secrets before reading.
+	_ = stripLegacySecrets(path)
 	var file accountsFile
 	if err := storage.ReadJSON(path, &file); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -272,6 +287,51 @@ func (s *AccountService) loadAccounts() ([]Account, error) {
 		return nil, err
 	}
 	return file.Accounts, nil
+}
+
+// stripLegacySecrets removes token-bearing keys from stored account objects.
+// It returns true when the file was rewritten. Failures are reported so the
+// caller can decide; loadAccounts treats them as non-fatal.
+func stripLegacySecrets(path string) bool {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var doc struct {
+		Accounts []map[string]interface{} `json:"accounts"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return false
+	}
+	changed := false
+	for _, acc := range doc.Accounts {
+		for _, field := range legacySecretFields {
+			if _, ok := acc[field]; ok {
+				delete(acc, field)
+				changed = true
+			}
+		}
+	}
+	if !changed {
+		return false
+	}
+	var full map[string]interface{}
+	if err := json.Unmarshal(raw, &full); err != nil {
+		return false
+	}
+	accounts := make([]interface{}, 0, len(doc.Accounts))
+	for _, acc := range doc.Accounts {
+		accounts = append(accounts, acc)
+	}
+	full["accounts"] = accounts
+	cleaned, err := json.MarshalIndent(full, "", "  ")
+	if err != nil {
+		return false
+	}
+	if err := os.WriteFile(path, append(cleaned, '\n'), 0600); err != nil {
+		return false
+	}
+	return true
 }
 
 func (s *AccountService) saveAccounts(accounts []Account) error {
