@@ -163,3 +163,14 @@ func TestLoginMicrosoftRequiresApp(t *testing.T) {
 		t.Fatal("expected error when App is not wired")
 	}
 }
+
+func TestNeedsAuthlibInjectorOnlyElyBy(t *testing.T) {
+	if !needsAuthlibInjector(AccountTypeElyBy) {
+		t.Fatal("ely.by must use authlib-injector")
+	}
+	for _, typ := range []string{AccountTypeOffline, AccountTypeMicrosoft, "", "mojang"} {
+		if needsAuthlibInjector(typ) {
+			t.Fatalf("account type %q must not use authlib-injector", typ)
+		}
+	}
+}
