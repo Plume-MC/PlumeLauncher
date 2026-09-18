@@ -113,6 +113,7 @@ func main() {
 		},
 	})
 	launchService.App = app
+	accountService.App = app
 	systemSvc := &services.SystemService{
 		DataRoot: config.DataRoot,
 		Defaults: defaults,
