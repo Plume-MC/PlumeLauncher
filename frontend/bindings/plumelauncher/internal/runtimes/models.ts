@@ -4,7 +4,7 @@
 /**
  * JavaDownloadProgressEvent is emitted via Wails events during JDK downloads.
  */
-export interface JavaDownloadProgressEvent {
+export class JavaDownloadProgressEvent {
     "major": number;
     "status": string;
     "bytesRead": number;
@@ -12,15 +12,73 @@ export interface JavaDownloadProgressEvent {
     "speed": number;
     "eta": number;
     "error"?: string;
+
+    /** Creates a new JavaDownloadProgressEvent instance. */
+    constructor($$source: Partial<JavaDownloadProgressEvent> = {}) {
+        if (!("major" in $$source)) {
+            this["major"] = 0;
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("bytesRead" in $$source)) {
+            this["bytesRead"] = 0;
+        }
+        if (!("totalBytes" in $$source)) {
+            this["totalBytes"] = 0;
+        }
+        if (!("speed" in $$source)) {
+            this["speed"] = 0;
+        }
+        if (!("eta" in $$source)) {
+            this["eta"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new JavaDownloadProgressEvent instance from a string or object.
+     */
+    static createFrom($$source: any = {}): JavaDownloadProgressEvent {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new JavaDownloadProgressEvent($$parsedSource as Partial<JavaDownloadProgressEvent>);
+    }
 }
 
 /**
  * ManagedRuntime represents a downloaded and extracted JDK runtime.
  */
-export interface ManagedRuntime {
+export class ManagedRuntime {
     "major": number;
     "version": string;
     "path": string;
     "installed": boolean;
     "size"?: number;
+
+    /** Creates a new ManagedRuntime instance. */
+    constructor($$source: Partial<ManagedRuntime> = {}) {
+        if (!("major" in $$source)) {
+            this["major"] = 0;
+        }
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("installed" in $$source)) {
+            this["installed"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ManagedRuntime instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ManagedRuntime {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ManagedRuntime($$parsedSource as Partial<ManagedRuntime>);
+    }
 }

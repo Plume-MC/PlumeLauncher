@@ -4,9 +4,32 @@
 /**
  * JavaInfo holds information about a detected Java installation.
  */
-export interface JavaInfo {
+export class JavaInfo {
     "path": string;
     "version": string;
     "major": number;
     "source"?: string;
+
+    /** Creates a new JavaInfo instance. */
+    constructor($$source: Partial<JavaInfo> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("major" in $$source)) {
+            this["major"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new JavaInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): JavaInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new JavaInfo($$parsedSource as Partial<JavaInfo>);
+    }
 }

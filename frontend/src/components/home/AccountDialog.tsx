@@ -15,7 +15,7 @@ interface AccountDialogProps {
 }
 
 export function AccountDialog({ open, onOpenChange, accounts, onChanged }: AccountDialogProps) {
-  const [type, setType] = useState<'offline' | 'ely.by'>('offline');
+  const [type, setType] = useState<'offline' | 'ely.by' | 'microsoft'>('offline');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -39,10 +39,13 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
     event.preventDefault();
     void run(async () => {
       if (type === 'offline') await AccountService.CreateOffline(username.trim());
-      else await AccountService.LoginElyBy(username.trim(), password);
+      else if (type === 'ely.by') await AccountService.LoginElyBy(username.trim(), password);
+      else await AccountService.LoginMicrosoft();
       setUsername('');
     });
   };
+
+  const typeLabel = (t: string) => (t === 'ely.by' ? 'Ely.by' : t === 'microsoft' ? 'Microsoft' : 'Offline');
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -71,7 +74,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{account.displayName || account.username}</p>
                           <div className="mt-1 flex items-center gap-1.5">
-                            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{account.type === 'ely.by' ? 'Ely.by' : 'Offline'}</span>
+                            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{typeLabel(account.type)}</span>
                             {account.selected ? <span className="text-[10px] font-medium text-primary">Active</span> : null}
                           </div>
                         </div>
@@ -96,8 +99,15 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                 <div className="mt-4 inline-flex rounded-lg border border-border p-1">
                   <Button type="button" size="sm" variant={type === 'offline' ? 'secondary' : 'ghost'} onClick={() => setType('offline')}>Offline</Button>
                   <Button type="button" size="sm" variant={type === 'ely.by' ? 'secondary' : 'ghost'} onClick={() => setType('ely.by')}>Ely.by</Button>
+                  <Button type="button" size="sm" variant={type === 'microsoft' ? 'secondary' : 'ghost'} onClick={() => setType('microsoft')}>Microsoft</Button>
                 </div>
 
+                {type === 'microsoft' ? (
+                  <div className="mt-5 space-y-4">
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconKey className="size-3.5" />Opens a Microsoft sign-in window. Tokens stay in the OS keyring.</p>
+                    {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+                  </div>
+                ) : (
                 <div className="mt-5 space-y-4">
                   <label className="block space-y-1.5 text-xs font-medium">
                     {type === 'ely.by' ? 'Email or username' : 'Username'}
@@ -114,11 +124,12 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                   ) : null}
                   {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
                 </div>
+                )}
               </div>
               <footer className="flex justify-end border-t border-border px-5 py-3 sm:px-6">
-                <Button type="submit" size="sm" disabled={busy || !username.trim() || (type === 'ely.by' && !password)}>
+                <Button type="submit" size="sm" disabled={busy || (type !== 'microsoft' && (!username.trim() || (type === 'ely.by' && !password)))}>
                   {busy ? <IconLoader2 className="mr-1.5 size-3.5 animate-spin" /> : <IconPlus className="mr-1.5 size-3.5" />}
-                  {type === 'ely.by' ? 'Sign in' : 'Add profile'}
+                  {type === 'microsoft' ? 'Sign in with Microsoft' : type === 'ely.by' ? 'Sign in' : 'Add profile'}
                 </Button>
               </footer>
             </form>
