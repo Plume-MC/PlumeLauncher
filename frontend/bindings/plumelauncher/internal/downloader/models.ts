@@ -8,46 +8,10 @@ import * as metadata$0 from "../metadata/models.js";
 /**
  * VerifyStatus is the result of verifying a single artifact.
  */
-export class VerifyStatus {
+export interface VerifyStatus {
     "Artifact": metadata$0.Artifact;
     "Valid": boolean;
     "Missing": boolean;
     "Corrupt": boolean;
     "Error": any;
-
-    /** Creates a new VerifyStatus instance. */
-    constructor($$source: Partial<VerifyStatus> = {}) {
-        if (!("Artifact" in $$source)) {
-            this["Artifact"] = (new metadata$0.Artifact());
-        }
-        if (!("Valid" in $$source)) {
-            this["Valid"] = false;
-        }
-        if (!("Missing" in $$source)) {
-            this["Missing"] = false;
-        }
-        if (!("Corrupt" in $$source)) {
-            this["Corrupt"] = false;
-        }
-        if (!("Error" in $$source)) {
-            this["Error"] = null;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new VerifyStatus instance from a string or object.
-     */
-    static createFrom($$source: any = {}): VerifyStatus {
-        const $$createField0_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("Artifact" in $$parsedSource) {
-            $$parsedSource["Artifact"] = $$createField0_0($$parsedSource["Artifact"]);
-        }
-        return new VerifyStatus($$parsedSource as Partial<VerifyStatus>);
-    }
 }
-
-// Private type creation functions
-const $$createType0 = metadata$0.Artifact.createFrom;

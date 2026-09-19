@@ -7,9 +7,6 @@ import type { Events } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import type * as runtimes$0 from "../../../../../plumelauncher/internal/runtimes/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import type * as services$0 from "../../../../../plumelauncher/internal/services/models.js";
 
 declare module "@wailsio/runtime" {

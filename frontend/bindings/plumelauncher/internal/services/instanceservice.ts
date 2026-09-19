@@ -8,7 +8,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -18,9 +18,7 @@ import * as instances$0 from "../instances/models.js";
  * CreateInstance creates a new instance.
  */
 export function CreateInstance(name: string, mcVersion: string, loader: string): $CancellablePromise<instances$0.Instance | null> {
-    return $Call.ByID(756819344, name, mcVersion, loader).then(($result: any) => {
-        return $$createType1($result);
-    });
+    return $Call.ByID(756819344, name, mcVersion, loader);
 }
 
 /**
@@ -34,18 +32,14 @@ export function DeleteInstance(id: string): $CancellablePromise<void> {
  * GetInstance returns an instance by ID.
  */
 export function GetInstance(id: string): $CancellablePromise<instances$0.Instance | null> {
-    return $Call.ByID(1435565002, id).then(($result: any) => {
-        return $$createType1($result);
-    });
+    return $Call.ByID(1435565002, id);
 }
 
 /**
  * ListInstances returns all instances.
  */
-export function ListInstances(): $CancellablePromise<instances$0.Instance[]> {
-    return $Call.ByID(1171690641).then(($result: any) => {
-        return $$createType2($result);
-    });
+export function ListInstances(): $CancellablePromise<instances$0.Instance[] | null> {
+    return $Call.ByID(1171690641);
 }
 
 /**
@@ -61,8 +55,3 @@ export function OpenInstanceFolder(id: string): $CancellablePromise<void> {
 export function UpdateInstanceSettings(id: string, settings: instances$0.Settings): $CancellablePromise<void> {
     return $Call.ByID(672735392, id, settings);
 }
-
-// Private type creation functions
-const $$createType0 = instances$0.Instance.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $Create.Array($$createType0);
