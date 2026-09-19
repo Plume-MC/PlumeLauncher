@@ -53,3 +53,20 @@ func (OSKeyring) Delete(key string) error {
 func SessionKey(accountUUID string) string {
 	return "ely.by:" + accountUUID
 }
+
+// MicrosoftRefreshKey scopes a Microsoft refresh token to one account.
+// Refresh tokens live only in the OS keyring, never in JSON, logs, or bindings.
+func MicrosoftRefreshKey(accountUUID string) string {
+	return "microsoft-refresh:" + accountUUID
+}
+
+// MicrosoftAccessKey scopes a Minecraft access token to one Microsoft account.
+// The game access token is short-lived and keyring-only, like refresh tokens.
+func MicrosoftAccessKey(accountUUID string) string {
+	return "microsoft-access:" + accountUUID
+}
+
+// MicrosoftExpiryKey scopes the access-token expiry (RFC3339) to one account.
+func MicrosoftExpiryKey(accountUUID string) string {
+	return "microsoft-expiry:" + accountUUID
+}

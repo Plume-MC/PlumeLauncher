@@ -17,7 +17,11 @@ const (
 	defaultMaxFiles = 3
 )
 
-var sensitiveText = regexp.MustCompile(`(?i)(token|password|access[_-]?token)([=: ]+)([^\s&,]+)`)
+var sensitiveText = regexp.MustCompile(`(?i)(token|password|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret)([=: ]+)([^\s&,;]+)`)
+
+// sensitiveQuery masks OAuth callback parameters inside URLs, e.g.
+// https://login.live.com/oauth20_desktop.srf?code=SECRET.
+var sensitiveQuery = regexp.MustCompile(`(?i)([?&])(code|id_token|access_token|refresh_token|session_state)(=)([^&\s;]+)`)
 
 // Logger writes structured JSON lines to a bounded launcher log.
 type Logger struct {
@@ -76,7 +80,8 @@ func Redact(value string, secrets ...string) string {
 			value = strings.ReplaceAll(value, secret, "[redacted]")
 		}
 	}
-	return sensitiveText.ReplaceAllString(value, `${1}${2}[redacted]`)
+	value = sensitiveText.ReplaceAllString(value, `${1}${2}[redacted]`)
+	return sensitiveQuery.ReplaceAllString(value, `${1}${2}${3}[redacted]`)
 }
 
 type redactingHandler struct {

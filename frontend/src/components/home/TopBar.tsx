@@ -22,7 +22,7 @@ export function TopBar({
   account = null,
 }: TopBarProps) {
   const name = account?.displayName || account?.username || 'No account';
-  const typeLabel = account?.type === 'ely.by' ? 'Ely.by' : account ? 'Offline' : 'Sign in';
+  const typeLabel = account?.type === 'ely.by' ? 'Ely.by' : account?.type === 'microsoft' ? 'Microsoft' : account ? 'Offline' : 'Sign in';
 
   return (
     <header

@@ -118,7 +118,7 @@ func (s *HomeService) LaunchInstance(id string) (err error) {
 	if err != nil {
 		return NewValidationError(err.Error(), "wrapper")
 	}
-	if account.Type == "ely.by" {
+	if needsAuthlibInjector(account.Type) {
 		injector, err := auth.EnsureAuthlibInjector(context.Background(), filepath.Join(s.DataRoot, "cache"), nil)
 		if err != nil {
 			return NewIntegrityError("authlib-injector: " + err.Error())
@@ -126,6 +126,13 @@ func (s *HomeService) LaunchInstance(id string) (err error) {
 		options.AuthlibInjector = injector
 	}
 	return launcher.Launch(*detail, options)
+}
+
+// needsAuthlibInjector reports whether the account type requires the
+// Ely.by authlib-injector agent. Only Ely.by uses runtime injection;
+// offline and Microsoft sessions launch without a Java agent.
+func needsAuthlibInjector(accountType string) bool {
+	return accountType == AccountTypeElyBy
 }
 
 func (s *HomeService) StopInstance(id string) error {

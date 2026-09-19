@@ -22,7 +22,7 @@ export function CreateOffline(username: string): $CancellablePromise<$models.Acc
 }
 
 /**
- * DeleteAccount removes an offline profile or revokes and removes an Ely.by session.
+ * DeleteAccount removes an offline profile or revokes and removes an Ely.by/Microsoft session.
  */
 export function DeleteAccount(accountUUID: string): $CancellablePromise<void> {
     return $Call.ByID(3349041341, accountUUID);
@@ -39,12 +39,33 @@ export function LoginElyBy(username: string, password: string): $CancellableProm
     return $Call.ByID(2579944023, username, password);
 }
 
+/**
+ * LoginMicrosoft runs the full Microsoft login flow in an in-app window.
+ */
+export function LoginMicrosoft(): $CancellablePromise<$models.Account | null> {
+    return $Call.ByID(4231905050);
+}
+
 export function LogoutElyBy(accountUUID: string): $CancellablePromise<void> {
     return $Call.ByID(3666026168, accountUUID);
 }
 
+/**
+ * LogoutMicrosoft removes the keyring session and the account row.
+ */
+export function LogoutMicrosoft(accountUUID: string): $CancellablePromise<void> {
+    return $Call.ByID(1581042649, accountUUID);
+}
+
 export function RefreshElyBy(accountUUID: string): $CancellablePromise<$models.Account | null> {
     return $Call.ByID(24394337, accountUUID);
+}
+
+/**
+ * RefreshMicrosoftToken explicitly refreshes a Microsoft session on demand.
+ */
+export function RefreshMicrosoftToken(accountUUID: string): $CancellablePromise<$models.Account | null> {
+    return $Call.ByID(935913693, accountUUID);
 }
 
 export function SelectAccount(accountUUID: string): $CancellablePromise<void> {
