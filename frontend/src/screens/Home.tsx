@@ -195,21 +195,23 @@ export function Home({ instances, onRefresh }: HomeProps) {
           ? HomeService.RetryInstance
           : HomeService.InstallInstance;
       const actionLabel = action === 'repair' ? 'Repair' : action === 'retry' ? 'Retry' : 'Install';
-      toast.add({ type: 'success', title: `${actionLabel} requested` });
       void operation(id)
+        .then(() => {
+          toast.add({ type: 'success', title: `${actionLabel} started` });
+        })
         .catch((error) => {
           if (error instanceof Error && /cancelled|canceled/i.test(error.message)) {
             toast.add({
               type: 'info',
               title: `${actionLabel} cancelled`,
-              description: 'The instance was returned to its previous state.',
+              description: 'The download was stopped.',
             });
             return;
           }
           toast.add({
             type: 'error',
             title: `${actionLabel} failed`,
-            description: error instanceof Error ? error.message : 'Please check the launcher logs.',
+            description: error instanceof Error ? error.message : 'See Settings > Logs for details.',
             priority: 'high',
           });
         })
@@ -230,7 +232,7 @@ export function Home({ instances, onRefresh }: HomeProps) {
         toast.add({
           type: 'error',
           title: 'Cancel failed',
-          description: error instanceof Error ? error.message : 'Please check the launcher logs.',
+          description: error instanceof Error ? error.message : 'See Settings > Logs for details.',
           priority: 'high',
         });
       } finally {
@@ -253,14 +255,14 @@ export function Home({ instances, onRefresh }: HomeProps) {
         toast.add({
           type: 'info',
           title: 'Launch cancelled',
-          description: 'The instance was returned to its previous state.',
+          description: 'Minecraft did not start.',
         });
         return;
       }
       toast.add({
         type: 'error',
-        title: 'Action failed',
-        description: error instanceof Error ? error.message : 'Please check the launcher logs.',
+        title: action === 'play' ? 'Play failed' : 'Stop failed',
+        description: error instanceof Error ? error.message : 'See Settings > Logs for details.',
         priority: 'high',
       });
     } finally {
@@ -278,7 +280,10 @@ export function Home({ instances, onRefresh }: HomeProps) {
           search={search}
           loaderFilter={loaderFilter}
           sort={sort}
-          onCreate={() => setCreateOpen(true)}
+          onCreate={() => {
+            setDetailOpen(false);
+            setCreateOpen(true);
+          }}
           onSearchChange={setSearch}
           onLoaderFilterChange={setLoaderFilter}
           onSortChange={setSort}
@@ -295,9 +300,13 @@ export function Home({ instances, onRefresh }: HomeProps) {
           stoppingInstanceId={stoppingInstanceId}
           stateOverrides={stateOverrides}
           crashExitCodes={crashExitCodes}
-          onCreate={() => setCreateOpen(true)}
+          onCreate={() => {
+            setDetailOpen(false);
+            setCreateOpen(true);
+          }}
           onAction={(id, action) => void runAction(id, action)}
           onOpenDetail={(instance) => {
+            setCreateOpen(false);
             setDetailInstance(instance);
             setDetailOpen(true);
           }}
