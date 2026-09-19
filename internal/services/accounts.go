@@ -374,7 +374,16 @@ func (s *AccountService) upsertMicrosoftAccount(creds *auth.MicrosoftCredentials
 	return &account, nil
 }
 
-// RefreshMicrosoftToken refreshes a Microsoft session when it is near expiry.
+// refreshMicrosoftError classifies a refresh failure: a revoked/expired
+// session asks for re-login, anything else is transient and retryable.
+func refreshMicrosoftError(err error) *ServiceError {
+	if errors.Is(err, auth.ErrInvalidGrant) {
+		return NewUpstreamError("Microsoft session expired; please sign in again")
+	}
+	return NewUpstreamError(fmt.Sprintf("Microsoft token refresh failed (will retry): %v", err))
+}
+
+// RefreshMicrosoftToken explicitly refreshes a Microsoft session on demand.
 func (s *AccountService) RefreshMicrosoftToken(accountUUID string) (*Account, error) {
 	account, err := s.microsoftAccount(accountUUID)
 	if err != nil {
@@ -386,7 +395,7 @@ func (s *AccountService) RefreshMicrosoftToken(accountUUID string) (*Account, er
 	}
 	creds, err := auth.RefreshMicrosoft(refreshToken, s.tokenStore())
 	if err != nil {
-		return nil, NewUpstreamError(fmt.Sprintf("Microsoft token refresh failed: %v", err))
+		return nil, refreshMicrosoftError(err)
 	}
 	account.Username = creds.Username
 	account.DisplayName = creds.Username
@@ -445,7 +454,7 @@ func (s *AccountService) microsoftLaunchToken(account Account) (Account, string,
 	}
 	access, _, newExpiry, err := auth.EnsureValidMicrosoftToken(refreshToken, expiresAt, store)
 	if err != nil {
-		return Account{}, "", NewUpstreamError("Microsoft token refresh failed; please sign in again")
+		return Account{}, "", refreshMicrosoftError(err)
 	}
 	if access == "" {
 		access, err = store.Get(auth.MicrosoftAccessKey(account.UUID))
@@ -454,10 +463,12 @@ func (s *AccountService) microsoftLaunchToken(account Account) (Account, string,
 		}
 		return account, access, nil
 	}
-	_ = s.storeMicrosoftSession(account.UUID, &auth.MicrosoftCredentials{
+	if err := s.storeMicrosoftSession(account.UUID, &auth.MicrosoftCredentials{
 		AccessToken: access,
 		ExpiresAt:   newExpiry,
-	})
+	}); err != nil {
+		return Account{}, "", err
+	}
 	return account, access, nil
 }
 

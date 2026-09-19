@@ -7,12 +7,15 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -56,6 +59,31 @@ type OAuthTokenResponse struct {
 	ExpiresIn    int64  `json:"expires_in"`
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+}
+
+// ErrInvalidGrant marks a revoked/expired refresh token. Only this case
+// requires interactive re-login; any other refresh failure is transient.
+var ErrInvalidGrant = errors.New("microsoft session expired; please sign in again")
+
+// OAuthError is a non-2xx response from the Microsoft OAuth endpoint.
+// The raw body is never included: it may echo request material.
+type OAuthError struct {
+	StatusCode  int
+	Code        string
+	Description string
+}
+
+func (e *OAuthError) Error() string {
+	if e.Code != "" {
+		return fmt.Sprintf("oauth request: %d %s", e.StatusCode, e.Code)
+	}
+	return fmt.Sprintf("oauth request: %d", e.StatusCode)
+}
+
+// Is reports invalid_grant as ErrInvalidGrant so callers can distinguish a
+// dead session from a transient network/upstream failure.
+func (e *OAuthError) Is(target error) bool {
+	return target == ErrInvalidGrant && e.Code == "invalid_grant"
 }
 
 type SisuAuthorizeResponse struct {
@@ -186,13 +214,27 @@ func postOAuthForm(url string, form map[string]string) (*OAuthTokenResponse, err
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("oauth request: %d %s", resp.StatusCode, string(respBody))
+		code, description := parseOAuthError(respBody)
+		return nil, &OAuthError{StatusCode: resp.StatusCode, Code: code, Description: description}
 	}
 	var result OAuthTokenResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, fmt.Errorf("decode oauth response: %w", err)
 	}
 	return &result, nil
+}
+
+// parseOAuthError extracts the machine-readable error code from a Microsoft
+// OAuth error body without retaining the raw response.
+func parseOAuthError(body []byte) (code, description string) {
+	var payload struct {
+		Error            string `json:"error"`
+		ErrorDescription string `json:"error_description"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return "", ""
+	}
+	return payload.Error, payload.ErrorDescription
 }
 
 func encodeForm(values map[string]string) string {
@@ -600,11 +642,59 @@ func LoginFinish(code string, flow *MicrosoftLoginFlow, store Keyring) (*Microso
 	return creds, nil
 }
 
+// refreshFlight dedupes concurrent RefreshMicrosoft calls sharing one refresh
+// token, so token rotation cannot invalidate a racing sibling. Callers are
+// keyed by the SHA-256 of the token; the secret itself is never retained.
+type refreshCall struct {
+	done  chan struct{}
+	creds *MicrosoftCredentials
+	err   error
+}
+
+var refreshFlights = struct {
+	sync.Mutex
+	calls map[string]*refreshCall
+}{calls: map[string]*refreshCall{}}
+
+func refreshFlightKey(refreshToken string) string {
+	sum := sha256.Sum256([]byte(refreshToken))
+	return hex.EncodeToString(sum[:])
+}
+
 // RefreshMicrosoft refreshes Microsoft credentials using a refresh token.
 func RefreshMicrosoft(refreshToken string, store Keyring) (*MicrosoftCredentials, error) {
+	key := refreshFlightKey(refreshToken)
+	refreshFlights.Lock()
+	if call, ok := refreshFlights.calls[key]; ok {
+		refreshFlights.Unlock()
+		<-call.done
+		return call.creds, call.err
+	}
+	call := &refreshCall{done: make(chan struct{})}
+	refreshFlights.calls[key] = call
+	refreshFlights.Unlock()
+
+	call.creds, call.err = refreshMicrosoftUnshared(refreshToken, store)
+
+	refreshFlights.Lock()
+	delete(refreshFlights.calls, key)
+	refreshFlights.Unlock()
+	close(call.done)
+	return call.creds, call.err
+}
+
+func refreshMicrosoftUnshared(refreshToken string, store Keyring) (*MicrosoftCredentials, error) {
 	oauthToken, err := OAuthRefresh(refreshToken)
 	if err != nil {
 		return nil, err
+	}
+	if oauthToken.AccessToken == "" {
+		return nil, fmt.Errorf("oauth refresh returned no access token")
+	}
+	// Microsoft may omit refresh_token when it is not rotated; keep the
+	// working token instead of persisting an empty session.
+	if oauthToken.RefreshToken == "" {
+		oauthToken.RefreshToken = refreshToken
 	}
 
 	key, err := GenerateKey()

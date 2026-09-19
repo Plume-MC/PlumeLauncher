@@ -4,11 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -391,5 +394,78 @@ func TestEnsureValidMicrosoftTokenBuffer(t *testing.T) {
 	}
 	if time.Until(exp) < time.Minute {
 		t.Fatal("refreshed expiry must be in the future")
+	}
+}
+
+func TestOAuthRefreshInvalidGrantIsTyped(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"error":"invalid_grant","error_description":"token expired","access_token":"must-never-leak"}`))
+	}))
+	defer srv.Close()
+	overrideOAuthURL(t, srv.URL)
+
+	_, err := OAuthRefresh("dead-refresh")
+	if err == nil || !errors.Is(err, ErrInvalidGrant) {
+		t.Fatalf("invalid_grant must match ErrInvalidGrant, got %v", err)
+	}
+	if strings.Contains(err.Error(), "must-never-leak") {
+		t.Fatalf("oauth error must not echo response body: %v", err)
+	}
+}
+
+func TestRefreshMicrosoftKeepsTokenWhenRotationEmpty(t *testing.T) {
+	fullMockServer(t, true)
+	oauth := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"access_token":"ms-access","expires_in":3600}`))
+	}))
+	defer oauth.Close()
+	overrideOAuthURL(t, oauth.URL)
+
+	store := newMemoryKeyring()
+	creds, err := RefreshMicrosoft("stable-refresh", store)
+	if err != nil {
+		t.Fatalf("RefreshMicrosoft: %v", err)
+	}
+	if creds.RefreshToken != "stable-refresh" {
+		t.Fatalf("empty rotation must keep old token, got %q", creds.RefreshToken)
+	}
+	if got, _ := store.Get(MicrosoftRefreshKey(creds.UUID)); got != "stable-refresh" {
+		t.Fatalf("keyring must keep old token, got %q", got)
+	}
+}
+
+func TestRefreshMicrosoftDedupesConcurrentCalls(t *testing.T) {
+	fullMockServer(t, true)
+	var hits atomic.Int32
+	oauth := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		time.Sleep(100 * time.Millisecond)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"access_token":"ms-access","refresh_token":"ms-refresh-new","expires_in":3600}`))
+	}))
+	defer oauth.Close()
+	overrideOAuthURL(t, oauth.URL)
+
+	const callers = 5
+	results := make([]*MicrosoftCredentials, callers)
+	errs := make([]error, callers)
+	var wg sync.WaitGroup
+	for i := 0; i < callers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			results[i], errs[i] = RefreshMicrosoft("shared-refresh", newMemoryKeyring())
+		}(i)
+	}
+	wg.Wait()
+	for i := 0; i < callers; i++ {
+		if errs[i] != nil || results[i].AccessToken != "mc-access" {
+			t.Fatalf("caller %d: %+v %v", i, results[i], errs[i])
+		}
+	}
+	if hits.Load() != 1 {
+		t.Fatalf("concurrent refresh must hit oauth once, got %d", hits.Load())
 	}
 }

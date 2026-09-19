@@ -176,6 +176,17 @@ func TestNeedsAuthlibInjectorOnlyElyBy(t *testing.T) {
 	}
 }
 
+func TestRefreshMicrosoftErrorClassification(t *testing.T) {
+	expired := refreshMicrosoftError(auth.ErrInvalidGrant)
+	if !strings.Contains(expired.Error(), "sign in again") {
+		t.Fatalf("invalid grant must request re-login, got %v", expired)
+	}
+	transient := refreshMicrosoftError(auth.ErrTokenNotFound)
+	if strings.Contains(transient.Error(), "sign in again") || !strings.Contains(transient.Error(), "retry") {
+		t.Fatalf("transient failure must be retryable, got %v", transient)
+	}
+}
+
 func TestParseMicrosoftCallback(t *testing.T) {
 	req := httptest.NewRequest("GET", "/callback?code=auth-code-123", nil)
 	code, err := parseMicrosoftCallback(req)

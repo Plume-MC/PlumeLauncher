@@ -62,7 +62,7 @@ export function RefreshElyBy(accountUUID: string): $CancellablePromise<$models.A
 }
 
 /**
- * RefreshMicrosoftToken refreshes a Microsoft session when it is near expiry.
+ * RefreshMicrosoftToken explicitly refreshes a Microsoft session on demand.
  */
 export function RefreshMicrosoftToken(accountUUID: string): $CancellablePromise<$models.Account | null> {
     return $Call.ByID(935913693, accountUUID);
