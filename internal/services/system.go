@@ -123,6 +123,12 @@ func (s *SystemService) openFolder(path, label string) error {
 	return nil
 }
 
+// RequiredJavaMajor returns the minimum Java major version for a Minecraft
+// version, e.g. 21 for "1.20.1". Used by the UI for compatibility guidance.
+func (s *SystemService) RequiredJavaMajor(mcVersion string) int {
+	return java.RequiredJavaMajor(mcVersion)
+}
+
 // ScanJava detects installed Java installations.
 func (s *SystemService) ScanJava() ([]java.JavaInfo, error) {
 	installed, err := java.RescanJavaInstallations()

@@ -31,6 +31,20 @@ func (s *LaunchService) HasRunning() bool {
 	return len(s.processes) > 0
 }
 
+// launchRequiredMajor resolves the Java major a launch needs. Mojang's
+// javaVersion field wins when present; loader detail IDs (e.g.
+// "fabric-loader-0.16.14-1.20.1") do not parse as versions, so the plain
+// Minecraft version is used as fallback instead of detail.ID.
+func launchRequiredMajor(detail metadata.VersionDetail, mcVersion string) int {
+	if detail.JavaVersion.MajorVersion > 0 {
+		return detail.JavaVersion.MajorVersion
+	}
+	if mcVersion == "" {
+		mcVersion = detail.ID
+	}
+	return java.RequiredJavaMajor(mcVersion)
+}
+
 // Launch starts a Minecraft instance.
 func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Options) error {
 	// Check if operation already active
@@ -64,7 +78,11 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	}
 
 	// Find Java
-	requiredMajor := java.RequiredJavaMajor(detail.ID)
+	mcVersion := opts.MCVersion
+	if mcVersion == "" {
+		mcVersion = detail.ID
+	}
+	requiredMajor := launchRequiredMajor(detail, opts.MCVersion)
 	javaPath := opts.JavaPath
 	if javaPath != "" {
 		if _, err := java.ValidateJavaPath(javaPath, requiredMajor); err != nil {
@@ -75,7 +93,7 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 		if err != nil || len(installs) == 0 {
 			return NewIncompatibleError("No Java installation found. Download one from Settings > Java.")
 		}
-		selected, err := java.SelectJava(installs, detail.ID)
+		selected, err := java.SelectJava(installs, mcVersion)
 		if err != nil {
 			return NewIncompatibleError("Unable to pick a Java installation. Download one from Settings > Java.")
 		}

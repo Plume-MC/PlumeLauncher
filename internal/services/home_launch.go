@@ -41,8 +41,19 @@ func (s *HomeService) LaunchInstance(id string) (err error) {
 	}
 	settings := instances.EffectiveSettings(*inst, defaults)
 	javaPath := settings.JavaPath
-	if javaPath == "" {
-		found, scanErr := java.ScanJavaInstallations()
+	if javaPath != "" {
+		required := java.RequiredJavaMajor(inst.MCVersion)
+		if _, err := java.ValidateJavaPath(javaPath, required); err != nil {
+			if info, checkErr := java.CheckJava(javaPath); checkErr == nil && info != nil {
+				return NewIncompatibleError(fmt.Sprintf(
+					"The configured Java (%d) does not work for Minecraft %s, which needs %d or newer. Pick another Java in Settings.",
+					info.Major, inst.MCVersion, required,
+				))
+			}
+			return NewIncompatibleError("The configured Java does not work. Pick another Java in Settings.")
+		}
+	} else {
+		found, scanErr := launchJavaCandidates(s.DataRoot, s.Defaults)
 		if scanErr != nil {
 			return NewIncompatibleError("Unable to scan for Java installations.")
 		}
@@ -100,6 +111,7 @@ func (s *HomeService) LaunchInstance(id string) (err error) {
 		AccessToken:   accessToken,
 		UserType:      account.Type,
 		VersionID:     id,
+		MCVersion:     inst.MCVersion,
 		GameDir:       filepath.Join(instanceDir, ".minecraft"),
 		ClasspathRoot: s.DataRoot,
 		AssetsDir:     filepath.Join(s.DataRoot, "assets"),

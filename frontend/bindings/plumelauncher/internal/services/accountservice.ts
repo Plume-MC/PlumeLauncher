@@ -8,7 +8,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -18,11 +18,14 @@ import * as $models from "./models.js";
  * CreateOffline creates an offline account with deterministic UUID.
  */
 export function CreateOffline(username: string): $CancellablePromise<$models.Account | null> {
-    return $Call.ByID(1701179032, username);
+    return $Call.ByID(1701179032, username).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
  * DeleteAccount removes an offline profile or revokes and removes an Ely.by/Microsoft session.
+ * The last remaining account cannot be removed; add another account first.
  */
 export function DeleteAccount(accountUUID: string): $CancellablePromise<void> {
     return $Call.ByID(3349041341, accountUUID);
@@ -31,19 +34,25 @@ export function DeleteAccount(accountUUID: string): $CancellablePromise<void> {
 /**
  * ListAccounts returns all accounts.
  */
-export function ListAccounts(): $CancellablePromise<$models.Account[] | null> {
-    return $Call.ByID(2525240705);
+export function ListAccounts(): $CancellablePromise<$models.Account[]> {
+    return $Call.ByID(2525240705).then(($result: any) => {
+        return $$createType2($result);
+    });
 }
 
 export function LoginElyBy(username: string, password: string): $CancellablePromise<$models.Account | null> {
-    return $Call.ByID(2579944023, username, password);
+    return $Call.ByID(2579944023, username, password).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
  * LoginMicrosoft runs the full Microsoft login flow in an in-app window.
  */
 export function LoginMicrosoft(): $CancellablePromise<$models.Account | null> {
-    return $Call.ByID(4231905050);
+    return $Call.ByID(4231905050).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 export function LogoutElyBy(accountUUID: string): $CancellablePromise<void> {
@@ -58,16 +67,25 @@ export function LogoutMicrosoft(accountUUID: string): $CancellablePromise<void> 
 }
 
 export function RefreshElyBy(accountUUID: string): $CancellablePromise<$models.Account | null> {
-    return $Call.ByID(24394337, accountUUID);
+    return $Call.ByID(24394337, accountUUID).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
  * RefreshMicrosoftToken explicitly refreshes a Microsoft session on demand.
  */
 export function RefreshMicrosoftToken(accountUUID: string): $CancellablePromise<$models.Account | null> {
-    return $Call.ByID(935913693, accountUUID);
+    return $Call.ByID(935913693, accountUUID).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 export function SelectAccount(accountUUID: string): $CancellablePromise<void> {
     return $Call.ByID(3495478380, accountUUID);
 }
+
+// Private type creation functions
+const $$createType0 = $models.Account.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $Create.Array($$createType0);
