@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { JavaDownloadCard } from '@/components/home/JavaDownloadCard';
+import { javaRangeLabel } from '@/lib/javaRanges';
 import { SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { JavaInfo } from '../../../bindings/plumelauncher/internal/java/models.js';
 
@@ -101,6 +102,7 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
                     {runtime.source && <Badge variant="outline" className="text-[9px]">{runtime.source}</Badge>}
                     {isSelected && <Badge className="text-[9px]">Selected</Badge>}
                   </div>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">{javaRangeLabel(runtime.major)}</p>
                   <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">{runtime.path}</p>
                 </div>
                 <Button
@@ -145,7 +147,7 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
             <JavaDownloadCard
               key={major}
               major={major}
-              recommended={major === 25}
+              recommended={major === 21}
               installed={managedInstalled[major] ?? false}
               onDownloadComplete={handleDownloadComplete}
             />
