@@ -22,6 +22,7 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
   const [customPath, setCustomPath] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [managedInstalled, setManagedInstalled] = useState<Record<number, boolean>>({});
 
   const refresh = async () => {
@@ -55,15 +56,17 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
     if (!customPath.trim()) return;
     setBusy(true);
     setError('');
+    setNotice('');
     try {
       const runtime = await SystemService.AddCustomJava(customPath.trim());
       if (runtime) {
         onCustomPathAdded(runtime.path);
         setCustomPath('');
+        setNotice(`Java ${runtime.major} added. ${javaRangeLabel(runtime.major)}.`);
         await refresh();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Java validation failed');
+      setError(err instanceof Error ? err.message : 'That Java does not work. Check the path and try again.');
     } finally {
       setBusy(false);
     }
@@ -118,7 +121,7 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
             );
           })}
           {runtimes.length === 0 && !busy && (
-            <p className="p-4 text-center text-xs text-muted-foreground">No verified Java runtime found. Add a custom executable path below or download one.</p>
+            <p className="p-4 text-center text-xs text-muted-foreground">No Java found. Download one below or paste a path.</p>
           )}
         </div>
 
@@ -131,9 +134,10 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
             className="h-8"
           />
           <Button variant="outline" size="sm" disabled={busy || !customPath.trim()} onClick={() => void addCustom()}>
-            Validate & Add
+            Add
           </Button>
         </div>
+        {notice && <p role="status" className="text-xs text-success">{notice}</p>}
         {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
       </section>
 
