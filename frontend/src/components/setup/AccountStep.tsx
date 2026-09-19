@@ -69,7 +69,7 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
       </div>
 
       {type === 'microsoft' ? (
-        <p className="text-center text-xs text-muted-foreground">Opens a Microsoft sign-in window. Tokens stay in the OS keyring.</p>
+        <p className="text-center text-xs text-muted-foreground">{saving ? 'Waiting for Microsoft sign-in… Close the sign-in window to cancel.' : 'Opens a Microsoft sign-in window. Tokens stay in the OS keyring.'}</p>
       ) : (
       <div className="space-y-3">
         <div className="space-y-1.5">

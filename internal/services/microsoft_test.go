@@ -1,6 +1,7 @@
 package services
 
 import (
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -172,5 +173,23 @@ func TestNeedsAuthlibInjectorOnlyElyBy(t *testing.T) {
 		if needsAuthlibInjector(typ) {
 			t.Fatalf("account type %q must not use authlib-injector", typ)
 		}
+	}
+}
+
+func TestParseMicrosoftCallback(t *testing.T) {
+	req := httptest.NewRequest("GET", "/callback?code=auth-code-123", nil)
+	code, err := parseMicrosoftCallback(req)
+	if err != nil || code != "auth-code-123" {
+		t.Fatalf("code = %q err = %v", code, err)
+	}
+
+	req = httptest.NewRequest("GET", "/callback?error=access_denied&error_description=denied+by+user", nil)
+	if _, err := parseMicrosoftCallback(req); err == nil || !strings.Contains(err.Error(), "denied by user") {
+		t.Fatalf("must prefer error_description, got %v", err)
+	}
+
+	req = httptest.NewRequest("GET", "/callback", nil)
+	if _, err := parseMicrosoftCallback(req); err == nil || !strings.Contains(err.Error(), "no code in callback") {
+		t.Fatalf("empty callback must fail fast, got %v", err)
 	}
 }

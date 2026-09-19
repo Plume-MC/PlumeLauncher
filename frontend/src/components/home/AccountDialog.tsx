@@ -104,7 +104,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
 
                 {type === 'microsoft' ? (
                   <div className="mt-5 space-y-4">
-                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconKey className="size-3.5" />Opens a Microsoft sign-in window. Tokens stay in the OS keyring.</p>
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconKey className="size-3.5" />{busy ? 'Waiting for Microsoft sign-in… Close the sign-in window to cancel.' : 'Opens a Microsoft sign-in window. Tokens stay in the OS keyring.'}</p>
                     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
                   </div>
                 ) : (

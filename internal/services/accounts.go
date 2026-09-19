@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"plumelauncher/internal/auth"
 	"plumelauncher/internal/storage"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // AccountService manages user accounts.
@@ -151,22 +153,35 @@ func (s *AccountService) DeleteAccount(accountUUID string) error {
 	return NewNotFoundError("account not found")
 }
 
-// msAuthBootstrapHTML marks the Wails runtime as ready so later ExecJS calls
-// are not queued forever. Microsoft pages never send wails:runtime:ready.
+// msAuthBootstrapHTML is a static loading page shown before the Microsoft
+// login page loads. Wails injects its own cross-platform runtime shim, so no
+// manual bridge script is needed here; Microsoft pages never send
+// wails:runtime:ready themselves.
 const msAuthBootstrapHTML = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>Microsoft account</title></head>
 <body style="margin:0;background:#121011;color:#f5f2f2;font:14px system-ui;display:flex;align-items:center;justify-content:center;height:100vh">
 <p>Opening Microsoft login…</p>
-<script>
-window._wails = window._wails || {};
-if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === "function") {
-	window._wails.invoke = function (msg) { window.chrome.webview.postMessage(msg); };
-	window._wails.invoke("wails:runtime:ready");
-}
-</script>
 </body>
 </html>`
+
+// parseMicrosoftCallback extracts the OAuth code from the loopback callback
+// request. Only the first code wins; error responses are surfaced so the
+// login flow can fail fast instead of hanging until timeout.
+func parseMicrosoftCallback(r *http.Request) (string, error) {
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		message := r.URL.Query().Get("error_description")
+		if message == "" {
+			message = r.URL.Query().Get("error")
+		}
+		if message == "" {
+			message = "no code in callback"
+		}
+		return "", fmt.Errorf("%s", message)
+	}
+	return code, nil
+}
 
 // LoginMicrosoft runs the full Microsoft login flow in an in-app window.
 func (s *AccountService) LoginMicrosoft() (*Account, error) {
@@ -192,15 +207,15 @@ func (s *AccountService) LoginMicrosoft() (*Account, error) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		code := r.URL.Query().Get("code")
-		if code == "" {
-			message := r.URL.Query().Get("error")
-			if message == "" {
-				message = "no code in callback"
-			}
-			http.Error(w, message, http.StatusBadRequest)
+		if r.Method != http.MethodGet || r.URL.Path != "/callback" {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		code, callbackErr := parseMicrosoftCallback(r)
+		if callbackErr != nil {
+			http.Error(w, callbackErr.Error(), http.StatusBadRequest)
 			select {
-			case errCh <- fmt.Errorf("%s", message):
+			case errCh <- callbackErr:
 			default:
 			}
 			return
@@ -229,10 +244,23 @@ func (s *AccountService) LoginMicrosoft() (*Account, error) {
 	})
 	defer authWindow.Close()
 
-	go func() {
-		time.Sleep(150 * time.Millisecond)
-		authWindow.SetURL(flow.AuthRequestURI)
-	}()
+	// Closing the auth window cancels the flow so the frontend promise
+	// resolves immediately instead of hanging until the timeout.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	authWindow.RegisterHook(events.Common.WindowClosing, func(*application.WindowEvent) {
+		cancel()
+	})
+
+	// Navigate only after the Wails runtime is ready. ExecJS calls made
+	// before that are queued, and navigating early risks losing the
+	// callback polling script when the page changes to Microsoft.
+	var navigateOnce sync.Once
+	authWindow.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
+		navigateOnce.Do(func() {
+			authWindow.SetURL(flow.AuthRequestURI)
+		})
+	})
 
 	// Poll for the desktop OAuth callback page and forward the code to loopback.
 	callbackScript := fmt.Sprintf(`(() => {
@@ -259,6 +287,8 @@ func (s *AccountService) LoginMicrosoft() (*Account, error) {
 			select {
 			case <-done:
 				return
+			case <-ctx.Done():
+				return
 			case <-ticker.C:
 				authWindow.ExecJS(callbackScript)
 			}
@@ -271,6 +301,8 @@ func (s *AccountService) LoginMicrosoft() (*Account, error) {
 	case code = <-codeCh:
 	case err := <-errCh:
 		return nil, NewUpstreamError(fmt.Sprintf("Microsoft login failed: %v", err))
+	case <-ctx.Done():
+		return nil, NewCancelledError("Microsoft login cancelled")
 	case <-time.After(3 * time.Minute):
 		return nil, NewUpstreamError("Microsoft login timed out")
 	}
