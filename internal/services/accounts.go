@@ -124,6 +124,7 @@ func (s *AccountService) LogoutElyBy(accountUUID string) error {
 }
 
 // DeleteAccount removes an offline profile or revokes and removes an Ely.by/Microsoft session.
+// The last remaining account cannot be removed; add another account first.
 func (s *AccountService) DeleteAccount(accountUUID string) error {
 	accounts, err := s.loadAccounts()
 	if err != nil {
@@ -132,6 +133,9 @@ func (s *AccountService) DeleteAccount(accountUUID string) error {
 	for _, account := range accounts {
 		if account.UUID != accountUUID {
 			continue
+		}
+		if len(accounts) == 1 {
+			return NewConflictError("Cannot remove the last account. Add another account first.")
 		}
 		if account.Type == AccountTypeElyBy {
 			return s.LogoutElyBy(accountUUID)

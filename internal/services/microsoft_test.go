@@ -109,6 +109,9 @@ func TestDeleteAccountDispatchesMicrosoft(t *testing.T) {
 	dir := t.TempDir()
 	keys := msMemoryKeyring{}
 	svc := &AccountService{DataRoot: dir, Keyring: keys}
+	if _, err := svc.CreateOffline("Fallback"); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := svc.upsertMicrosoftAccount(testMicrosoftCreds()); err != nil {
 		t.Fatal(err)
 	}
@@ -116,8 +119,8 @@ func TestDeleteAccountDispatchesMicrosoft(t *testing.T) {
 		t.Fatalf("DeleteAccount: %v", err)
 	}
 	accounts, _ := svc.ListAccounts()
-	if len(accounts) != 0 {
-		t.Fatalf("accounts = %+v", accounts)
+	if len(accounts) != 1 || accounts[0].Type != AccountTypeOffline {
+		t.Fatalf("accounts = %+v, want only the fallback offline account", accounts)
 	}
 	for _, k := range []string{
 		auth.MicrosoftRefreshKey("player-uuid-1"),

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { IconCheck, IconChevronLeft, IconEye, IconEyeOff, IconLoader2, IconUserCircle } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,12 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const pendingLogin = useRef<{ cancel: () => void } | null>(null);
+
+  const cancelLogin = () => {
+    pendingLogin.current?.cancel();
+    pendingLogin.current = null;
+  };
 
   const create = async () => {
     setSaving(true);
@@ -24,7 +30,18 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
     try {
       if (type === 'offline') await AccountService.CreateOffline(username.trim());
       else if (type === 'ely.by') await AccountService.LoginElyBy(username.trim(), password);
-      else await AccountService.LoginMicrosoft();
+      else {
+        const call = AccountService.LoginMicrosoft();
+        pendingLogin.current = call;
+        try {
+          await call;
+        } catch (err) {
+          if (err instanceof Error && /cancel/i.test(err.message)) return;
+          throw err;
+        } finally {
+          pendingLogin.current = null;
+        }
+      }
       onNext();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account');
@@ -136,6 +153,11 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
           {saving ? 'Working...' : type === 'microsoft' ? 'Sign in with Microsoft' : type === 'ely.by' ? 'Sign in' : 'Add profile'}
         </Button>
       </div>
+      {saving && type === 'microsoft' ? (
+        <Button variant="ghost" size="sm" className="w-full" onClick={cancelLogin}>
+          Cancel sign-in
+        </Button>
+      ) : null}
     </div>
   );
 }

@@ -34,6 +34,7 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
   const [loadingVersions, setLoadingVersions] = useState(false);
   const [loadingLoaders, setLoadingLoaders] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -71,7 +72,7 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
     return () => {
       cancelled = true;
     };
-  }, [loader, open]);
+  }, [loader, open, reloadKey]);
 
   useEffect(() => {
     if (!open) return;
@@ -103,7 +104,7 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
     return () => {
       cancelled = true;
     };
-  }, [loader, version, open]);
+  }, [loader, version, open, reloadKey]);
 
   const canSubmit =
     !!name.trim() &&
@@ -275,7 +276,7 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
                         >
                           <SelectTrigger aria-label="Loader version" className="h-9 w-full">
                             <span className="min-w-0 flex-1 truncate text-left">
-                              {loadingLoaders ? 'Loading loaders...' : loaderVersion || 'Select loader version'}
+                              {loadingLoaders ? 'Loading loader versions...' : loaderVersion || 'Select loader version'}
                             </span>
                           </SelectTrigger>
                           <SelectContent>
@@ -294,6 +295,13 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
                     <p role="alert" className="text-sm text-destructive">
                       {error}
                     </p>
+                  ) : null}
+                  {!loadingVersions && !loadingLoaders && versions.length === 0 ? (
+                    <div>
+                      <Button type="button" variant="secondary" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
+                        Retry
+                      </Button>
+                    </div>
                   ) : null}
                 </div>
 

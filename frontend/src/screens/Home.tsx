@@ -33,7 +33,7 @@ interface HomeProps {
   onRefresh: () => Promise<void>;
 }
 
-export function Home({ instances, onRefresh }: HomeProps) {
+export function Home({ account, instances, onRefresh }: HomeProps) {
   const { reduced } = useMotionPreference();
   const [search, setSearch] = useState('');
   const [loaderFilter, setLoaderFilter] = useState<'all' | LoaderType>('all');
@@ -273,6 +273,11 @@ export function Home({ instances, onRefresh }: HomeProps) {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+      {!account ? (
+        <div role="alert" className="mb-4 rounded-lg border border-border bg-card/40 px-4 py-3 text-sm text-muted-foreground">
+          No account selected. Add one from Accounts in the top bar to play.
+        </div>
+      ) : null}
       <Suspense fallback={<LoadingOverlay />}>
         <InstanceLibraryToolbar
           instanceCount={instances.length}

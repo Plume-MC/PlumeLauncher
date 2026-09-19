@@ -86,6 +86,9 @@ func TestAccountServiceDeleteOffline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateOffline: %v", err)
 	}
+	if _, err := svc.CreateOffline("Player2"); err != nil {
+		t.Fatalf("CreateOffline: %v", err)
+	}
 	if err := svc.DeleteAccount(account.UUID); err != nil {
 		t.Fatalf("DeleteAccount: %v", err)
 	}
@@ -93,8 +96,20 @@ func TestAccountServiceDeleteOffline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListAccounts: %v", err)
 	}
-	if len(accounts) != 0 {
-		t.Fatalf("ListAccounts = %#v, want empty", accounts)
+	if len(accounts) != 1 || accounts[0].Username != "Player2" {
+		t.Fatalf("ListAccounts = %#v, want only Player2", accounts)
+	}
+}
+
+func TestAccountServiceDeleteLastAccountFails(t *testing.T) {
+	dir := t.TempDir()
+	svc := &services.AccountService{DataRoot: dir}
+	account, err := svc.CreateOffline("Player1")
+	if err != nil {
+		t.Fatalf("CreateOffline: %v", err)
+	}
+	if err := svc.DeleteAccount(account.UUID); err == nil || !strings.Contains(err.Error(), "last account") {
+		t.Fatalf("DeleteAccount = %v, want last-account conflict", err)
 	}
 }
 
@@ -118,6 +133,9 @@ func TestAccountServiceElyByLifecycle(t *testing.T) {
 	}
 	if _, err := svc.RefreshElyBy(account.UUID); err != nil {
 		t.Fatalf("RefreshElyBy: %v", err)
+	}
+	if _, err := svc.CreateOffline("Fallback"); err != nil {
+		t.Fatalf("CreateOffline: %v", err)
 	}
 	if err := svc.DeleteAccount(account.UUID); err != nil {
 		t.Fatalf("DeleteAccount: %v", err)
