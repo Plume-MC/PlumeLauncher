@@ -158,7 +158,7 @@ export function CreateInstanceDialog({ open, onOpenChange, onCreated }: CreateIn
             >
               <div className="flex items-start justify-between border-b border-border px-5 py-4">
                 <div>
-                  <Dialog.Title className="text-base font-semibold tracking-tight">New instance</Dialog.Title>
+                  <Dialog.Title className="text-base font-semibold tracking-tight">Create instance</Dialog.Title>
                   <Dialog.Description className="mt-0.5 text-sm text-muted-foreground">
                     Isolated install under your game data root.
                   </Dialog.Description>

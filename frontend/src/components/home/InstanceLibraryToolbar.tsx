@@ -44,7 +44,7 @@ export function InstanceLibraryToolbar({
           onClick={onCreate}
         >
           <IconPlus className="size-3.5" />
-          New instance
+          Create instance
         </Button>
       </div>
 

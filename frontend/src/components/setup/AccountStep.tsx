@@ -43,7 +43,7 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
     <div className="space-y-6">
       <div className="space-y-1 text-center">
         <h1 className="text-xl font-semibold tracking-tight">Add account</h1>
-        <p className="text-sm text-muted-foreground">Pick offline play, Ely.by, or Microsoft. Tokens stay in the OS keyring.</p>
+        <p className="text-sm text-muted-foreground">Pick offline play, Ely.by, or Microsoft. Tokens stay safely on this device.</p>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -69,7 +69,7 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
       </div>
 
       {type === 'microsoft' ? (
-        <p className="text-center text-xs text-muted-foreground">{saving ? 'Waiting for Microsoft sign-in… Close the sign-in window to cancel.' : 'Opens a Microsoft sign-in window. Tokens stay in the OS keyring.'}</p>
+        <p className="text-center text-xs text-muted-foreground">{saving ? 'Waiting for Microsoft sign-in… Close the sign-in window to cancel.' : 'Opens a Microsoft sign-in window. Tokens stay safely on this device.'}</p>
       ) : (
       <div className="space-y-3">
         <div className="space-y-1.5">
@@ -133,7 +133,7 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
           className="flex-1 gap-1.5 bg-foreground font-semibold text-background hover:bg-foreground/90"
         >
           {saving ? <IconLoader2 className="size-4 animate-spin" /> : <IconCheck className="size-4" />}
-          {saving ? 'Working...' : type === 'microsoft' ? 'Sign in with Microsoft' : type === 'ely.by' ? 'Sign in' : 'Create profile'}
+          {saving ? 'Working...' : type === 'microsoft' ? 'Sign in with Microsoft' : type === 'ely.by' ? 'Sign in' : 'Add profile'}
         </Button>
       </div>
     </div>

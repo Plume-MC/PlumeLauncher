@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { IconKey, IconLoader2, IconPlus, IconTrash, IconUser, IconX } from '@tabler/icons-react';
 import { Dialog } from '@base-ui/react/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { AccountService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { Account } from '../../../bindings/plumelauncher/internal/services/models.js';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<Account | null>(null);
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -33,6 +35,13 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
     } finally {
       setBusy(false);
     }
+  };
+
+  const confirmRemove = () => {
+    if (!pendingRemove) return;
+    const uuid = pendingRemove.uuid;
+    setPendingRemove(null);
+    void run(() => AccountService.DeleteAccount(uuid));
   };
 
   const addAccount = (event: React.FormEvent) => {
@@ -79,8 +88,8 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
-                          {!account.selected ? <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => void run(() => AccountService.SelectAccount(account.uuid))}>Use</Button> : null}
-                          <Button type="button" size="icon-xs" variant="ghost" className="text-muted-foreground hover:text-destructive" disabled={busy} aria-label={`Remove ${account.displayName || account.username}`} onClick={() => void run(() => AccountService.DeleteAccount(account.uuid))}>
+                          {!account.selected ? <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => void run(() => AccountService.SelectAccount(account.uuid))}>Select</Button> : null}
+                          <Button type="button" size="icon-xs" variant="ghost" className="text-muted-foreground hover:text-destructive" disabled={busy} aria-label={`Remove ${account.displayName || account.username}`} onClick={() => setPendingRemove(account)}>
                             <IconTrash className="size-3.5" />
                           </Button>
                         </div>
@@ -88,7 +97,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                     ))}
                   </div>
                 ) : (
-                  <div className="grid min-h-40 place-items-center text-center text-sm text-muted-foreground">No saved profiles.</div>
+                  <div className="grid min-h-40 place-items-center text-center text-sm text-muted-foreground">No saved accounts.</div>
                 )}
               </div>
             </section>
@@ -104,7 +113,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
 
                 {type === 'microsoft' ? (
                   <div className="mt-5 space-y-4">
-                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconKey className="size-3.5" />{busy ? 'Waiting for Microsoft sign-in… Close the sign-in window to cancel.' : 'Opens a Microsoft sign-in window. Tokens stay in the OS keyring.'}</p>
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconKey className="size-3.5" />{busy ? 'Waiting for Microsoft sign-in… Close the sign-in window to cancel.' : 'Opens a Microsoft sign-in window. Tokens stay safely on this device.'}</p>
                     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
                   </div>
                 ) : (
@@ -119,7 +128,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                         Password
                         <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
                       </label>
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconKey className="size-3.5" />Session is stored in your OS keyring.</p>
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconKey className="size-3.5" />Session is stored safely on this device.</p>
                     </>
                   ) : null}
                   {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
@@ -136,6 +145,13 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
           </div>
         </Dialog.Popup>
       </Dialog.Portal>
+      <AlertDialog open={pendingRemove !== null} onOpenChange={(open) => { if (!open) setPendingRemove(null); }}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Remove account?</AlertDialogTitle>
+          <AlertDialogDescription>This removes <strong className="text-foreground">{pendingRemove?.displayName || pendingRemove?.username}</strong> from this device{pendingRemove?.type === 'microsoft' || pendingRemove?.type === 'ely.by' ? ' and signs it out' : ''}.</AlertDialogDescription>
+          <div className="mt-5 flex justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setPendingRemove(null)}>Cancel</Button><Button type="button" variant="destructive" disabled={busy} onClick={confirmRemove}>{busy ? 'Removing...' : 'Remove'}</Button></div>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog.Root>
   );
 }
