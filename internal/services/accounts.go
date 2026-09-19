@@ -30,17 +30,17 @@ type AccountService struct {
 
 func (s *AccountService) LoginElyBy(username, password string) (*Account, error) {
 	if username == "" || password == "" {
-		return nil, NewValidationError("username and password are required", "username", "password")
+		return nil, NewValidationError("Enter a username and password.", "username", "password")
 	}
 	session, err := (auth.ElyByClient{HTTPClient: s.HTTPClient, BaseURL: s.ElyByURL}).Authenticate(username, password)
 	if err != nil {
-		return nil, NewUpstreamError("Ely.by authentication failed")
+		return nil, NewUpstreamError("Unable to sign in to Ely.by. Check your details and connection, then try again.")
 	}
 	account := Account{UUID: session.SelectedProfile.ID, Username: session.SelectedProfile.Name, DisplayName: session.SelectedProfile.Name, Type: "ely.by", Selected: true}
 	key := auth.SessionKey(account.UUID)
 	store := s.tokenStore()
 	if err := store.Set(key, session.AccessToken); err != nil {
-		return nil, NewUpstreamError("secure session storage is unavailable; please retry after fixing your OS keyring")
+		return nil, NewUpstreamError("Unable to access secure storage on this device. Try again.")
 	}
 	keepToken := false
 	defer func() {
@@ -50,7 +50,7 @@ func (s *AccountService) LoginElyBy(username, password string) (*Account, error)
 	}()
 	accounts, err := s.loadAccounts()
 	if err != nil {
-		return nil, NewInternalError("failed to load accounts")
+		return nil, NewInternalError("Unable to load accounts. Restart the launcher and try again.")
 	}
 	for i, existing := range accounts {
 		if existing.UUID == account.UUID {
@@ -59,7 +59,7 @@ func (s *AccountService) LoginElyBy(username, password string) (*Account, error)
 			}
 			accounts[i] = account
 			if err := s.saveAccounts(accounts); err != nil {
-				return nil, NewInternalError("failed to save account")
+				return nil, NewInternalError("Unable to save the account.")
 			}
 			keepToken = true
 			return &account, nil
@@ -70,7 +70,7 @@ func (s *AccountService) LoginElyBy(username, password string) (*Account, error)
 	}
 	accounts = append(accounts, account)
 	if err := s.saveAccounts(accounts); err != nil {
-		return nil, NewInternalError("failed to save account")
+		return nil, NewInternalError("Unable to save the account.")
 	}
 	keepToken = true
 	return &account, nil
@@ -90,7 +90,7 @@ func (s *AccountService) RefreshElyBy(accountUUID string) (*Account, error) {
 		return nil, NewUpstreamError("Ely.by session refresh failed; please sign in again")
 	}
 	if err := s.tokenStore().Set(auth.SessionKey(account.UUID), session.AccessToken); err != nil {
-		return nil, NewUpstreamError("secure session storage is unavailable")
+		return nil, NewUpstreamError("Unable to access secure storage on this device.")
 	}
 	return &account, nil
 }
@@ -105,11 +105,11 @@ func (s *AccountService) LogoutElyBy(accountUUID string) error {
 		_ = (auth.ElyByClient{HTTPClient: s.HTTPClient, BaseURL: s.ElyByURL}).Invalidate(token)
 	}
 	if err := s.tokenStore().Delete(auth.SessionKey(account.UUID)); err != nil {
-		return NewUpstreamError("secure session storage is unavailable")
+		return NewUpstreamError("Unable to access secure storage on this device.")
 	}
 	accounts, err := s.loadAccounts()
 	if err != nil {
-		return NewInternalError("failed to load accounts")
+		return NewInternalError("Unable to load accounts. Restart the launcher and try again.")
 	}
 	for i := range accounts {
 		if accounts[i].UUID == accountUUID {
@@ -118,7 +118,7 @@ func (s *AccountService) LogoutElyBy(accountUUID string) error {
 		}
 	}
 	if err := s.saveAccounts(accounts); err != nil {
-		return NewInternalError("failed to save account")
+		return NewInternalError("Unable to save the account.")
 	}
 	return nil
 }
@@ -128,7 +128,7 @@ func (s *AccountService) LogoutElyBy(accountUUID string) error {
 func (s *AccountService) DeleteAccount(accountUUID string) error {
 	accounts, err := s.loadAccounts()
 	if err != nil {
-		return NewInternalError("failed to load accounts")
+		return NewInternalError("Unable to load accounts. Restart the launcher and try again.")
 	}
 	for _, account := range accounts {
 		if account.UUID != accountUUID {
@@ -150,7 +150,7 @@ func (s *AccountService) DeleteAccount(accountUUID string) error {
 			}
 		}
 		if err := s.saveAccounts(accounts); err != nil {
-			return NewInternalError("failed to save account")
+			return NewInternalError("Unable to save the account.")
 		}
 		return nil
 	}
@@ -195,7 +195,7 @@ func (s *AccountService) LoginMicrosoft() (*Account, error) {
 
 	flow, err := auth.LoginBegin()
 	if err != nil {
-		return nil, NewUpstreamError(fmt.Sprintf("failed to start Microsoft login: %v", err))
+		return nil, NewUpstreamError("Unable to start Microsoft sign-in. Try again.")
 	}
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -303,12 +303,12 @@ func (s *AccountService) LoginMicrosoft() (*Account, error) {
 	var code string
 	select {
 	case code = <-codeCh:
-	case err := <-errCh:
-		return nil, NewUpstreamError(fmt.Sprintf("Microsoft login failed: %v", err))
+	case <-errCh:
+		return nil, NewUpstreamError("Microsoft sign-in failed. Try again.")
 	case <-ctx.Done():
 		return nil, NewCancelledError("Microsoft login cancelled")
 	case <-time.After(3 * time.Minute):
-		return nil, NewUpstreamError("Microsoft login timed out")
+		return nil, NewUpstreamError("Microsoft sign-in timed out. Try again.")
 	}
 
 	return s.completeMicrosoftLogin(code, flow)
@@ -319,7 +319,7 @@ func (s *AccountService) LoginMicrosoft() (*Account, error) {
 func (s *AccountService) completeMicrosoftLogin(code string, flow *auth.MicrosoftLoginFlow) (*Account, error) {
 	creds, err := auth.LoginFinish(code, flow, s.tokenStore())
 	if err != nil {
-		return nil, NewUpstreamError(fmt.Sprintf("Microsoft authentication failed: %v", err))
+		return nil, NewUpstreamError("Microsoft sign-in failed. Try again.")
 	}
 	return s.upsertMicrosoftAccount(creds)
 }
@@ -331,7 +331,7 @@ func (s *AccountService) upsertMicrosoftAccount(creds *auth.MicrosoftCredentials
 	store := s.tokenStore()
 	refreshKey := auth.MicrosoftRefreshKey(creds.UUID)
 	if err := store.Set(refreshKey, creds.RefreshToken); err != nil {
-		return nil, NewUpstreamError("secure token storage unavailable")
+		return nil, NewUpstreamError("Unable to access secure storage on this device.")
 	}
 	keepToken := false
 	defer func() {
@@ -342,15 +342,15 @@ func (s *AccountService) upsertMicrosoftAccount(creds *auth.MicrosoftCredentials
 		}
 	}()
 	if err := store.Set(auth.MicrosoftAccessKey(creds.UUID), creds.AccessToken); err != nil {
-		return nil, NewUpstreamError("secure token storage unavailable")
+		return nil, NewUpstreamError("Unable to access secure storage on this device.")
 	}
 	if err := store.Set(auth.MicrosoftExpiryKey(creds.UUID), creds.ExpiresAt.UTC().Format(time.RFC3339)); err != nil {
-		return nil, NewUpstreamError("secure token storage unavailable")
+		return nil, NewUpstreamError("Unable to access secure storage on this device.")
 	}
 
 	accounts, err := s.loadAccounts()
 	if err != nil {
-		return nil, NewInternalError("failed to load accounts")
+		return nil, NewInternalError("Unable to load accounts. Restart the launcher and try again.")
 	}
 	account := Account{
 		UUID:        creds.UUID,
@@ -364,7 +364,7 @@ func (s *AccountService) upsertMicrosoftAccount(creds *auth.MicrosoftCredentials
 		if accounts[i].UUID == creds.UUID && accounts[i].Type == AccountTypeMicrosoft {
 			accounts[i] = account
 			if err := s.saveAccounts(accounts); err != nil {
-				return nil, NewInternalError("failed to save account")
+				return nil, NewInternalError("Unable to save the account.")
 			}
 			keepToken = true
 			return &account, nil
@@ -372,7 +372,7 @@ func (s *AccountService) upsertMicrosoftAccount(creds *auth.MicrosoftCredentials
 	}
 	accounts = append(accounts, account)
 	if err := s.saveAccounts(accounts); err != nil {
-		return nil, NewInternalError("failed to save account")
+		return nil, NewInternalError("Unable to save the account.")
 	}
 	keepToken = true
 	return &account, nil
@@ -384,7 +384,7 @@ func refreshMicrosoftError(err error) *ServiceError {
 	if errors.Is(err, auth.ErrInvalidGrant) {
 		return NewUpstreamError("Microsoft session expired; please sign in again")
 	}
-	return NewUpstreamError(fmt.Sprintf("Microsoft token refresh failed (will retry): %v", err))
+	return NewUpstreamError("Microsoft token refresh failed. Check your connection and try again.")
 }
 
 // RefreshMicrosoftToken explicitly refreshes a Microsoft session on demand.
@@ -408,7 +408,7 @@ func (s *AccountService) RefreshMicrosoftToken(accountUUID string) (*Account, er
 	}
 	accounts, err := s.loadAccounts()
 	if err != nil {
-		return nil, NewInternalError("failed to load accounts")
+		return nil, NewInternalError("Unable to load accounts. Restart the launcher and try again.")
 	}
 	for i := range accounts {
 		if accounts[i].UUID == account.UUID && accounts[i].Type == AccountTypeMicrosoft {
@@ -418,7 +418,7 @@ func (s *AccountService) RefreshMicrosoftToken(accountUUID string) (*Account, er
 		}
 	}
 	if err := s.saveAccounts(accounts); err != nil {
-		return nil, NewInternalError("failed to save account")
+		return nil, NewInternalError("Unable to save the account.")
 	}
 	return &account, nil
 }
@@ -433,7 +433,7 @@ func (s *AccountService) LogoutMicrosoft(accountUUID string) error {
 	_ = s.tokenStore().Delete(auth.MicrosoftExpiryKey(accountUUID))
 	accounts, err := s.loadAccounts()
 	if err != nil {
-		return NewInternalError("failed to load accounts")
+		return NewInternalError("Unable to load accounts. Restart the launcher and try again.")
 	}
 	for i := range accounts {
 		if accounts[i].UUID == accountUUID && accounts[i].Type == AccountTypeMicrosoft {
@@ -482,10 +482,10 @@ func (s *AccountService) microsoftLaunchToken(account Account) (Account, string,
 func (s *AccountService) storeMicrosoftSession(accountUUID string, creds *auth.MicrosoftCredentials) error {
 	store := s.tokenStore()
 	if err := store.Set(auth.MicrosoftAccessKey(accountUUID), creds.AccessToken); err != nil {
-		return NewUpstreamError("secure token storage unavailable")
+		return NewUpstreamError("Unable to access secure storage on this device.")
 	}
 	if err := store.Set(auth.MicrosoftExpiryKey(accountUUID), creds.ExpiresAt.UTC().Format(time.RFC3339)); err != nil {
-		return NewUpstreamError("secure token storage unavailable")
+		return NewUpstreamError("Unable to access secure storage on this device.")
 	}
 	return nil
 }
@@ -493,7 +493,7 @@ func (s *AccountService) storeMicrosoftSession(accountUUID string, creds *auth.M
 func (s *AccountService) microsoftAccount(uuid string) (Account, error) {
 	accounts, err := s.loadAccounts()
 	if err != nil {
-		return Account{}, NewInternalError("failed to load accounts")
+		return Account{}, NewInternalError("Unable to load accounts. Restart the launcher and try again.")
 	}
 	for _, account := range accounts {
 		if account.UUID == uuid && account.Type == AccountTypeMicrosoft {
@@ -506,7 +506,7 @@ func (s *AccountService) microsoftAccount(uuid string) (Account, error) {
 func (s *AccountService) elyByAccount(uuid string) (Account, error) {
 	accounts, err := s.loadAccounts()
 	if err != nil {
-		return Account{}, NewInternalError("failed to load accounts")
+		return Account{}, NewInternalError("Unable to load accounts. Restart the launcher and try again.")
 	}
 	for _, account := range accounts {
 		if account.UUID == uuid && account.Type == "ely.by" {
@@ -526,7 +526,7 @@ func (s *AccountService) tokenStore() auth.Keyring {
 func (s *AccountService) SelectAccount(accountUUID string) error {
 	accounts, err := s.loadAccounts()
 	if err != nil {
-		return NewInternalError("failed to load accounts")
+		return NewInternalError("Unable to load accounts. Restart the launcher and try again.")
 	}
 	found := false
 	for i := range accounts {
@@ -537,7 +537,7 @@ func (s *AccountService) SelectAccount(accountUUID string) error {
 		return NewNotFoundError("account not found")
 	}
 	if err := s.saveAccounts(accounts); err != nil {
-		return NewInternalError("failed to save account")
+		return NewInternalError("Unable to save the account.")
 	}
 	return nil
 }
@@ -545,7 +545,7 @@ func (s *AccountService) SelectAccount(accountUUID string) error {
 func (s *AccountService) selectedAccount() (Account, string, error) {
 	accounts, err := s.loadAccounts()
 	if err != nil {
-		return Account{}, "", NewInternalError("failed to load accounts")
+		return Account{}, "", NewInternalError("Unable to load accounts. Restart the launcher and try again.")
 	}
 	for _, account := range accounts {
 		if !account.Selected {
@@ -614,7 +614,7 @@ func (s *AccountService) CreateOffline(username string) (*Account, error) {
 	// Load existing accounts
 	accounts, err := s.loadAccounts()
 	if err != nil {
-		return nil, NewInternalError("failed to load accounts")
+		return nil, NewInternalError("Unable to load accounts. Restart the launcher and try again.")
 	}
 	if len(accounts) == 0 {
 		acc.Selected = true
@@ -629,7 +629,7 @@ func (s *AccountService) CreateOffline(username string) (*Account, error) {
 
 	accounts = append(accounts, acc)
 	if err := s.saveAccounts(accounts); err != nil {
-		return nil, NewInternalError("failed to save account")
+		return nil, NewInternalError("Unable to save the account.")
 	}
 
 	return &acc, nil

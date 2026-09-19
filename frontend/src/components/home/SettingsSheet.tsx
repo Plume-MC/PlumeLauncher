@@ -31,6 +31,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
   const [settings, setSettings] = useState<LauncherDefaults | null>(null);
   const [saved, setSaved] = useState<LauncherDefaults | null>(null);
   const [dataRoot, setDataRoot] = useState('');
+  const [savedDataRoot, setSavedDataRoot] = useState('');
   const [portable, setPortable] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -46,13 +47,14 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
       setSettings(nextSettings);
       setSaved(nextSettings);
       setDataRoot(root);
+      setSavedDataRoot(root);
       setPortable(nextPortable);
     }).catch((err) => setError(err instanceof Error ? err.message : 'Unable to load settings')).finally(() => setBusy(''));
   }, [isOpen]);
 
   if (!isOpen || !settings) return null;
 
-  const dirty = JSON.stringify(settings) !== JSON.stringify(saved);
+  const dirty = JSON.stringify(settings) !== JSON.stringify(saved) || dataRoot !== savedDataRoot;
   const update = <K extends keyof LauncherDefaults>(key: K, value: LauncherDefaults[K]) => setSettings((current) => current ? { ...current, [key]: value } : current);
   const close = () => dirty ? setDiscardOpen(true) : onClose();
 
@@ -77,6 +79,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
     setDataNotice('');
     try {
       await SystemService.UpdateDataRoot(dataRoot);
+      setSavedDataRoot(dataRoot);
       setDataNotice('Data root saved. Restart the launcher to apply. Existing data is not moved.');
       toast.add({ type: 'info', title: 'Restart required', description: 'The data root will apply after you restart the launcher.' });
     } catch (err) {
@@ -194,7 +197,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                     <div className="rounded-lg bg-card/40 p-4">
                       <p className="mb-3 text-[11px] text-muted-foreground">Change applies after restart. All launcher data uses this root.</p>
                       <div className="flex gap-2">
-                        <Button size="sm" disabled={!dataRoot || !!busy} onClick={() => void saveDataRoot()}>{busy === 'data-root' ? 'Saving...' : 'Use after restart'}</Button>
+                        <Button size="sm" disabled={!dataRoot || !!busy} onClick={() => void saveDataRoot()}>{busy === 'data-root' ? 'Saving...' : 'Save (applies after restart)'}</Button>
                         <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void openFolder()}>{busy === 'data' ? 'Opening...' : 'Open data folder'}</Button>
                         <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void SystemService.OpenLogFolder()}>Open logs</Button>
                       </div>
@@ -262,7 +265,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
           <AlertDialogDescription>Your launcher settings changes will be lost.</AlertDialogDescription>
           <div className="mt-5 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setDiscardOpen(false)}>Keep editing</Button>
-            <Button variant="destructive" onClick={() => { setDiscardOpen(false); onClose(); }}>Discard</Button>
+            <Button variant="destructive" onClick={() => { setDiscardOpen(false); setDataRoot(savedDataRoot); onClose(); }}>Discard</Button>
           </div>
         </AlertDialogContent>
       </AlertDialog>

@@ -35,13 +35,13 @@ func (s *LaunchService) HasRunning() bool {
 func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Options) error {
 	// Check if operation already active
 	if s.Registry.IsActive(opts.VersionID) {
-		return NewConflictError("launch already active for " + opts.VersionID)
+		return NewConflictError("Minecraft is already running for this instance.")
 	}
 
 	// Start operation
 	op, err := s.Registry.Start(opts.VersionID, instances.OpLaunch)
 	if err != nil {
-		return NewConflictError(err.Error())
+		return NewConflictError("Minecraft is already running for this instance.")
 	}
 	if s.Logger != nil {
 		s.Logger.AddSecrets(opts.AccessToken)
@@ -60,7 +60,7 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	// Build arguments
 	args, err := launch.BuildArguments(detail, opts)
 	if err != nil {
-		return NewInternalError("failed to build arguments: " + err.Error())
+		return NewInternalError("Unable to prepare the launch. Try again.")
 	}
 
 	// Find Java
@@ -68,16 +68,16 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	javaPath := opts.JavaPath
 	if javaPath != "" {
 		if _, err := java.ValidateJavaPath(javaPath, requiredMajor); err != nil {
-			return NewIncompatibleError(err.Error())
+			return NewIncompatibleError("The configured Java does not work for this Minecraft version. Pick another Java in Settings.")
 		}
 	} else {
 		installs, err := java.ScanJavaInstallations()
 		if err != nil || len(installs) == 0 {
-			return NewIncompatibleError("no Java installation found")
+			return NewIncompatibleError("No Java installation found. Download one from Settings > Java.")
 		}
 		selected, err := java.SelectJava(installs, detail.ID)
 		if err != nil {
-			return NewIncompatibleError(err.Error())
+			return NewIncompatibleError("Unable to pick a Java installation. Download one from Settings > Java.")
 		}
 		javaPath = selected.Path
 	}
@@ -85,11 +85,11 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 	// Launch process
 	command, commandArgs, err := launch.BuildCommand(javaPath, args, opts.Wrapper)
 	if err != nil {
-		return NewValidationError(err.Error(), "wrapper")
+		return NewValidationError("The wrapper command is invalid. Check Settings for the correct format.", "wrapper")
 	}
 	cmd, err := launch.Launch(command, commandArgs, opts.GameDir, opts.Env)
 	if err != nil {
-		return NewInternalError("failed to launch: " + err.Error())
+		return NewInternalError("Unable to start Minecraft.")
 	}
 	handedOff = true
 	go s.monitor(cmd, opts, op)
@@ -212,7 +212,7 @@ func launchLogLevel(line string, isStderr bool) string {
 func (s *LaunchService) Stop(instanceID string) error {
 	op := s.Registry.Get(instanceID)
 	if op == nil || op.Status != instances.OpStatusRunning {
-		return NewNotFoundError("no active launch for " + instanceID)
+		return NewNotFoundError("No active game for this instance.")
 	}
 
 	s.mu.Lock()
@@ -225,7 +225,7 @@ func (s *LaunchService) Stop(instanceID string) error {
 	}
 	emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: instanceID, State: "stopping"})
 	if err := launch.Stop(cmd); err != nil {
-		return NewInternalError("failed to stop launch: " + err.Error())
+		return NewInternalError("Unable to stop Minecraft.")
 	}
 	s.Registry.Cancel(instanceID)
 	return nil

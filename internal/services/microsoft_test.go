@@ -185,7 +185,7 @@ func TestRefreshMicrosoftErrorClassification(t *testing.T) {
 		t.Fatalf("invalid grant must request re-login, got %v", expired)
 	}
 	transient := refreshMicrosoftError(auth.ErrTokenNotFound)
-	if strings.Contains(transient.Error(), "sign in again") || !strings.Contains(transient.Error(), "retry") {
+	if strings.Contains(transient.Error(), "sign in again") || !strings.Contains(transient.Error(), "try again") {
 		t.Fatalf("transient failure must be retryable, got %v", transient)
 	}
 }

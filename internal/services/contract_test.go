@@ -113,6 +113,38 @@ func TestAccountServiceDeleteLastAccountFails(t *testing.T) {
 	}
 }
 
+func TestUserFacingMessagesAvoidJargon(t *testing.T) {
+	dir := t.TempDir()
+	mgr := instances.NewManager(dir, instances.DefaultLauncherDefaults())
+	svc := &services.InstanceService{DataRoot: dir, Manager: mgr}
+
+	if _, err := svc.CreateInstance("", "1.21.4", "vanilla"); err == nil || !strings.Contains(err.Error(), "Enter an instance name.") {
+		t.Fatalf("empty name error = %v", err)
+	}
+	if _, err := svc.CreateInstance("Test", "1.21.4", "modded"); err == nil || !strings.Contains(err.Error(), "Pick a valid loader.") {
+		t.Fatalf("bad loader error = %v", err)
+	}
+	inst, err := svc.CreateInstance("Test", "1.21.4", "vanilla")
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	if err := svc.UpdateInstanceSettings(inst.ID, instances.Settings{MinRamMB: instances.IntPtr(100)}); err == nil ||
+		!strings.Contains(err.Error(), "Minimum RAM must be at least 256 MB.") {
+		t.Fatalf("low RAM error = %v", err)
+	}
+	for _, msg := range []string{
+		"Enter an instance name.",
+		"Minimum RAM must be at least 256 MB.",
+		"Cannot remove the last account. Add another account first.",
+	} {
+		for _, banned := range []string{"mcVersion", "minRamMB", "resolve ", "natives", "artifacts", "VersionID"} {
+			if strings.Contains(msg, banned) {
+				t.Fatalf("message %q contains jargon %q", msg, banned)
+			}
+		}
+	}
+}
+
 func TestAccountServiceElyByLifecycle(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/auth/invalidate" {
@@ -171,7 +203,7 @@ func TestAccountServiceFailsClosedWhenKeyringUnavailable(t *testing.T) {
 	defer server.Close()
 	dir := t.TempDir()
 	svc := &services.AccountService{DataRoot: dir, HTTPClient: server.Client(), ElyByURL: server.URL + "/auth/", Keyring: unavailableKeyring{}}
-	if _, err := svc.LoginElyBy("player", "password"); err == nil || !strings.Contains(err.Error(), "secure session storage") {
+	if _, err := svc.LoginElyBy("player", "password"); err == nil || !strings.Contains(err.Error(), "secure storage on this device") {
 		t.Fatalf("error = %v, want secure storage failure", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "accounts.json")); !os.IsNotExist(err) {

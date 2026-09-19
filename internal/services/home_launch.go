@@ -16,10 +16,10 @@ import (
 func (s *HomeService) LaunchInstance(id string) (err error) {
 	inst, err := s.Instances.Get(id)
 	if err != nil {
-		return NewNotFoundError("instance not found")
+		return NewNotFoundError("Instance not found.")
 	}
 	if inst.State != instances.StateReady && inst.State != instances.StateStopped && inst.State != instances.StateCrashed {
-		return NewConflictError("instance is not ready; install it first")
+		return NewConflictError("This instance is not ready. Install it first.")
 	}
 	emit(s.App, EventLaunchState, LaunchStateEvent{InstanceID: id, State: "preparing"})
 	defer func() {
@@ -29,7 +29,7 @@ func (s *HomeService) LaunchInstance(id string) (err error) {
 	}()
 	detail, err := s.resolveInstanceDetail(context.Background(), inst)
 	if err != nil {
-		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
+		return NewUpstreamError("Unable to load version details. Check your connection and try again.")
 	}
 	plan := metadata.ResolvePlan(*detail, metadata.CurrentSystem())
 	if err := s.ensureArtifacts(id, inst, plan); err != nil {
@@ -37,14 +37,14 @@ func (s *HomeService) LaunchInstance(id string) (err error) {
 	}
 	defaults, err := instances.LoadConfig(s.DataRoot)
 	if err != nil {
-		return NewInternalError("load launcher settings: " + err.Error())
+		return NewInternalError("Unable to load launcher settings.")
 	}
 	settings := instances.EffectiveSettings(*inst, defaults)
 	javaPath := settings.JavaPath
 	if javaPath == "" {
 		found, scanErr := java.ScanJavaInstallations()
 		if scanErr != nil {
-			return NewIncompatibleError(scanErr.Error())
+			return NewIncompatibleError("Unable to scan for Java installations.")
 		}
 		selected, selectErr := java.SelectJava(found, inst.MCVersion)
 		if selectErr != nil {
@@ -61,11 +61,11 @@ func (s *HomeService) LaunchInstance(id string) (err error) {
 	}
 	instanceDir, err := s.Instances.Dir(id)
 	if err != nil {
-		return NewNotFoundError("instance directory: " + err.Error())
+		return NewNotFoundError("Unable to open the instance folder.")
 	}
 	nativesDir := filepath.Join(instanceDir, "natives")
 	if err := os.RemoveAll(nativesDir); err != nil {
-		return NewInternalError("clear natives: " + err.Error())
+		return NewInternalError("Unable to prepare the instance folder.")
 	}
 	for _, library := range detail.Libraries {
 		if !metadata.ShouldDownload(library.Rules, metadata.CurrentSystem()) {
@@ -80,7 +80,7 @@ func (s *HomeService) LaunchInstance(id string) (err error) {
 			excludes = library.Extract.Exclude
 		}
 		if err := launch.ExtractNatives(filepath.Join(s.DataRoot, metadata.ResolveLibraryDir(), nativePath), nativesDir, excludes); err != nil {
-			return NewIntegrityError("extract natives: " + err.Error())
+			return NewIntegrityError("Unable to prepare game files. Try repairing the instance.")
 		}
 	}
 	launcher := s.Launch
@@ -88,7 +88,7 @@ func (s *HomeService) LaunchInstance(id string) (err error) {
 		launcher = &LaunchService{Registry: s.Registry}
 	}
 	if s.Accounts == nil {
-		return NewInternalError("account service is unavailable")
+		return NewInternalError("Something went wrong. Restart the launcher and try again.")
 	}
 	account, accessToken, err := s.Accounts.selectedAccount()
 	if err != nil {
@@ -116,12 +116,12 @@ func (s *HomeService) LaunchInstance(id string) (err error) {
 	}
 	options.Wrapper, err = launch.ParseAndValidateWrapper(settings.WrapperCommand)
 	if err != nil {
-		return NewValidationError(err.Error(), "wrapper")
+		return NewValidationError("The wrapper command is invalid. Check Settings for the correct format.", "wrapper")
 	}
 	if needsAuthlibInjector(account.Type) {
 		injector, err := auth.EnsureAuthlibInjector(context.Background(), filepath.Join(s.DataRoot, "cache"), nil)
 		if err != nil {
-			return NewIntegrityError("authlib-injector: " + err.Error())
+			return NewIntegrityError("Unable to set up Ely.by login. Try repairing the instance.")
 		}
 		options.AuthlibInjector = injector
 	}
