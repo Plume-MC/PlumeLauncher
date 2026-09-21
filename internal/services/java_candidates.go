@@ -11,8 +11,16 @@ import (
 // launchJavaCandidates returns verified Java runtimes from the system scan,
 // managed downloads, and custom paths: the same universe Settings shows.
 // Managed and custom entries that fail validation are skipped.
+//
+// scanJavaInstallations and validateJavaPath are package vars (not direct
+// calls) so tests can stub them and stay hermetic across OSes.
+var (
+	scanJavaInstallations = java.ScanJavaInstallations
+	validateJavaPath      = java.ValidateJavaPath
+)
+
 func launchJavaCandidates(dataRoot string, defaults instances.LauncherDefaults) ([]java.JavaInfo, error) {
-	installed, err := java.ScanJavaInstallations()
+	installed, err := scanJavaInstallations()
 	if err != nil {
 		return nil, err
 	}
@@ -21,12 +29,12 @@ func launchJavaCandidates(dataRoot string, defaults instances.LauncherDefaults) 
 		if !managed.Installed || managed.Path == "" {
 			continue
 		}
-		if info, err := java.ValidateJavaPath(managed.Path, 0); err == nil {
+		if info, err := validateJavaPath(managed.Path, 0); err == nil {
 			installed = append(installed, *info)
 		}
 	}
 	for _, path := range defaults.CustomJavaPaths {
-		if info, err := java.ValidateJavaPath(path, 0); err == nil {
+		if info, err := validateJavaPath(path, 0); err == nil {
 			installed = append(installed, *info)
 		}
 	}

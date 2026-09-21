@@ -3,11 +3,13 @@ package services
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 
 	"plumelauncher/internal/instances"
+	"plumelauncher/internal/java"
 	"plumelauncher/internal/metadata"
 )
 
@@ -17,8 +19,14 @@ func writeFakeManagedJDK(t *testing.T, dataRoot string, major int, version strin
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	script := "#!/bin/sh\necho 'openjdk version \"" + version + "\" 2024-01-16'\n"
-	if err := os.WriteFile(filepath.Join(binDir, "java"), []byte(script), 0o755); err != nil {
+	// Only the file presence matters: ListManaged looks for java.exe on
+	// Windows and java elsewhere, while validation is stubbed below so the
+	// file never needs to be executable on any OS.
+	name := "java"
+	if runtime.GOOS == "windows" {
+		name = "java.exe"
+	}
+	if err := os.WriteFile(filepath.Join(binDir, name), []byte("fake-jdk-stub"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	manifest := `{"major":` + strconv.Itoa(major) + `,"version":"` + version + `"}`
@@ -31,12 +39,32 @@ func TestLaunchJavaCandidatesIncludesManaged(t *testing.T) {
 	dir := t.TempDir()
 	writeFakeManagedJDK(t, dir, 21, "21.0.2")
 
+	origScan := scanJavaInstallations
+	origValidate := validateJavaPath
+	t.Cleanup(func() {
+		scanJavaInstallations = origScan
+		validateJavaPath = origValidate
+	})
+	scanJavaInstallations = func() ([]java.JavaInfo, error) {
+		return nil, nil
+	}
+	validateJavaPath = func(path string, requiredMajor int) (*java.JavaInfo, error) {
+		if strings.HasPrefix(path, dir) {
+			return &java.JavaInfo{Path: path, Version: "21.0.2", Major: 21}, nil
+		}
+		return nil, os.ErrNotExist
+	}
+
 	candidates, err := launchJavaCandidates(dir, instances.DefaultLauncherDefaults())
 	if err != nil {
 		t.Fatalf("launchJavaCandidates: %v", err)
 	}
+	wantDir := dir
+	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+		wantDir = resolved
+	}
 	for _, c := range candidates {
-		if c.Major == 21 && strings.HasPrefix(c.Path, dir) {
+		if c.Major == 21 && (strings.HasPrefix(c.Path, dir) || strings.HasPrefix(c.Path, wantDir)) {
 			return
 		}
 	}
