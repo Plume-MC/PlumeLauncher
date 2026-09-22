@@ -580,6 +580,15 @@ func (s *AccountService) selectedAccount() (Account, string, error) {
 	return Account{}, "", NewNotFoundError("no account selected")
 }
 
+// selectedAccountForLaunch resolves the active account and its game token.
+// Ely.by OAuth sessions reuse the same keyring session entry as password
+// sessions, so the launch path (authlib injector + access token) works
+// unchanged for both. The alias exists so launch-path tests name the
+// OAuth intent explicitly.
+func (s *AccountService) selectedAccountForLaunch() (Account, string, error) {
+	return s.selectedAccount()
+}
+
 // Account represents a user account. Accounts.json stores metadata only:
 // uuid, username, type, display name and selection. Tokens, passwords and
 // OAuth codes must never be added here; they live in the OS keyring.
