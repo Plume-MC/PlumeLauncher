@@ -8,17 +8,32 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as auth$0 from "../auth/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
+ * CancelElyByOAuth ends a local device-code wait. The session itself
+ * lives on the Ely.by website, so there is nothing to revoke locally;
+ * the method exists so the frontend cancel path is explicit and typed.
+ */
+export function CancelElyByOAuth($0: string): $CancellablePromise<void> {
+    return $Call.ByID(3411587455, $0);
+}
+
+/**
  * CreateOffline creates an offline account with deterministic UUID.
  */
 export function CreateOffline(username: string): $CancellablePromise<$models.Account | null> {
-    return $Call.ByID(1701179032, username);
+    return $Call.ByID(1701179032, username).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
@@ -30,21 +45,42 @@ export function DeleteAccount(accountUUID: string): $CancellablePromise<void> {
 }
 
 /**
+ * FinishElyByOAuth polls once for the approved device code and creates
+ * the Ely.by session. The frontend polls this method at the interval
+ * from StartElyByOAuth until success, denial, expiry, or cancel.
+ * 
+ * Tokens live only in the OS keyring; accounts.json stays metadata-only.
+ * On any failure after the token is stored, the token is removed so no
+ * orphan secret survives.
+ */
+export function FinishElyByOAuth(deviceCode: string): $CancellablePromise<$models.Account | null> {
+    return $Call.ByID(1513048534, deviceCode).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * ListAccounts returns all accounts.
  */
-export function ListAccounts(): $CancellablePromise<$models.Account[] | null> {
-    return $Call.ByID(2525240705);
+export function ListAccounts(): $CancellablePromise<$models.Account[]> {
+    return $Call.ByID(2525240705).then(($result: any) => {
+        return $$createType2($result);
+    });
 }
 
 export function LoginElyBy(username: string, password: string): $CancellablePromise<$models.Account | null> {
-    return $Call.ByID(2579944023, username, password);
+    return $Call.ByID(2579944023, username, password).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
  * LoginMicrosoft runs the full Microsoft login flow in an in-app window.
  */
 export function LoginMicrosoft(): $CancellablePromise<$models.Account | null> {
-    return $Call.ByID(4231905050);
+    return $Call.ByID(4231905050).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 export function LogoutElyBy(accountUUID: string): $CancellablePromise<void> {
@@ -59,16 +95,37 @@ export function LogoutMicrosoft(accountUUID: string): $CancellablePromise<void> 
 }
 
 export function RefreshElyBy(accountUUID: string): $CancellablePromise<$models.Account | null> {
-    return $Call.ByID(24394337, accountUUID);
+    return $Call.ByID(24394337, accountUUID).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
  * RefreshMicrosoftToken explicitly refreshes a Microsoft session on demand.
  */
 export function RefreshMicrosoftToken(accountUUID: string): $CancellablePromise<$models.Account | null> {
-    return $Call.ByID(935913693, accountUUID);
+    return $Call.ByID(935913693, accountUUID).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 export function SelectAccount(accountUUID: string): $CancellablePromise<void> {
     return $Call.ByID(3495478380, accountUUID);
 }
+
+/**
+ * StartElyByOAuth opens an Ely.by device-code session. The frontend shows
+ * the returned user code + verification URI; the player confirms on the
+ * Ely.by website. No password ever enters the launcher.
+ */
+export function StartElyByOAuth(): $CancellablePromise<auth$0.ElyDeviceCodeStart> {
+    return $Call.ByID(474463787).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+// Private type creation functions
+const $$createType0 = $models.Account.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $Create.Array($$createType0);
+const $$createType3 = auth$0.ElyDeviceCodeStart.createFrom;

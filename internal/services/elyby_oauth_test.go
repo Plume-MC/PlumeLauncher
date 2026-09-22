@@ -3,6 +3,8 @@ package services_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -107,6 +109,30 @@ func TestFinishElyByOAuthRejectsDenied(t *testing.T) {
 
 	if _, err := svc.FinishElyByOAuth("dev-123"); err == nil || !strings.Contains(strings.ToLower(err.Error()), "denied") {
 		t.Fatalf("error = %v, want denied", err)
+	}
+}
+
+func TestFinishElyByOAuthStoresMetadataOnly(t *testing.T) {
+	server := oauthDeviceServer(t, okTokenPoll)
+	defer server.Close()
+	dir := t.TempDir()
+	svc := oauthService(dir, server, memoryKeyring{})
+
+	account, err := svc.FinishElyByOAuth("dev-123")
+	if err != nil {
+		t.Fatalf("FinishElyByOAuth: %v", err)
+	}
+	if !account.OAuth {
+		t.Fatalf("account must be marked oauth: %#v", account)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "accounts.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{"oauth-token", "deviceCode", "device_code", "user_code", "accessToken", "refreshToken"} {
+		if strings.Contains(string(raw), secret) {
+			t.Fatalf("accounts.json contains %q: %s", secret, raw)
+		}
 	}
 }
 
