@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { IconKey, IconLoader2, IconPlus, IconTrash, IconUser, IconX } from '@tabler/icons-react';
 import { Dialog } from '@base-ui/react/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { AccountService } from '../../../bindings/plumelauncher/internal/services/index.js';
+import { AccountService, SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { Account } from '../../../bindings/plumelauncher/internal/services/models.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
   const [elyMethod, setElyMethod] = useState<'browser' | 'password'>('browser');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [device, setDevice] = useState<{ deviceCode: string; userCode: string; verificationUri: string; interval: number } | null>(null);
+  const [device, setDevice] = useState<{ deviceCode: string; userCode: string; verificationUri: string; interval: number; browserOpened: boolean } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<Account | null>(null);
@@ -47,6 +47,13 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
     }
     setBusy(false);
     setError('');
+  };
+
+  const openDevicePage = () => {
+    if (!device) return;
+    void SystemService.OpenBrowserURL(device.verificationUri).catch(() => {
+      setError('Unable to open the Ely.by page. Use the URL shown below instead.');
+    });
   };
 
   const run = async (action: () => Promise<unknown>) => {
@@ -103,7 +110,13 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
       // the player confirms on the Ely.by website.
       const start = await AccountService.StartElyByOAuth();
       if (!start) throw new Error('Unable to start Ely.by sign-in');
-      setDevice({ deviceCode: start.deviceCode, userCode: start.userCode, verificationUri: start.verificationUri, interval: Math.max(5, start.interval || 5) });
+      let browserOpened = true;
+      try {
+        await SystemService.OpenBrowserURL(start.verificationUri);
+      } catch {
+        browserOpened = false;
+      }
+      setDevice({ deviceCode: start.deviceCode, userCode: start.userCode, verificationUri: start.verificationUri, interval: Math.max(5, start.interval || 5), browserOpened });
       try {
         await new Promise<void>((resolve, reject) => {
           const poll = async () => {
@@ -212,10 +225,11 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                       {elyMethod === 'browser' ? (
                         device ? (
                           <div className="space-y-2 rounded-lg border border-border p-3">
-                            <p className="text-xs text-muted-foreground">Open this page and enter the code:</p>
-                            <p className="break-all font-mono text-xs text-primary">{device.verificationUri}</p>
+                            <p className="text-xs text-muted-foreground">{device.browserOpened ? 'Ely.by opened in your browser. Enter this code there:' : 'Open this page manually and enter the code:'}</p>
+                            <p className="select-all break-all font-mono text-xs text-primary">{device.verificationUri}</p>
                             <p className="font-mono text-2xl font-bold tracking-widest">{device.userCode}</p>
                             <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconLoader2 className="size-3.5 animate-spin" />{busy ? 'Waiting for approval on the Ely.by website…' : ''}</p>
+                            <Button type="button" size="sm" variant="secondary" onClick={openDevicePage}>Open page again</Button>
                             <Button type="button" size="sm" variant="ghost" onClick={cancelDeviceFlow}>Cancel</Button>
                           </div>
                         ) : (
