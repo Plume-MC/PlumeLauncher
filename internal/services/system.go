@@ -113,6 +113,15 @@ func (s *SystemService) OpenGameRoot() error {
 	return s.openFolder(s.DataRoot, "game data")
 }
 
+// OpenBrowserURL opens the Ely.by verification page in the user's default
+// browser. The platform package validates the host before launching it.
+func (s *SystemService) OpenBrowserURL(rawURL string) error {
+	if err := platform.OpenBrowserURL(rawURL); err != nil {
+		return NewInternalError("Unable to open the Ely.by sign-in page.")
+	}
+	return nil
+}
+
 func (s *SystemService) openFolder(path, label string) error {
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		return NewInternalError("Unable to open the " + label + " folder.")

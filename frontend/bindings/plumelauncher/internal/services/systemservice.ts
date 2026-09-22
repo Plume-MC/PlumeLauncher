@@ -101,6 +101,14 @@ export function OpenAppRoot(): $CancellablePromise<void> {
     return $Call.ByID(485223332);
 }
 
+/**
+ * OpenBrowserURL opens the Ely.by verification page in the user's default
+ * browser. The platform package validates the host before launching it.
+ */
+export function OpenBrowserURL(rawURL: string): $CancellablePromise<void> {
+    return $Call.ByID(1352130944, rawURL);
+}
+
 export function OpenGameRoot(): $CancellablePromise<void> {
     return $Call.ByID(2958749619);
 }
