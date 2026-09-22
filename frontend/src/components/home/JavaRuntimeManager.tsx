@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { JavaDownloadCard } from '@/components/home/JavaDownloadCard';
+import { javaRangeLabel } from '@/lib/javaRanges';
 import { SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { JavaInfo } from '../../../bindings/plumelauncher/internal/java/models.js';
 
@@ -21,6 +22,7 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
   const [customPath, setCustomPath] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [managedInstalled, setManagedInstalled] = useState<Record<number, boolean>>({});
 
   const refresh = async () => {
@@ -54,15 +56,17 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
     if (!customPath.trim()) return;
     setBusy(true);
     setError('');
+    setNotice('');
     try {
       const runtime = await SystemService.AddCustomJava(customPath.trim());
       if (runtime) {
         onCustomPathAdded(runtime.path);
         setCustomPath('');
+        setNotice(`Java ${runtime.major} added. ${javaRangeLabel(runtime.major)}.`);
         await refresh();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Java validation failed');
+      setError(err instanceof Error ? err.message : 'That Java does not work. Check the path and try again.');
     } finally {
       setBusy(false);
     }
@@ -101,6 +105,7 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
                     {runtime.source && <Badge variant="outline" className="text-[9px]">{runtime.source}</Badge>}
                     {isSelected && <Badge className="text-[9px]">Selected</Badge>}
                   </div>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">{javaRangeLabel(runtime.major)}</p>
                   <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">{runtime.path}</p>
                 </div>
                 <Button
@@ -116,7 +121,7 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
             );
           })}
           {runtimes.length === 0 && !busy && (
-            <p className="p-4 text-center text-xs text-muted-foreground">No verified Java runtime found. Add a custom executable path below or download one.</p>
+            <p className="p-4 text-center text-xs text-muted-foreground">No Java found. Download one below or paste a path.</p>
           )}
         </div>
 
@@ -129,9 +134,10 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
             className="h-8"
           />
           <Button variant="outline" size="sm" disabled={busy || !customPath.trim()} onClick={() => void addCustom()}>
-            Validate & Add
+            Add
           </Button>
         </div>
+        {notice && <p role="status" className="text-xs text-success">{notice}</p>}
         {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
       </section>
 
@@ -145,7 +151,7 @@ export function JavaRuntimeManager({ defaultPath, onDefaultPathChange, onCustomP
             <JavaDownloadCard
               key={major}
               major={major}
-              recommended={major === 25}
+              recommended={major === 21}
               installed={managedInstalled[major] ?? false}
               onDownloadComplete={handleDownloadComplete}
             />

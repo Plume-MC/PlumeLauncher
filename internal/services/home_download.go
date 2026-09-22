@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"plumelauncher/internal/downloader"
@@ -15,15 +14,15 @@ import (
 func (s *HomeService) InstallInstance(id string) error {
 	inst, err := s.Instances.Get(id)
 	if err != nil {
-		return NewNotFoundError("instance not found")
+		return NewNotFoundError("Instance not found.")
 	}
 	if inst.State == instances.StatePlanning || inst.State == instances.StateDownloading || inst.State == instances.StateVerifying {
-		return NewConflictError("instance install is already active")
+		return NewConflictError("Install is already running for this instance.")
 	}
 
 	op, err := s.Registry.Start(id, instances.OpDownload)
 	if err != nil {
-		return NewConflictError(err.Error())
+		return NewConflictError("Install is already running for this instance.")
 	}
 	if s.Logger != nil {
 		s.Logger.Info("install_requested", "instanceId", id, "operationId", op.ID)
@@ -39,12 +38,12 @@ func (s *HomeService) InstallInstance(id string) error {
 		if errors.Is(err, context.Canceled) {
 			return s.cancelInstall(id, op, inst.State)
 		}
-		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
+		return NewUpstreamError("Unable to load version details. Check your connection and try again.")
 	}
 	plan := metadata.ResolvePlan(*detail, metadata.CurrentSystem())
 	for _, artifact := range plan.Artifacts {
 		if err := security.ValidateArtifactURL(artifact.URL); err != nil {
-			return NewValidationError(err.Error(), "artifact.url")
+			return NewValidationError("A download address failed validation.", "artifact.url")
 		}
 	}
 	// Pre-verify: skip already-committed artifacts on retry after cancel
@@ -117,7 +116,7 @@ func (s *HomeService) InstallInstance(id string) error {
 		}
 		emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "failed", Error: err.Error()})
 		_ = transitionInstanceState(s.App, s.Instances, id, instances.StateFailed, op.ID)
-		return NewIntegrityError("download artifacts: " + err.Error())
+		return NewIntegrityError("Unable to download game files. Check your connection and try again.")
 	}
 	if err := op.CancelContext.Err(); err != nil {
 		return s.cancelInstall(id, op, inst.State)
@@ -140,10 +139,10 @@ func (s *HomeService) InstallInstance(id string) error {
 func (s *HomeService) RetryInstance(id string) error {
 	inst, err := s.Instances.Get(id)
 	if err != nil {
-		return NewNotFoundError("instance not found")
+		return NewNotFoundError("Instance not found.")
 	}
 	if inst.State != instances.StateFailed && inst.State != instances.StateCrashed {
-		return NewConflictError("instance has no failed operation to retry")
+		return NewConflictError("Nothing to retry. This instance has no failed install.")
 	}
 	return s.InstallInstance(id)
 }
@@ -152,11 +151,11 @@ func (s *HomeService) RetryInstance(id string) error {
 func (s *HomeService) VerifyInstance(id string) ([]downloader.VerifyStatus, error) {
 	inst, err := s.Instances.Get(id)
 	if err != nil {
-		return nil, NewNotFoundError("instance not found")
+		return nil, NewNotFoundError("Instance not found.")
 	}
 	detail, err := s.resolveInstanceDetail(context.Background(), inst)
 	if err != nil {
-		return nil, NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
+		return nil, NewUpstreamError("Unable to load version details. Check your connection and try again.")
 	}
 	plan := metadata.ResolvePlan(*detail, metadata.CurrentSystem())
 	return downloader.VerifyPlan(s.DataRoot, plan), nil
@@ -166,11 +165,11 @@ func (s *HomeService) VerifyInstance(id string) ([]downloader.VerifyStatus, erro
 func (s *HomeService) RepairInstance(id string) error {
 	inst, err := s.Instances.Get(id)
 	if err != nil {
-		return NewNotFoundError("instance not found")
+		return NewNotFoundError("Instance not found.")
 	}
 	detail, err := s.resolveInstanceDetail(context.Background(), inst)
 	if err != nil {
-		return NewUpstreamError(fmt.Sprintf("resolve metadata: %v", err))
+		return NewUpstreamError("Unable to load version details. Check your connection and try again.")
 	}
 	plan := metadata.ResolvePlan(*detail, metadata.CurrentSystem())
 	return s.repairArtifacts(id, inst, plan)
@@ -194,11 +193,11 @@ func (s *HomeService) ensureArtifacts(id string, inst *instances.Instance, plan 
 
 func (s *HomeService) repairArtifacts(id string, inst *instances.Instance, plan *metadata.ArtifactPlan) error {
 	if s.Registry.IsActive(id) {
-		return NewConflictError("instance already has an active operation")
+		return NewConflictError("Another operation is already running for this instance.")
 	}
 	op, err := s.Registry.Start(id, instances.OpDownload)
 	if err != nil {
-		return NewConflictError(err.Error())
+		return NewConflictError("Another operation is already running for this instance.")
 	}
 	defer func() {
 		if current := s.Registry.Get(id); current != nil && current.Status == instances.OpStatusRunning {
@@ -207,7 +206,7 @@ func (s *HomeService) repairArtifacts(id string, inst *instances.Instance, plan 
 	}()
 	for _, artifact := range plan.Artifacts {
 		if err := security.ValidateArtifactURL(artifact.URL); err != nil {
-			return NewValidationError(err.Error(), "artifact.url")
+			return NewValidationError("A download address failed validation.", "artifact.url")
 		}
 	}
 	if inst.State == instances.StateFailed || inst.State == instances.StateCrashed {
@@ -227,7 +226,7 @@ func (s *HomeService) repairArtifacts(id string, inst *instances.Instance, plan 
 		if inst.State == instances.StateFailed || inst.State == instances.StateCrashed {
 			_ = transitionInstanceState(s.App, s.Instances, id, instances.StateFailed, op.ID)
 		}
-		return NewIntegrityError("repair artifacts: " + err.Error())
+		return NewIntegrityError("Unable to repair game files. Check your connection and try again.")
 	}
 	if err := op.CancelContext.Err(); err != nil {
 		return s.cancelRepair(id, op, inst.State)
@@ -248,7 +247,7 @@ func (s *HomeService) repairArtifacts(id string, inst *instances.Instance, plan 
 func (s *HomeService) cancelInstall(id string, op *instances.Operation, previous instances.InstanceState) error {
 	_ = transitionInstanceState(s.App, s.Instances, id, previous, op.ID)
 	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "cancelled"})
-	return NewCancelledError("install cancelled")
+	return NewCancelledError("Install cancelled.")
 }
 
 func (s *HomeService) cancelRepair(id string, op *instances.Operation, previous instances.InstanceState) error {
@@ -256,13 +255,13 @@ func (s *HomeService) cancelRepair(id string, op *instances.Operation, previous 
 		_ = transitionInstanceState(s.App, s.Instances, id, previous, op.ID)
 	}
 	emit(s.App, EventDownloadProgress, DownloadProgressEvent{OperationID: op.ID, InstanceID: id, Status: "cancelled"})
-	return NewCancelledError("repair cancelled")
+	return NewCancelledError("Repair cancelled.")
 }
 
 // CancelInstance cancels the active download or launch operation.
 func (s *HomeService) CancelInstance(id string) error {
 	if s.Registry.Get(id) == nil || !s.Registry.IsActive(id) {
-		return NewNotFoundError("no active operation for instance")
+		return NewNotFoundError("No active operation for this instance.")
 	}
 	s.Registry.Cancel(id)
 	return nil

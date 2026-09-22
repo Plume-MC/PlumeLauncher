@@ -14,10 +14,10 @@ type InstanceService struct {
 // CreateInstance creates a new instance.
 func (s *InstanceService) CreateInstance(name, mcVersion string, loader string) (*instances.Instance, error) {
 	if name == "" {
-		return nil, NewValidationError("name is required", "name")
+		return nil, NewValidationError("Enter an instance name.", "name")
 	}
 	if mcVersion == "" {
-		return nil, NewValidationError("mcVersion is required", "mcVersion")
+		return nil, NewValidationError("Pick a Minecraft version.", "mcVersion")
 	}
 
 	var loaderType instances.LoaderType
@@ -29,12 +29,12 @@ func (s *InstanceService) CreateInstance(name, mcVersion string, loader string) 
 	case "quilt":
 		loaderType = instances.LoaderQuilt
 	default:
-		return nil, NewValidationError("invalid loader", "loader")
+		return nil, NewValidationError("Pick a valid loader.", "loader")
 	}
 
 	inst, err := s.Manager.Create(name, mcVersion, loaderType)
 	if err != nil {
-		return nil, NewInternalError(err.Error())
+		return nil, NewInternalError("Unable to create the instance.")
 	}
 	return inst, nil
 }
@@ -43,7 +43,7 @@ func (s *InstanceService) CreateInstance(name, mcVersion string, loader string) 
 func (s *InstanceService) ListInstances() ([]instances.Instance, error) {
 	items, err := s.Manager.List()
 	if err != nil {
-		return nil, NewInternalError("list instances: " + err.Error())
+		return nil, NewInternalError("Unable to list instances.")
 	}
 	return items, nil
 }
@@ -51,12 +51,12 @@ func (s *InstanceService) ListInstances() ([]instances.Instance, error) {
 // GetInstance returns an instance by ID.
 func (s *InstanceService) GetInstance(id string) (*instances.Instance, error) {
 	if id == "" {
-		return nil, NewValidationError("id is required", "id")
+		return nil, NewValidationError("Something went wrong. Restart the launcher and try again.", "id")
 	}
 
 	inst, err := s.Manager.Get(id)
 	if err != nil {
-		return nil, NewNotFoundError("instance not found: " + id)
+		return nil, NewNotFoundError("Instance not found.")
 	}
 	return inst, nil
 }
@@ -64,31 +64,31 @@ func (s *InstanceService) GetInstance(id string) (*instances.Instance, error) {
 // UpdateInstanceSettings updates instance settings.
 func (s *InstanceService) UpdateInstanceSettings(id string, settings instances.Settings) error {
 	if id == "" {
-		return NewValidationError("id is required", "id")
+		return NewValidationError("Something went wrong. Restart the launcher and try again.", "id")
 	}
 
 	// Validate RAM bounds
 	if settings.MinRamMB != nil && *settings.MinRamMB < 256 {
-		return NewValidationError("minRamMB must be at least 256", "minRamMB")
+		return NewValidationError("Minimum RAM must be at least 256 MB.", "minRamMB")
 	}
 	if settings.MaxRamMB != nil && *settings.MaxRamMB > 65536 {
-		return NewValidationError("maxRamMB must be at most 65536", "maxRamMB")
+		return NewValidationError("Maximum RAM must be at most 65536 MB.", "maxRamMB")
 	}
 	if settings.MinRamMB != nil && settings.MaxRamMB != nil && *settings.MinRamMB > *settings.MaxRamMB {
-		return NewValidationError("minRamMB must not exceed maxRamMB", "minRamMB", "maxRamMB")
+		return NewValidationError("Minimum RAM must not exceed maximum RAM.", "minRamMB", "maxRamMB")
 	}
 	if settings.GPUPreference != nil && !validGPUPreference(*settings.GPUPreference) {
-		return NewValidationError("invalid GPU preference", "gpuPreference")
+		return NewValidationError("Pick a valid graphics option.", "gpuPreference")
 	}
 	if settings.WrapperCommand != nil && !validWrapper(*settings.WrapperCommand) {
-		return NewValidationError("invalid wrapper command", "wrapperCommand")
+		return NewValidationError("The wrapper command is invalid. Check Settings for the correct format.", "wrapperCommand")
 	}
 
 	if _, err := s.Manager.Get(id); err != nil {
-		return NewNotFoundError("instance not found: " + id)
+		return NewNotFoundError("Instance not found.")
 	}
 	if err := s.Manager.UpdateSettings(id, settings); err != nil {
-		return NewInternalError("update instance settings: " + err.Error())
+		return NewInternalError("Unable to save instance settings.")
 	}
 	return nil
 }
@@ -96,10 +96,10 @@ func (s *InstanceService) UpdateInstanceSettings(id string, settings instances.S
 // OpenInstanceFolder opens a selected instance through the platform file manager.
 func (s *InstanceService) OpenInstanceFolder(id string) error {
 	if id == "" {
-		return NewValidationError("id is required", "id")
+		return NewValidationError("Something went wrong. Restart the launcher and try again.", "id")
 	}
 	if err := instances.OpenInstanceFolder(s.DataRoot, id); err != nil {
-		return NewNotFoundError(err.Error())
+		return NewNotFoundError("Unable to open the instance folder.")
 	}
 	return nil
 }
@@ -116,12 +116,12 @@ func validWrapper(value string) bool {
 // DeleteInstance removes an instance.
 func (s *InstanceService) DeleteInstance(id string) error {
 	if id == "" {
-		return NewValidationError("id is required", "id")
+		return NewValidationError("Something went wrong. Restart the launcher and try again.", "id")
 	}
 
 	err := s.Manager.Delete(id)
 	if err != nil {
-		return NewNotFoundError("instance not found: " + id)
+		return NewNotFoundError("Instance not found.")
 	}
 	return nil
 }

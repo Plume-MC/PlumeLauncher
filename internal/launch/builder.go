@@ -29,7 +29,8 @@ type Options struct {
 	WindowMode      string
 	Wrapper         []string // validated argv prefix
 	JavaPath        string
-	JavaMajor       int // required Java major version for --add-opens injection
+	MCVersion       string // plain Minecraft version, e.g. "1.20.1" (detail.ID may be a loader ID)
+	JavaMajor       int    // required Java major version for --add-opens injection
 	JVMArgs         []string
 	Env             map[string]string
 	AuthlibInjector string // verified authlib-injector JAR for Ely.by accounts

@@ -86,6 +86,9 @@ func TestAccountServiceDeleteOffline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateOffline: %v", err)
 	}
+	if _, err := svc.CreateOffline("Player2"); err != nil {
+		t.Fatalf("CreateOffline: %v", err)
+	}
 	if err := svc.DeleteAccount(account.UUID); err != nil {
 		t.Fatalf("DeleteAccount: %v", err)
 	}
@@ -93,8 +96,52 @@ func TestAccountServiceDeleteOffline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListAccounts: %v", err)
 	}
-	if len(accounts) != 0 {
-		t.Fatalf("ListAccounts = %#v, want empty", accounts)
+	if len(accounts) != 1 || accounts[0].Username != "Player2" {
+		t.Fatalf("ListAccounts = %#v, want only Player2", accounts)
+	}
+}
+
+func TestAccountServiceDeleteLastAccountFails(t *testing.T) {
+	dir := t.TempDir()
+	svc := &services.AccountService{DataRoot: dir}
+	account, err := svc.CreateOffline("Player1")
+	if err != nil {
+		t.Fatalf("CreateOffline: %v", err)
+	}
+	if err := svc.DeleteAccount(account.UUID); err == nil || !strings.Contains(err.Error(), "last account") {
+		t.Fatalf("DeleteAccount = %v, want last-account conflict", err)
+	}
+}
+
+func TestUserFacingMessagesAvoidJargon(t *testing.T) {
+	dir := t.TempDir()
+	mgr := instances.NewManager(dir, instances.DefaultLauncherDefaults())
+	svc := &services.InstanceService{DataRoot: dir, Manager: mgr}
+
+	if _, err := svc.CreateInstance("", "1.21.4", "vanilla"); err == nil || !strings.Contains(err.Error(), "Enter an instance name.") {
+		t.Fatalf("empty name error = %v", err)
+	}
+	if _, err := svc.CreateInstance("Test", "1.21.4", "modded"); err == nil || !strings.Contains(err.Error(), "Pick a valid loader.") {
+		t.Fatalf("bad loader error = %v", err)
+	}
+	inst, err := svc.CreateInstance("Test", "1.21.4", "vanilla")
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	if err := svc.UpdateInstanceSettings(inst.ID, instances.Settings{MinRamMB: instances.IntPtr(100)}); err == nil ||
+		!strings.Contains(err.Error(), "Minimum RAM must be at least 256 MB.") {
+		t.Fatalf("low RAM error = %v", err)
+	}
+	for _, msg := range []string{
+		"Enter an instance name.",
+		"Minimum RAM must be at least 256 MB.",
+		"Cannot remove the last account. Add another account first.",
+	} {
+		for _, banned := range []string{"mcVersion", "minRamMB", "resolve ", "natives", "artifacts", "VersionID"} {
+			if strings.Contains(msg, banned) {
+				t.Fatalf("message %q contains jargon %q", msg, banned)
+			}
+		}
 	}
 }
 
@@ -118,6 +165,9 @@ func TestAccountServiceElyByLifecycle(t *testing.T) {
 	}
 	if _, err := svc.RefreshElyBy(account.UUID); err != nil {
 		t.Fatalf("RefreshElyBy: %v", err)
+	}
+	if _, err := svc.CreateOffline("Fallback"); err != nil {
+		t.Fatalf("CreateOffline: %v", err)
 	}
 	if err := svc.DeleteAccount(account.UUID); err != nil {
 		t.Fatalf("DeleteAccount: %v", err)
@@ -153,7 +203,7 @@ func TestAccountServiceFailsClosedWhenKeyringUnavailable(t *testing.T) {
 	defer server.Close()
 	dir := t.TempDir()
 	svc := &services.AccountService{DataRoot: dir, HTTPClient: server.Client(), ElyByURL: server.URL + "/auth/", Keyring: unavailableKeyring{}}
-	if _, err := svc.LoginElyBy("player", "password"); err == nil || !strings.Contains(err.Error(), "secure session storage") {
+	if _, err := svc.LoginElyBy("player", "password"); err == nil || !strings.Contains(err.Error(), "secure storage on this device") {
 		t.Fatalf("error = %v, want secure storage failure", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "accounts.json")); !os.IsNotExist(err) {

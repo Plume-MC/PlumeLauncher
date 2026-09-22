@@ -23,6 +23,7 @@ export function CreateOffline(username: string): $CancellablePromise<$models.Acc
 
 /**
  * DeleteAccount removes an offline profile or revokes and removes an Ely.by/Microsoft session.
+ * The last remaining account cannot be removed; add another account first.
  */
 export function DeleteAccount(accountUUID: string): $CancellablePromise<void> {
     return $Call.ByID(3349041341, accountUUID);

@@ -113,6 +113,14 @@ export function OpenLogFolder(): $CancellablePromise<void> {
 }
 
 /**
+ * RequiredJavaMajor returns the minimum Java major version for a Minecraft
+ * version, e.g. 21 for "1.20.1". Used by the UI for compatibility guidance.
+ */
+export function RequiredJavaMajor(mcVersion: string): $CancellablePromise<number> {
+    return $Call.ByID(73167809, mcVersion);
+}
+
+/**
  * ScanJava detects installed Java installations.
  */
 export function ScanJava(): $CancellablePromise<java$0.JavaInfo[] | null> {

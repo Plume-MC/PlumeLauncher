@@ -29,6 +29,19 @@ export function AppShell({
   const [activityOpen, setActivityOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accountsOpen, setAccountsOpen] = useState(false);
+  // Mirrors for the event handler below, which cannot see fresh state.
+  // Only one overlay is visible at a time; activity auto-open yields to
+  // settings/accounts and surfaces through the TopBar badge instead.
+  const settingsOpenRef = useRef(false);
+  const accountsOpenRef = useRef(false);
+  const setSettings = (open: boolean) => {
+    settingsOpenRef.current = open;
+    setSettingsOpen(open);
+  };
+  const setAccounts = (open: boolean) => {
+    accountsOpenRef.current = open;
+    setAccountsOpen(open);
+  };
   const [downloadActive, setDownloadActive] = useState(false);
   const [launchActive, setLaunchActive] = useState(false);
   const [consoleLines, setConsoleLines] = useState<ActivityLogLine[]>([]);
@@ -53,7 +66,7 @@ export function AppShell({
         const active = !['completed', 'failed', 'cancelled'].includes(data.status);
         setDownloadActive(active);
         if (!active) dismissedRef.current = false;
-        if ((active || data.status === 'failed') && !dismissedRef.current) setActivityOpen(true);
+        if ((active || data.status === 'failed') && !dismissedRef.current && !settingsOpenRef.current && !accountsOpenRef.current) setActivityOpen(true);
       }
       if (nextLaunch) {
         const data = nextLaunch;
@@ -61,8 +74,8 @@ export function AppShell({
         setLaunch(data);
         const active = !['stopped', 'failed', 'crashed'].includes(data.state);
         setLaunchActive(active);
-        if (active && !dismissedRef.current) setActivityOpen(true);
-        if (data.state === 'failed' || data.state === 'crashed') setActivityOpen(true);
+        if (active && !dismissedRef.current && !settingsOpenRef.current && !accountsOpenRef.current) setActivityOpen(true);
+        if ((data.state === 'failed' || data.state === 'crashed') && !settingsOpenRef.current && !accountsOpenRef.current) setActivityOpen(true);
       }
       if (nextLines.length) {
         const lines = nextLines;
@@ -107,7 +120,7 @@ export function AppShell({
           }
           return [...current, data];
         });
-        if (['downloading', 'extracting'].includes(data.status) && !dismissedRef.current) {
+        if (['downloading', 'extracting'].includes(data.status) && !dismissedRef.current && !settingsOpenRef.current && !accountsOpenRef.current) {
           setActivityOpen(true);
         }
       }),
@@ -126,9 +139,19 @@ export function AppShell({
         <TopBar
           account={account}
           activityCount={activityCount}
-          onActivityToggle={() => setActivityOpen((v) => !v)}
-          onSettingsClick={() => setSettingsOpen(true)}
-          onAccountsClick={() => setAccountsOpen(true)}
+          onActivityToggle={() => {
+            setSettings(false);
+            setAccounts(false);
+            setActivityOpen((v) => !v);
+          }}
+          onSettingsClick={() => {
+            setAccounts(false);
+            setSettings(true);
+          }}
+          onAccountsClick={() => {
+            setSettings(false);
+            setAccounts(true);
+          }}
         />
       </Suspense>
       <main className="flex-1 overflow-auto">{children}</main>
@@ -145,10 +168,10 @@ export function AppShell({
           javaDownloads={javaDownloads}
           onClearConsole={() => setConsoleLines([])}
         />}
-        {settingsOpen && <SettingsSheet isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />}
+        {settingsOpen && <SettingsSheet isOpen={settingsOpen} onClose={() => setSettings(false)} />}
         {accountsOpen && <AccountDialog
           open={accountsOpen}
-          onOpenChange={setAccountsOpen}
+          onOpenChange={setAccounts}
           accounts={accounts}
           onChanged={onAccountsChanged ?? (async () => undefined)}
         />}
