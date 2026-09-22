@@ -17,16 +17,36 @@ interface AccountDialogProps {
 
 export function AccountDialog({ open, onOpenChange, accounts, onChanged }: AccountDialogProps) {
   const [type, setType] = useState<'offline' | 'ely.by' | 'microsoft'>('offline');
+  const [elyMethod, setElyMethod] = useState<'browser' | 'password'>('browser');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [device, setDevice] = useState<{ deviceCode: string; userCode: string; verificationUri: string; interval: number } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<Account | null>(null);
   const pendingLogin = useRef<{ cancel: () => void } | null>(null);
+  const deviceTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopDevicePoll = () => {
+    if (deviceTimer.current) {
+      clearInterval(deviceTimer.current);
+      deviceTimer.current = null;
+    }
+  };
 
   const cancelLogin = () => {
     pendingLogin.current?.cancel();
     pendingLogin.current = null;
+  };
+
+  const cancelDeviceFlow = () => {
+    stopDevicePoll();
+    if (device) {
+      void AccountService.CancelElyByOAuth(device.deviceCode).catch(() => undefined);
+      setDevice(null);
+    }
+    setBusy(false);
+    setError('');
   };
 
   const run = async (action: () => Promise<unknown>) => {
@@ -69,9 +89,47 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
       return;
     }
     void run(async () => {
-      if (type === 'offline') await AccountService.CreateOffline(username.trim());
-      else await AccountService.LoginElyBy(username.trim(), password);
-      setUsername('');
+      if (type === 'offline') {
+        await AccountService.CreateOffline(username.trim());
+        setUsername('');
+        return;
+      }
+      if (elyMethod === 'password') {
+        await AccountService.LoginElyBy(username.trim(), password);
+        setUsername('');
+        return;
+      }
+      // Browser (device-code) flow: fetch the user code, then poll until
+      // the player confirms on the Ely.by website.
+      const start = await AccountService.StartElyByOAuth();
+      if (!start) throw new Error('Unable to start Ely.by sign-in');
+      setDevice({ deviceCode: start.deviceCode, userCode: start.userCode, verificationUri: start.verificationUri, interval: Math.max(5, start.interval || 5) });
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const poll = async () => {
+            try {
+              const account = await AccountService.FinishElyByOAuth(start.deviceCode);
+              if (account) {
+                stopDevicePoll();
+                resolve();
+              }
+            } catch (err) {
+              const message = err instanceof Error ? err.message : '';
+              // Still waiting: keep polling. Anything else fails fast.
+              if (/waiting|approval/i.test(message)) return;
+              stopDevicePoll();
+              reject(err);
+            }
+          };
+          void poll();
+          deviceTimer.current = setInterval(() => void poll(), Math.max(5, start.interval || 5) * 1000);
+        });
+        setDevice(null);
+        setUsername('');
+      } catch (err) {
+        setDevice(null);
+        throw err;
+      }
     });
   };
 
@@ -139,17 +197,39 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                   </div>
                 ) : (
                 <div className="mt-5 space-y-4">
+                  {!(type === 'ely.by' && elyMethod === 'browser') ? (
                   <label className="block space-y-1.5 text-xs font-medium">
                     {type === 'ely.by' ? 'Email or username' : 'Username'}
                     <Input value={username} maxLength={type === 'offline' ? 16 : undefined} onChange={(event) => setUsername(event.target.value)} autoFocus required />
                   </label>
+                  ) : null}
                   {type === 'ely.by' ? (
                     <>
-                      <label className="block space-y-1.5 text-xs font-medium">
-                        Password
-                        <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
-                      </label>
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconKey className="size-3.5" />Session is stored safely on this device.</p>
+                      <div className="inline-flex rounded-lg border border-border p-1" role="group" aria-label="Ely.by sign-in method">
+                        <Button type="button" size="sm" variant={elyMethod === 'browser' ? 'secondary' : 'ghost'} onClick={() => { setElyMethod('browser'); setError(''); }}>Browser</Button>
+                        <Button type="button" size="sm" variant={elyMethod === 'password' ? 'secondary' : 'ghost'} onClick={() => { setElyMethod('password'); setError(''); }}>Password</Button>
+                      </div>
+                      {elyMethod === 'browser' ? (
+                        device ? (
+                          <div className="space-y-2 rounded-lg border border-border p-3">
+                            <p className="text-xs text-muted-foreground">Open this page and enter the code:</p>
+                            <p className="break-all font-mono text-xs text-primary">{device.verificationUri}</p>
+                            <p className="font-mono text-2xl font-bold tracking-widest">{device.userCode}</p>
+                            <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconLoader2 className="size-3.5 animate-spin" />{busy ? 'Waiting for approval on the Ely.by website…' : ''}</p>
+                            <Button type="button" size="sm" variant="ghost" onClick={cancelDeviceFlow}>Cancel</Button>
+                          </div>
+                        ) : (
+                          <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconKey className="size-3.5" />Opens a code on the Ely.by website. Your password never enters the launcher.</p>
+                        )
+                      ) : (
+                        <>
+                          <label className="block space-y-1.5 text-xs font-medium">
+                            Password
+                            <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
+                          </label>
+                          <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><IconKey className="size-3.5" />Session is stored safely on this device.</p>
+                        </>
+                      )}
                     </>
                   ) : null}
                   {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
@@ -158,9 +238,10 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
               </div>
               <footer className="flex justify-end gap-2 border-t border-border px-5 py-3 sm:px-6">
                 {busy && type === 'microsoft' ? <Button type="button" size="sm" variant="ghost" onClick={cancelLogin}>Cancel</Button> : null}
-                <Button type="submit" size="sm" disabled={busy || (type !== 'microsoft' && (!username.trim() || (type === 'ely.by' && !password)))}>
+                {busy && type === 'ely.by' && elyMethod === 'browser' ? <Button type="button" size="sm" variant="ghost" onClick={cancelDeviceFlow}>Cancel</Button> : null}
+                <Button type="submit" size="sm" disabled={busy || (type === 'offline' && !username.trim()) || (type === 'ely.by' && elyMethod === 'password' && (!username.trim() || !password)) || (type === 'ely.by' && elyMethod === 'browser' && !!device)}>
                   {busy ? <IconLoader2 className="mr-1.5 size-3.5 animate-spin" /> : <IconPlus className="mr-1.5 size-3.5" />}
-                  {type === 'microsoft' ? 'Sign in with Microsoft' : type === 'ely.by' ? 'Sign in' : 'Add profile'}
+                  {type === 'microsoft' ? 'Sign in with Microsoft' : type === 'ely.by' && elyMethod === 'browser' ? 'Get Ely.by code' : type === 'ely.by' ? 'Sign in' : 'Add profile'}
                 </Button>
               </footer>
             </form>
