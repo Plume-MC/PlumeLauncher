@@ -42,6 +42,30 @@ function initialOf(account: Account) {
   return (account.displayName || account.username || '?').trim().charAt(0).toUpperCase() || '?';
 }
 
+// Accounts whose skin lookup failed this session keep the initial tile;
+// cleared on dialog close so reopening retries once.
+const failedSkins = new Set<string>();
+
+// AvatarTile shows the player's skin head (front face: 8px region at
+// 8,8 of the 64x64 texture, scaled with pixelated rendering) or falls
+// back to the initial letter while loading or when the lookup failed.
+function AvatarTile({ account, skin, active = false, className }: { account: Account; skin?: string; active?: boolean; className?: string }) {
+  if (skin) {
+    return (
+      <span
+        aria-hidden="true"
+        className={cn('grid shrink-0 place-items-center rounded-md bg-muted [background-position:14.28%_14.28%] [background-size:800%_800%] [image-rendering:pixelated]', className)}
+        style={{ backgroundImage: `url("${skin}")` }}
+      />
+    );
+  }
+  return (
+    <span aria-hidden="true" className={cn('grid shrink-0 place-items-center rounded-md bg-muted font-semibold', active ? 'bg-primary text-primary-foreground' : 'text-foreground', className)}>
+      {initialOf(account)}
+    </span>
+  );
+}
+
 function formatSeconds(total: number) {
   const m = Math.floor(total / 60);
   const s = total % 60;
@@ -73,6 +97,32 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
   const usernameRef = useRef<HTMLInputElement | null>(null);
 
   const active = accounts.find((account) => account.selected) ?? null;
+
+  const [skins, setSkins] = useState<Record<string, string>>({});
+
+  // Resolve skin heads while the dialog is open. The backend caches results,
+  // failures fall back to the initial tile and retry on the next open.
+  useEffect(() => {
+    if (!open) {
+      failedSkins.clear();
+      return;
+    }
+    let cancelled = false;
+    for (const account of accounts) {
+      if (failedSkins.has(account.uuid)) continue;
+      void AccountService.GetAccountSkin(account.uuid)
+        .then((dataURL) => {
+          if (cancelled || !dataURL) return;
+          setSkins((prev) => (prev[account.uuid] === dataURL ? prev : { ...prev, [account.uuid]: dataURL }));
+        })
+        .catch(() => {
+          failedSkins.add(account.uuid);
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [open, accounts]);
 
   // Code expiry countdown: bounded by the expires_in Ely.by returned.
   useEffect(() => {
@@ -344,9 +394,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                 transition={{ duration: reduced ? 0.01 : 0.26, ease: [0.16, 1, 0.3, 1] }}
                 className="flex items-center gap-3.5 rounded-md border border-border bg-muted/60 py-3 pr-4 pl-3.5 sm:pl-4"
               >
-                <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-md bg-primary text-base font-semibold text-primary-foreground sm:size-12 sm:text-lg">
-                  {initialOf(active)}
-                </span>
+                <AvatarTile account={active} skin={skins[active.uuid]} active className="size-11 text-base sm:size-12 sm:text-lg" />
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[15px] font-semibold">
                     <span className="truncate">{active.displayName || active.username}</span>
@@ -384,15 +432,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                         account.selected && 'border-primary bg-primary/5',
                       )}
                     >
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          'grid size-9 shrink-0 place-items-center rounded-md bg-muted text-sm font-semibold text-foreground',
-                          account.selected && 'bg-primary text-primary-foreground',
-                        )}
-                      >
-                        {initialOf(account)}
-                      </span>
+                      <AvatarTile account={account} skin={skins[account.uuid]} active={account.selected} className="size-9 text-sm" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{account.displayName || account.username}</p>
                         <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
