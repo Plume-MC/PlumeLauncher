@@ -221,6 +221,24 @@ func TestGetAccountSkinUnknownAccount(t *testing.T) {
 	}
 }
 
+func TestNormalizeSkinURLAllowsElyApexAndUpgradesScheme(t *testing.T) {
+	// Ely.by stores custom skins on the apex domain over http; the fetch
+	// must be allowlisted and upgraded to https.
+	got, err := normalizeSkinURL("http://ely.by/storage/skins/abc.png")
+	if err != nil {
+		t.Fatalf("normalizeSkinURL: %v", err)
+	}
+	if got != "https://ely.by/storage/skins/abc.png" {
+		t.Fatalf("got %q", got)
+	}
+	if _, err := normalizeSkinURL("http://evil.ely.by.example/storage/skins/abc.png"); err == nil {
+		t.Fatal("lookalike host must be rejected")
+	}
+	if _, err := normalizeSkinURL("http://ely.by.evil.example/x.png"); err == nil {
+		t.Fatal("suffix trick host must be rejected")
+	}
+}
+
 func TestGetAccountSkinCachesResult(t *testing.T) {
 	allowTestHost(t)
 	hits := 0

@@ -21,10 +21,13 @@ var (
 
 // skinTextureHosts is the allowlist of hosts a texture URL may resolve to.
 // Anything else is rejected instead of fetched (no open outbound requests).
+// ely.by is the apex domain Ely.by uses to store custom skins
+// (http://ely.by/storage/skins/<id>.png), verified live.
 var skinTextureHosts = map[string]bool{
 	"assets.mojang.com":      true,
 	"textures.minecraft.net": true,
 	"skinsystem.ely.by":      true,
+	"ely.by":                 true,
 }
 
 const (
