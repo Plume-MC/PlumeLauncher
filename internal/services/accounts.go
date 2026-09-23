@@ -26,6 +26,12 @@ type AccountService struct {
 	ElyByURL   string
 	Keyring    auth.Keyring
 	App        *application.App
+	// ElyOAuthBaseURL overrides the Ely.by OAuth host (tests only).
+	ElyOAuthBaseURL string
+	// ElyOAuthClientID is the OAuth application ID registered at
+	// https://account.ely.by/dev/. Empty means the built-in placeholder,
+	// which the maintainer must replace before release.
+	ElyOAuthClientID string
 }
 
 func (s *AccountService) LoginElyBy(username, password string) (*Account, error) {
@@ -84,6 +90,14 @@ func (s *AccountService) RefreshElyBy(accountUUID string) (*Account, error) {
 	token, err := s.tokenStore().Get(auth.SessionKey(account.UUID))
 	if err != nil {
 		return nil, NewUpstreamError("Ely.by session expired; please sign in again")
+	}
+	if account.OAuth {
+		// Device-code sessions carry no Yggdrasil refresh path. Validate
+		// the stored token instead; an invalid token asks for re-login.
+		if _, err := s.elyOAuthClient().FetchAccountInfo(context.Background(), token); err != nil {
+			return nil, NewUpstreamError("Ely.by session expired; please sign in again")
+		}
+		return &account, nil
 	}
 	session, err := (auth.ElyByClient{HTTPClient: s.HTTPClient, BaseURL: s.ElyByURL}).Refresh(token)
 	if err != nil {
@@ -566,6 +580,15 @@ func (s *AccountService) selectedAccount() (Account, string, error) {
 	return Account{}, "", NewNotFoundError("no account selected")
 }
 
+// selectedAccountForLaunch resolves the active account and its game token.
+// Ely.by OAuth sessions reuse the same keyring session entry as password
+// sessions, so the launch path (authlib injector + access token) works
+// unchanged for both. The alias exists so launch-path tests name the
+// OAuth intent explicitly.
+func (s *AccountService) selectedAccountForLaunch() (Account, string, error) {
+	return s.selectedAccount()
+}
+
 // Account represents a user account. Accounts.json stores metadata only:
 // uuid, username, type, display name and selection. Tokens, passwords and
 // OAuth codes must never be added here; they live in the OS keyring.
@@ -575,6 +598,10 @@ type Account struct {
 	Type        string `json:"type"`
 	DisplayName string `json:"displayName,omitempty"`
 	Selected    bool   `json:"selected,omitempty"`
+	// OAuth marks Ely.by sessions created via the device-code flow.
+	// OAuth sessions cannot use the Yggdrasil refresh endpoint, so
+	// RefreshElyBy asks for a fresh browser sign-in instead.
+	OAuth bool `json:"oauth,omitempty"`
 }
 
 const (

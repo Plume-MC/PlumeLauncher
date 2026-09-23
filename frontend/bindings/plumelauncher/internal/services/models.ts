@@ -16,6 +16,13 @@ export interface Account {
     "type": string;
     "displayName"?: string;
     "selected"?: boolean;
+
+    /**
+     * OAuth marks Ely.by sessions created via the device-code flow.
+     * OAuth sessions cannot use the Yggdrasil refresh endpoint, so
+     * RefreshElyBy asks for a fresh browser sign-in instead.
+     */
+    "oauth"?: boolean;
 }
 
 /**

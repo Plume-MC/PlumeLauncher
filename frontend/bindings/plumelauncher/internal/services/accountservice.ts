@@ -12,7 +12,20 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as auth$0 from "../auth/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
+
+/**
+ * CancelElyByOAuth ends a local device-code wait. The session itself
+ * lives on the Ely.by website, so there is nothing to revoke locally;
+ * the method exists so the frontend cancel path is explicit and typed.
+ */
+export function CancelElyByOAuth($0: string): $CancellablePromise<void> {
+    return $Call.ByID(3411587455, $0);
+}
 
 /**
  * CreateOffline creates an offline account with deterministic UUID.
@@ -27,6 +40,19 @@ export function CreateOffline(username: string): $CancellablePromise<$models.Acc
  */
 export function DeleteAccount(accountUUID: string): $CancellablePromise<void> {
     return $Call.ByID(3349041341, accountUUID);
+}
+
+/**
+ * FinishElyByOAuth polls once for the approved device code and creates
+ * the Ely.by session. The frontend polls this method at the interval
+ * from StartElyByOAuth until success, denial, expiry, or cancel.
+ * 
+ * Tokens live only in the OS keyring; accounts.json stays metadata-only.
+ * On any failure after the token is stored, the token is removed so no
+ * orphan secret survives.
+ */
+export function FinishElyByOAuth(deviceCode: string): $CancellablePromise<$models.Account | null> {
+    return $Call.ByID(1513048534, deviceCode);
 }
 
 /**
@@ -71,4 +97,13 @@ export function RefreshMicrosoftToken(accountUUID: string): $CancellablePromise<
 
 export function SelectAccount(accountUUID: string): $CancellablePromise<void> {
     return $Call.ByID(3495478380, accountUUID);
+}
+
+/**
+ * StartElyByOAuth opens an Ely.by device-code session. The frontend shows
+ * the returned user code + verification URI; the player confirms on the
+ * Ely.by website. No password ever enters the launcher.
+ */
+export function StartElyByOAuth(): $CancellablePromise<auth$0.ElyDeviceCodeStart> {
+    return $Call.ByID(474463787);
 }
