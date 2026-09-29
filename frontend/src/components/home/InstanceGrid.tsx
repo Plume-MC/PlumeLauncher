@@ -87,7 +87,7 @@ export function InstanceGrid({
         className="flex min-h-[156px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 bg-transparent text-muted-foreground transition-colors hover:border-border hover:bg-card/40 hover:text-foreground"
       >
         <IconPlus className="size-5" />
-        <span className="text-sm font-medium">New instance</span>
+        <span className="text-sm font-medium">Create instance</span>
       </motion.button>
     </div>
   );

@@ -7,7 +7,7 @@ import { FinishStep } from './FinishStep';
 import { PageTransition } from '@/components/motion';
 
 interface SetupWizardProps {
-  onComplete: () => void;
+  onComplete: () => Promise<void> | void;
 }
 
 const TOTAL_STEPS = 4;

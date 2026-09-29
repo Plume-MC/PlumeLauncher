@@ -147,7 +147,7 @@ jobs:
       - name: Upload portable executable
         uses: actions/upload-artifact@v4
         with:
-          name: plume-launcher-1.0.1-linux-amd64
+          name: plume-launcher-1.1.0-linux-amd64
           path: bin/plume-launcher
 
   windows-portable-build:
@@ -188,52 +188,8 @@ jobs:
       - name: Upload portable executable
         uses: actions/upload-artifact@v4
         with:
-          name: plume-launcher-1.0.1-windows-amd64
+          name: plume-launcher-1.1.0-windows-amd64
           path: bin/plume-launcher.exe
-
-  windows-installer-build:
-    runs-on: windows-latest
-    needs: [frontend-check]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.26.x'
-
-      - name: Install NSIS
-        shell: pwsh
-        run: |
-          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
-            winget install --id NSIS.NSIS --exact --silent --accept-package-agreements --accept-source-agreements
-            $nsisPath = Join-Path ${env:ProgramFiles(x86)} "NSIS"
-            $env:Path = "$nsisPath;$env:Path"
-            $nsisPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          }
-          makensis /VERSION
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: bun install --frozen-lockfile
-
-      - name: Build frontend for Go embed
-        working-directory: frontend
-        run: bun run build
-
-      - name: Build Windows installer
-        run: wails3 task windows:package
-
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: plume-launcher-1.0.1-windows-amd64-installer
-          if-no-files-found: error
-          path: bin/*-installer.exe
 
   windows-signed-release:
     if: github.event_name == 'workflow_dispatch'
@@ -287,7 +243,7 @@ jobs:
       - name: Upload signed executable
         uses: actions/upload-artifact@v4
         with:
-          name: plume-launcher-1.0.1-windows-amd64-signed
+          name: plume-launcher-1.1.0-windows-amd64-signed
           path: bin/plume-launcher.exe
 
   linux-packages:
@@ -333,7 +289,7 @@ jobs:
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: plume-launcher-1.0.1-linux-packages
+          name: plume-launcher-1.1.0-linux-packages
           path: |
             bin/*.deb
             bin/*.rpm

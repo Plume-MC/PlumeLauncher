@@ -19,6 +19,7 @@ function App() {
   const [instances, setInstances] = useState<Instance[]>([])
   const [setup, setSetup] = useState(true)
   const [loading, setLoading] = useState(true)
+  const [bootError, setBootError] = useState(false)
 
   const refresh = async () => {
     const [accountsResult, instancesResult] = await Promise.all([
@@ -32,10 +33,16 @@ function App() {
     setSetup((current) => current && nextAccounts.length === 0)
   }
 
-  useEffect(() => {
+  const boot = () => {
+    setLoading(true)
+    setBootError(false)
     Promise.all([SystemService.GetSettings(), refresh()]).then(([settings]) => {
       document.documentElement.classList.toggle('dark', settings.theme !== 'light')
-    }).catch(() => setSetup(true)).finally(() => setLoading(false))
+    }).catch(() => setBootError(true)).finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    boot()
   }, [])
 
   if (loading) {
@@ -43,6 +50,15 @@ function App() {
       <div className="grid min-h-[100dvh] place-items-center gap-3 text-sm text-muted-foreground">
         <img src={plumeMark} alt="Plume Launcher" className="size-12 rounded-xl" />
         <span>Loading Plume Launcher...</span>
+      </div>
+    )
+  }
+
+  if (bootError) {
+    return (
+      <div className="grid min-h-[100dvh] place-items-center gap-3 text-center text-sm text-muted-foreground">
+        <p role="alert">Unable to start. Check your installation and try again.</p>
+        <button type="button" className="rounded-md border border-border px-4 py-2 font-medium text-foreground" onClick={boot}>Retry</button>
       </div>
     )
   }

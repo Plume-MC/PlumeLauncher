@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { IconCheck, IconChevronLeft, IconEye, IconEyeOff, IconLoader2, IconUserCircle } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,19 +11,37 @@ interface AccountStepProps {
 }
 
 export function AccountStep({ onNext, onBack }: AccountStepProps) {
-  const [type, setType] = useState<'offline' | 'ely.by'>('offline');
+  const [type, setType] = useState<'offline' | 'ely.by' | 'microsoft'>('offline');
   const [username, setUsername] = useState('Player');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const pendingLogin = useRef<{ cancel: () => void } | null>(null);
+
+  const cancelLogin = () => {
+    pendingLogin.current?.cancel();
+    pendingLogin.current = null;
+  };
 
   const create = async () => {
     setSaving(true);
     setError('');
     try {
       if (type === 'offline') await AccountService.CreateOffline(username.trim());
-      else await AccountService.LoginElyBy(username.trim(), password);
+      else if (type === 'ely.by') await AccountService.LoginElyBy(username.trim(), password);
+      else {
+        const call = AccountService.LoginMicrosoft();
+        pendingLogin.current = call;
+        try {
+          await call;
+        } catch (err) {
+          if (err instanceof Error && /cancel/i.test(err.message)) return;
+          throw err;
+        } finally {
+          pendingLogin.current = null;
+        }
+      }
       onNext();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account');
@@ -32,48 +50,44 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
     }
   };
 
+  const cards = [
+    { id: 'offline' as const, title: 'Offline', sub: 'Local profile', icon: <IconUserCircle className="size-5 text-muted-foreground" /> },
+    { id: 'ely.by' as const, title: 'Ely.by', sub: 'Online session', icon: <span className="text-xs font-bold tracking-tight text-foreground">Ely</span> },
+    { id: 'microsoft' as const, title: 'Microsoft', sub: 'Online session', icon: <span className="text-xs font-bold tracking-tight text-foreground">MS</span> },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="space-y-1 text-center">
         <h1 className="text-xl font-semibold tracking-tight">Add account</h1>
-        <p className="text-sm text-muted-foreground">Pick offline play or Ely.by. Tokens stay in the OS keyring.</p>
+        <p className="text-sm text-muted-foreground">Pick offline play, Ely.by, or Microsoft. Tokens stay safely on this device.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setType('offline')}
-          className={cn(
-            'flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-colors',
-            type === 'offline'
-              ? 'border-primary/50 bg-primary/10'
-              : 'border-border bg-card/30 hover:border-border hover:bg-muted/40'
-          )}
-        >
-          <span className="flex size-11 items-center justify-center rounded-full border border-border bg-muted/40">
-            <IconUserCircle className="size-5 text-muted-foreground" />
-          </span>
-          <span className="text-sm font-semibold">Offline</span>
-          <span className="text-[10px] text-muted-foreground">Local profile</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setType('ely.by')}
-          className={cn(
-            'flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-colors',
-            type === 'ely.by'
-              ? 'border-primary/50 bg-primary/10'
-              : 'border-border bg-card/30 hover:border-border hover:bg-muted/40'
-          )}
-        >
-          <span className="flex size-11 items-center justify-center rounded-full border border-border bg-muted/40 text-xs font-bold tracking-tight text-foreground">
-            Ely
-          </span>
-          <span className="text-sm font-semibold">Ely.by</span>
-          <span className="text-[10px] text-muted-foreground">Online session</span>
-        </button>
+      <div className="grid grid-cols-3 gap-2">
+        {cards.map((card) => (
+          <button
+            key={card.id}
+            type="button"
+            onClick={() => setType(card.id)}
+            className={cn(
+              'flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-colors',
+              type === card.id
+                ? 'border-primary/50 bg-primary/10'
+                : 'border-border bg-card/30 hover:border-border hover:bg-muted/40'
+            )}
+          >
+            <span className="flex size-11 items-center justify-center rounded-full border border-border bg-muted/40">
+              {card.icon}
+            </span>
+            <span className="text-sm font-semibold">{card.title}</span>
+            <span className="text-[10px] text-muted-foreground">{card.sub}</span>
+          </button>
+        ))}
       </div>
 
+      {type === 'microsoft' ? (
+        <p className="text-center text-xs text-muted-foreground">{saving ? 'Waiting for Microsoft sign-in… Close the sign-in window to cancel.' : 'Opens a Microsoft sign-in window. Tokens stay safely on this device.'}</p>
+      ) : (
       <div className="space-y-3">
         <div className="space-y-1.5">
           <label htmlFor="setup-username" className="text-xs font-medium text-muted-foreground">
@@ -117,6 +131,7 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
           </div>
         ) : null}
       </div>
+      )}
 
       {error ? (
         <p role="alert" className="text-xs text-destructive">
@@ -131,13 +146,18 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
         </Button>
         <Button
           onClick={() => void create()}
-          disabled={saving || !username.trim() || (type === 'ely.by' && !password)}
+          disabled={saving || (type !== 'microsoft' && (!username.trim() || (type === 'ely.by' && !password)))}
           className="flex-1 gap-1.5 bg-foreground font-semibold text-background hover:bg-foreground/90"
         >
           {saving ? <IconLoader2 className="size-4 animate-spin" /> : <IconCheck className="size-4" />}
-          {saving ? 'Working...' : type === 'ely.by' ? 'Sign in' : 'Create profile'}
+          {saving ? 'Working...' : type === 'microsoft' ? 'Sign in with Microsoft' : type === 'ely.by' ? 'Sign in' : 'Add profile'}
         </Button>
       </div>
+      {saving && type === 'microsoft' ? (
+        <Button variant="ghost" size="sm" className="w-full" onClick={cancelLogin}>
+          Cancel sign-in
+        </Button>
+      ) : null}
     </div>
   );
 }

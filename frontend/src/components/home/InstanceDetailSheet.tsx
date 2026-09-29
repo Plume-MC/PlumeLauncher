@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { InstanceService } from '../../../bindings/plumelauncher/internal/services/index.js';
+import { InstanceService, SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { Instance, Settings } from '../../../bindings/plumelauncher/internal/instances/models.js';
+import type { JavaInfo } from '../../../bindings/plumelauncher/internal/java/models.js';
 import vanillaLogo from '@/assets/loaders/vanilla.png';
 import fabricLogo from '@/assets/loaders/fabric.png';
 import quiltLogo from '@/assets/loaders/quilt.png';
@@ -77,6 +78,22 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [discardOpen, setDiscardOpen] = useState(false);
+  const [requiredJava, setRequiredJava] = useState<number | null>(null);
+  const [javaOptions, setJavaOptions] = useState<JavaInfo[]>([]);
+
+  useEffect(() => {
+    const currentId = instance?.id;
+    const currentMcVersion = instance?.mcVersion;
+    if (!isOpen || !currentId || !currentMcVersion) return;
+    let cancelled = false;
+    void SystemService.RequiredJavaMajor(currentMcVersion)
+      .then((major) => { if (!cancelled) setRequiredJava(major); })
+      .catch(() => undefined);
+    void SystemService.JavaRuntimes()
+      .then((list) => { if (!cancelled) setJavaOptions(list ?? []); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [isOpen, instance?.id, instance?.mcVersion]);
 
   useEffect(() => {
     const next = draftFrom(instance?.settings);
@@ -131,6 +148,16 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
     }
   };
 
+  const majorByPath = new Map(javaOptions.map((option) => [option.path, option.major] as const));
+  const javaSelectValue = draft.javaPath === '' ? '' : majorByPath.has(draft.javaPath) ? draft.javaPath : '__custom';
+  const selectedMajor = javaSelectValue === '' || javaSelectValue === '__custom' ? undefined : majorByPath.get(javaSelectValue);
+  const javaSelectLabel = (value: string) => {
+    if (value === '') return 'Default (auto)';
+    if (value === '__custom') return 'Custom path';
+    const option = javaOptions.find((item) => item.path === value);
+    return option ? `Java ${option.major} — ${option.source || option.version}` : value;
+  };
+
   return (
     <>
       <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) close(); }}>
@@ -170,7 +197,43 @@ export function InstanceDetailSheet({ isOpen, onClose, instance, onDelete, onCha
 
                 <section aria-labelledby="runtime-heading" className="space-y-4 border-t border-border pt-6">
                   <h3 id="runtime-heading" className="text-sm font-semibold">Runtime</h3>
-                  <Field label="Java path"><Input value={draft.javaPath} onChange={(event) => update('javaPath', event.target.value)} placeholder="Default" /></Field>
+                  <Field label="Java path">
+                    <Select
+                      value={javaSelectValue}
+                      onValueChange={(value) => update('javaPath', value === '__custom' ? draft.javaPath : (value ?? ''))}
+                    >
+                      <SelectTrigger aria-label="Java path"><span className="truncate">{javaSelectLabel(javaSelectValue)}</span></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Default (auto)</SelectItem>
+                        {javaOptions.map((option) => (
+                          <SelectItem key={option.path} value={option.path}>
+                            Java {option.major} — {option.source || option.version}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__custom">Custom path...</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {javaSelectValue === '__custom' ? (
+                      <Input
+                        value={draft.javaPath}
+                        onChange={(event) => update('javaPath', event.target.value)}
+                        placeholder="Paste a Java path, e.g. /opt/java-21/bin/java"
+                        aria-label="Custom Java path"
+                        className="mt-2 font-mono text-xs"
+                      />
+                    ) : null}
+                  </Field>
+                  {requiredJava !== null ? (
+                    selectedMajor !== undefined && selectedMajor < requiredJava ? (
+                      <p role="alert" className="text-[11px] text-amber-500">
+                        This Java ({selectedMajor}) is too old for Minecraft {instance.mcVersion}, which needs {requiredJava} or newer.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground">
+                        Minecraft {instance.mcVersion} needs Java {requiredJava} or newer.
+                      </p>
+                    )
+                  ) : null}
                 </section>
 
                 <section aria-labelledby="display-heading" className="space-y-4 border-t border-border pt-6">

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_NAME="plume-launcher"
-VERSION="${VERSION:-1.0.1}"
+VERSION="${VERSION:-1.1.0}"
 BUILD_DIR="bin"
 APPIMAGE_TOOL="build/tools/appimagetool-x86_64.AppImage"
 APPIMAGE_OUT="build/AppImage-out"

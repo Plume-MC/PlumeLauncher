@@ -29,7 +29,8 @@ type Options struct {
 	WindowMode      string
 	Wrapper         []string // validated argv prefix
 	JavaPath        string
-	JavaMajor       int // required Java major version for --add-opens injection
+	MCVersion       string // plain Minecraft version, e.g. "1.20.1" (detail.ID may be a loader ID)
+	JavaMajor       int    // required Java major version for --add-opens injection
 	JVMArgs         []string
 	Env             map[string]string
 	AuthlibInjector string // verified authlib-injector JAR for Ely.by accounts
@@ -145,7 +146,7 @@ func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {
 	args = append(args, "-Duser.language=en", "-Duser.country=US")
 
 	// Launcher branding
-	args = append(args, "-Dlauncher.name=PlumeLauncher", "-Dlauncher.version=1.0.1")
+	args = append(args, "-Dlauncher.name=PlumeLauncher", "-Dlauncher.version=1.1.0")
 
 	// Classpath
 	if version.Arguments != nil && len(version.Arguments.JVM) > 0 {
@@ -332,7 +333,7 @@ func replaceVars(s string, version metadata.VersionDetail, opts Options) string 
 		"${version_type}":          "PlumeLauncher",
 		"${natives_directory}":     opts.NativesDir,
 		"${launcher_name}":         "PlumeLauncher",
-		"${launcher_version}":      "1.0.1",
+		"${launcher_version}":      "1.1.0",
 		"${classpath}":             buildClasspath(version, opts),
 		"${resolution_width}":      fmt.Sprintf("%d", opts.Width),
 		"${resolution_height}":     fmt.Sprintf("%d", opts.Height),

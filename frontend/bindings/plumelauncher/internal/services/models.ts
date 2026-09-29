@@ -6,7 +6,9 @@
 import * as runtimes$0 from "../runtimes/models.js";
 
 /**
- * Account represents a user account.
+ * Account represents a user account. Accounts.json stores metadata only:
+ * uuid, username, type, display name and selection. Tokens, passwords and
+ * OAuth codes must never be added here; they live in the OS keyring.
  */
 export interface Account {
     "uuid": string;
@@ -14,6 +16,13 @@ export interface Account {
     "type": string;
     "displayName"?: string;
     "selected"?: boolean;
+
+    /**
+     * OAuth marks Ely.by sessions created via the device-code flow.
+     * OAuth sessions cannot use the Yggdrasil refresh endpoint, so
+     * RefreshElyBy asks for a fresh browser sign-in instead.
+     */
+    "oauth"?: boolean;
 }
 
 /**

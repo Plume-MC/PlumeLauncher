@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconDownload, IconLoader2, IconTrash, IconX } from '@tabler/icons-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { javaRangeLabel } from '@/lib/javaRanges';
 import { SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { JavaDownloadProgressEvent } from '../../../bindings/plumelauncher/internal/services/models.js';
 
@@ -13,21 +14,18 @@ interface JavaDownloadCardProps {
   onDownloadComplete?: (major?: number) => void;
 }
 
-const VERSION_LABELS: Record<number, string> = {
-  8: 'Java 8 (Legacy)',
-  17: 'Java 17 (LTS)',
-  21: 'Java 21 (LTS)',
-  25: 'Java 25 (Latest)',
-};
-
-const LTS_MAJORS = new Set([8, 17, 21]);
-
 export function JavaDownloadCard({ major, recommended, installed, onDownloadComplete }: JavaDownloadCardProps) {
   const [status, setStatus] = useState<'idle' | 'downloading' | 'extracting' | 'completed' | 'failed' | 'cancelled'>(
     installed ? 'completed' : 'idle'
   );
   const [progress, setProgress] = useState({ bytesRead: 0, totalBytes: 0 });
   const [error, setError] = useState('');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+  }, []);
 
   useEffect(() => {
     if (installed) {
@@ -87,10 +85,19 @@ export function JavaDownloadCard({ major, recommended, installed, onDownloadComp
   };
 
   const handleDelete = async () => {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      if (confirmTimer.current) clearTimeout(confirmTimer.current);
+      confirmTimer.current = setTimeout(() => setConfirmingDelete(false), 4000);
+      return;
+    }
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    setConfirmingDelete(false);
     try {
       await SystemService.DeleteManagedRuntime(major);
       setStatus('idle');
       setProgress({ bytesRead: 0, totalBytes: 0 });
+      setError('');
       onDownloadComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed');
@@ -116,15 +123,12 @@ export function JavaDownloadCard({ major, recommended, installed, onDownloadComp
             <span className="text-xs font-semibold text-foreground">
               Java {major}
             </span>
-            {LTS_MAJORS.has(major) && (
-              <Badge variant="outline" className="text-[9px]">LTS</Badge>
-            )}
             {recommended && (
               <Badge className="text-[9px] bg-primary/20 text-primary border-primary/30">Recommended</Badge>
             )}
           </div>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
-            {VERSION_LABELS[major] || `Java ${major}`}
+            {javaRangeLabel(major)}
           </p>
         </div>
 
@@ -143,8 +147,8 @@ export function JavaDownloadCard({ major, recommended, installed, onDownloadComp
         )}
 
         {status === 'completed' && installed && (
-          <Button variant="ghost" size="sm" onClick={() => void handleDelete()} className="shrink-0 gap-1 h-7 text-[11px] text-destructive">
-            <IconTrash className="size-3" />
+          <Button variant="ghost" size="sm" onClick={() => void handleDelete()} aria-label={confirmingDelete ? `Confirm remove Java ${major}` : `Remove Java ${major}`} className={cn('shrink-0 gap-1 h-7 text-[11px]', confirmingDelete ? 'text-destructive border border-destructive/40' : 'text-muted-foreground')}>
+            {confirmingDelete ? <span className="px-1">Remove?</span> : <IconTrash className="size-3" />}
           </Button>
         )}
       </div>
@@ -164,16 +168,22 @@ export function JavaDownloadCard({ major, recommended, installed, onDownloadComp
       )}
 
       {status === 'extracting' && (
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <IconLoader2 className="size-3 animate-spin" />
-          Extracting...
+        <div className="flex items-center justify-between gap-1.5 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <IconLoader2 className="size-3 animate-spin" />
+            Extracting...
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => void handleCancel()} className="shrink-0 gap-1 h-6 px-1.5 text-[10px] text-destructive">
+            <IconX className="size-3" />
+            Cancel
+          </Button>
         </div>
       )}
 
       {status === 'completed' && !installed && (
         <div className="flex items-center gap-1.5 text-[10px] text-success">
           <IconDownload className="size-3" />
-          Installed
+          Ready
         </div>
       )}
 

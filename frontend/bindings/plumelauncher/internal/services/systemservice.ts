@@ -101,6 +101,14 @@ export function OpenAppRoot(): $CancellablePromise<void> {
     return $Call.ByID(485223332);
 }
 
+/**
+ * OpenBrowserURL opens the Ely.by verification page in the user's default
+ * browser. The platform package validates the host before launching it.
+ */
+export function OpenBrowserURL(rawURL: string): $CancellablePromise<void> {
+    return $Call.ByID(1352130944, rawURL);
+}
+
 export function OpenGameRoot(): $CancellablePromise<void> {
     return $Call.ByID(2958749619);
 }
@@ -110,6 +118,14 @@ export function OpenGameRoot(): $CancellablePromise<void> {
  */
 export function OpenLogFolder(): $CancellablePromise<void> {
     return $Call.ByID(739377113);
+}
+
+/**
+ * RequiredJavaMajor returns the minimum Java major version for a Minecraft
+ * version, e.g. 21 for "1.20.1". Used by the UI for compatibility guidance.
+ */
+export function RequiredJavaMajor(mcVersion: string): $CancellablePromise<number> {
+    return $Call.ByID(73167809, mcVersion);
 }
 
 /**

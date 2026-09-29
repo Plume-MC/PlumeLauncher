@@ -9,7 +9,7 @@ interface WelcomeStepProps {
 const FACTS = [
   { icon: IconStack2, text: 'Isolated instances with shared assets' },
   { icon: IconTerminal2, text: 'Exact Java major per Minecraft version' },
-  { icon: IconShield, text: 'Offline play and Ely.by sessions in the OS keyring' },
+  { icon: IconShield, text: 'Offline play and online sessions kept safely on this device' },
 ] as const;
 
 export function WelcomeStep({ onNext }: WelcomeStepProps) {

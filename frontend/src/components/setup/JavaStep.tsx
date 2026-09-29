@@ -3,6 +3,7 @@ import { IconChevronLeft, IconLoader2, IconRefresh } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { JavaDownloadCard } from '@/components/home/JavaDownloadCard';
+import { javaRangeLabel } from '@/lib/javaRanges';
 import { SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { JavaInfo } from '../../../bindings/plumelauncher/internal/java/models.js';
 
@@ -34,7 +35,7 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
         setSelected((current) => {
           if (preferredPath) return preferredPath;
           if (current && list.some((j) => j.path === current)) return current;
-          const best = list.find((j) => j.major >= 17) ?? list[0];
+          const best = [...list].sort((a, b) => b.major - a.major)[0];
           return best.path;
         });
       }
@@ -68,7 +69,8 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
         const settings = await SystemService.GetSettings();
         await SystemService.UpdateSettings({ ...settings, defaultJavaPath: selected });
       } catch {
-        // continue; user can fix in Settings
+        setError('Could not save your Java choice. You can set it later in Settings.');
+        return;
       }
     }
     onNext();
@@ -81,7 +83,7 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
       <div className="space-y-1 text-center">
         <h1 className="text-xl font-semibold tracking-tight">Java runtime</h1>
         <p className="text-sm text-muted-foreground">
-          Launch uses the exact major required by each Minecraft version.
+          Each Minecraft version needs a minimum Java version. The launcher picks it automatically.
         </p>
       </div>
 
@@ -139,7 +141,7 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
                               : 'bg-warning/10 text-warning'
                         )}
                       >
-                        major {java.major}
+                        {javaRangeLabel(java.major)}
                       </span>
                       {java.source ? (
                         <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
@@ -170,7 +172,7 @@ export function JavaStep({ onNext, onBack }: JavaStepProps) {
             <JavaDownloadCard
               key={major}
               major={major}
-              recommended={major === 25}
+              recommended={major === 21}
               installed={managedInstalled[major] ?? false}
               onDownloadComplete={handleDownloadComplete}
             />

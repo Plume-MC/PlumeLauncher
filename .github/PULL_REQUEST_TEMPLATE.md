@@ -1,29 +1,18 @@
-## Summary
+## What changed
 
-<!-- What changed, and why? -->
+<!-- Short summary, and why. -->
 
-## Related Issue
+## Related issue
 
-<!-- Link the issue, decision, or discussion. Use "N/A" for a small docs-only change. -->
+<!-- Link the issue or discussion, or write "N/A". -->
 
-## Verification
+## Checks
 
-- [ ] `make check`
-- [ ] Additional checks are listed below when needed.
-- [ ] I explained any check that could not be run.
+- [ ] `make check` passes
+- [ ] `go build ./...` and `wails3 build` pass for backend or release changes
+- [ ] Bindings regenerated if an exported Go service changed
+- [ ] No credentials, tokens, personal data, or build artifacts included
+- [ ] Screenshot or recording attached for UI changes
+- [ ] Migration or compatibility impact noted
 
-## Change Type
-
-- [ ] Bug fix
-- [ ] Feature
-- [ ] Documentation
-- [ ] Refactor
-- [ ] Build or release tooling
-
-## Review Notes
-
-- [ ] No credentials, tokens, personal data, or build artifacts are included.
-- [ ] Generated bindings were regenerated when an exported Go service changed.
-- [ ] UI changes include screenshots or a short recording.
-- [ ] Data, compatibility, and migration impact are documented when applicable.
-- [ ] Deferred work is called out explicitly.
+Checks you could not run, and why:

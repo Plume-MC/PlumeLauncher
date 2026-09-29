@@ -31,7 +31,7 @@ export function EmptyState({ reduced, onCreate }: EmptyStateProps) {
       </svg>
       <h2 className="text-base font-semibold tracking-tight text-foreground">No instances yet</h2>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-        Build your first install (vanilla, fabric, or quilt). Files stay isolated under your data root.
+        Create your first instance (Vanilla, Fabric, or Quilt). Files stay isolated under your data root.
       </p>
       <Button
         size="sm"

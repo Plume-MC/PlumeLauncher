@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/logging"
@@ -27,7 +26,7 @@ type HomeService struct {
 func (s *HomeService) ListInstances() ([]instances.Instance, error) {
 	items, err := s.Instances.List()
 	if err != nil {
-		return nil, NewInternalError("list instances: " + err.Error())
+		return nil, NewInternalError("Unable to list instances.")
 	}
 	return items, nil
 }
@@ -38,7 +37,7 @@ func (s *HomeService) SupportedVersions(loader string) ([]string, error) {
 	if loader == "" || loader == "vanilla" {
 		manifest, err := client.FetchManifest(context.Background())
 		if err != nil {
-			return nil, NewUpstreamError(fmt.Sprintf("resolve vanilla metadata: %v", err))
+			return nil, NewUpstreamError("Unable to load the version list. Check your connection and try again.")
 		}
 		versions := make([]string, 0, len(manifest.Versions))
 		for _, version := range manifest.Versions {
@@ -49,11 +48,11 @@ func (s *HomeService) SupportedVersions(loader string) ([]string, error) {
 		return versions, nil
 	}
 	if loader != "fabric" && loader != "quilt" {
-		return nil, NewValidationError("invalid loader", "loader")
+		return nil, NewValidationError("Pick a valid loader.", "loader")
 	}
 	versions, err := client.SupportedLoaderVersions(context.Background(), loader)
 	if err != nil {
-		return nil, NewUpstreamError(fmt.Sprintf("resolve %s metadata: %v", loader, err))
+		return nil, NewUpstreamError("Unable to load version details. Check your connection and try again.")
 	}
 	return versions, nil
 }
@@ -61,11 +60,11 @@ func (s *HomeService) SupportedVersions(loader string) ([]string, error) {
 // LoaderVersions returns versions of the selected Fabric or Quilt loader.
 func (s *HomeService) LoaderVersions(loader, gameVersion string) ([]string, error) {
 	if loader != "fabric" && loader != "quilt" {
-		return nil, NewValidationError("loader versions are unavailable for this loader", "loader")
+		return nil, NewValidationError("Pick a valid loader.", "loader")
 	}
 	versions, err := metadata.NewClient(s.DataRoot).LoaderVersions(context.Background(), loader, gameVersion)
 	if err != nil {
-		return nil, NewUpstreamError(fmt.Sprintf("resolve %s loader versions: %v", loader, err))
+		return nil, NewUpstreamError("Unable to load loader versions. Check your connection and try again.")
 	}
 	return versions, nil
 }
@@ -76,27 +75,27 @@ func (s *HomeService) CreateInstance(name, version, loader, loaderVersion string
 		return nil, err
 	}
 	if loaderType != instances.LoaderVanilla && loaderVersion == "" {
-		return nil, NewValidationError("loaderVersion is required", "loaderVersion")
+		return nil, NewValidationError("Pick a loader version.", "loaderVersion")
 	}
 	if name == "" {
-		return nil, NewValidationError("name is required", "name")
+		return nil, NewValidationError("Enter an instance name.", "name")
 	}
 	if version == "" {
-		return nil, NewValidationError("version is required", "version")
+		return nil, NewValidationError("Pick a Minecraft version.", "version")
 	}
 	inst, err := s.Instances.CreateWithLoaderVersion(name, version, loaderType, loaderVersion)
 	if err != nil {
-		return nil, NewInternalError("create instance: " + err.Error())
+		return nil, NewInternalError("Unable to create the instance.")
 	}
 	return inst, nil
 }
 
 func (s *HomeService) DeleteInstance(id string) error {
 	if s.Registry != nil && s.Registry.IsActive(id) {
-		return NewConflictError("stop the instance before deleting it")
+		return NewConflictError("Stop the instance before deleting it.")
 	}
 	if err := s.Instances.Delete(id); err != nil {
-		return NewNotFoundError("instance not found")
+		return NewNotFoundError("Instance not found.")
 	}
 	return nil
 }
@@ -110,7 +109,7 @@ func parseLoader(value string) (instances.LoaderType, error) {
 	case "quilt":
 		return instances.LoaderQuilt, nil
 	default:
-		return "", NewValidationError("invalid loader", "loader")
+		return "", NewValidationError("Pick a valid loader.", "loader")
 	}
 }
 

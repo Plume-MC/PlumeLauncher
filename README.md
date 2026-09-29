@@ -120,7 +120,7 @@ backend and a React frontend.
 | Platform | Requirements | Distribution |
 | --- | --- | --- |
 | Linux | GTK4 and WebKitGTK 6 | AppImage, DEB, RPM, and Arch packages |
-| Windows 10 and later | Microsoft WebView2 Runtime | Portable executable and Wails packaging tasks |
+| Windows 10 and later | Microsoft WebView2 Runtime | Portable executable |
 
 The Linux `appimage` target bundles more dependencies for portability. The
 `appimage-lite` target expects the host system to provide GTK4, WebKitGTK 6,
@@ -136,21 +136,21 @@ Download the package for your platform from the
 For an AppImage:
 
 ```bash
-chmod +x ./plume-launcher-1.0.1-linux-x86_64-system.AppImage
-./plume-launcher-1.0.1-linux-x86_64-system.AppImage
+chmod +x ./plume-launcher-1.1.0-linux-x86_64-system.AppImage
+./plume-launcher-1.1.0-linux-x86_64-system.AppImage
 ```
 
 Install a system package with the matching tool:
 
 ```bash
-sudo apt install ./plume-launcher_1.0.1-1_amd64.deb
-sudo dnf install ./plume-launcher-1.0.1-1.x86_64.rpm
-sudo pacman -U ./plume-launcher-1.0.1-1-x86_64.pkg.tar.zst
+sudo apt install ./plume-launcher_1.1.0-1_amd64.deb
+sudo dnf install ./plume-launcher-1.1.0-1.x86_64.rpm
+sudo pacman -U ./plume-launcher-1.1.0-1-x86_64.pkg.tar.zst
 ```
 
 ### Windows
 
-Run the downloaded `.exe` installer or portable executable. v1.0.1 is unsigned, so Windows SmartScreen may ask for confirmation.
+Run the downloaded `.exe` portable executable. v1.1.0 is unsigned, so Windows SmartScreen may ask for confirmation.
 Verify checksums where a `SHA256SUMS` file is attached to the release:
 
 ```bash

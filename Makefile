@@ -1,5 +1,5 @@
 APP_NAME := plume-launcher
-VERSION := 1.0.1
+VERSION := 1.1.0
 
 .PHONY: help deps frontend-install doctor dev build build-upx windows run lint typecheck test test-coverage check check-all package deb rpm arch appimage appimage-lite all checksums
 
@@ -13,7 +13,7 @@ help:
 	@echo "  make dev        Run Wails v3 development mode"
 	@echo "  make build      Build the current platform"
 	@echo "  make build-upx  Build then compress with UPX"
-	@echo "  make windows    Build the Windows target task"
+	@echo "  make windows    Build the Windows portable executable"
 	@echo "  make run        Run the current platform build"
 	@echo "  make check      Run frontend and Go checks"
 	@echo "  make package    Package the current platform"
@@ -31,7 +31,6 @@ doctor:
 	@command -v go >/dev/null 2>&1 && echo "ok: go" || echo "missing: go"
 	@command -v wails3 >/dev/null 2>&1 && echo "ok: wails3" || echo "missing: wails3"
 	@command -v bun >/dev/null 2>&1 && echo "ok: bun" || echo "missing: bun"
-	@command -v makensis >/dev/null 2>&1 && echo "ok: makensis" || echo "optional: makensis"
 
 dev:
 	wails3 dev
