@@ -56,6 +56,17 @@ export function FinishElyByOAuth(deviceCode: string): $CancellablePromise<$model
 }
 
 /**
+ * GetAccountSkin resolves the player's skin as a PNG data URL for the UI.
+ * Offline profiles resolve the official default Steve template; Ely.by and
+ * Microsoft profiles resolve their public session profile, then download the
+ * allowlisted texture host. Failures return a generic error so the UI can
+ * fall back to the initial-letter avatar.
+ */
+export function GetAccountSkin(accountUUID: string): $CancellablePromise<string> {
+    return $Call.ByID(2101393135, accountUUID);
+}
+
+/**
  * ListAccounts returns all accounts.
  */
 export function ListAccounts(): $CancellablePromise<$models.Account[] | null> {
