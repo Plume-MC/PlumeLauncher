@@ -212,7 +212,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                       <img src={plumeMark} alt="Plume Launcher" className="size-10 rounded-lg" />
                       <div>
                         <p className="text-sm font-semibold text-foreground">Plume Launcher</p>
-                        <p className="font-mono text-xs text-muted-foreground">v1.0.1</p>
+                        <p className="font-mono text-xs text-muted-foreground">v1.1.0</p>
                       </div>
                     </div>
 
