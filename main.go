@@ -131,6 +131,12 @@ func main() {
 		Emit:     func(name string, data any) { app.Event.Emit(name, data) },
 	}
 	app.RegisterService(application.NewService(systemSvc))
+	presenceSvc := &services.PresenceService{
+		DataRoot: config.DataRoot,
+		Defaults: &defaults,
+		Presence: presenceClient,
+	}
+	app.RegisterService(application.NewService(presenceSvc))
 	app.RegisterService(application.NewService(&services.HomeService{
 		DataRoot:  config.DataRoot,
 		Defaults:  defaults,

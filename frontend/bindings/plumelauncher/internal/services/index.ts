@@ -4,11 +4,13 @@
 import * as AccountService from "./accountservice.js";
 import * as HomeService from "./homeservice.js";
 import * as InstanceService from "./instanceservice.js";
+import * as PresenceService from "./presenceservice.js";
 import * as SystemService from "./systemservice.js";
 export {
     AccountService,
     HomeService,
     InstanceService,
+    PresenceService,
     SystemService
 };
 

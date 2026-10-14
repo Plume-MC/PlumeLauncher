@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { JavaRuntimeManager } from '@/components/home/JavaRuntimeManager';
-import { SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
+import { PresenceService, SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { LauncherDefaults } from '../../../bindings/plumelauncher/internal/instances/models.js';
 import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
@@ -37,18 +37,20 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
   const [error, setError] = useState('');
   const [dataNotice, setDataNotice] = useState('');
   const [discardOpen, setDiscardOpen] = useState(false);
+  const [presenceStatus, setPresenceStatus] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
     setBusy('load');
     setError('');
     setDataNotice('');
-    void Promise.all([SystemService.GetSettings(), SystemService.GetDataRoot(), SystemService.IsPortableMode()]).then(([nextSettings, root, nextPortable]) => {
+    void Promise.all([SystemService.GetSettings(), SystemService.GetDataRoot(), SystemService.IsPortableMode(), PresenceService.GetPresenceStatus().catch(() => '')]).then(([nextSettings, root, nextPortable, status]) => {
       setSettings(nextSettings);
       setSaved(nextSettings);
       setDataRoot(root);
       setSavedDataRoot(root);
       setPortable(nextPortable);
+      setPresenceStatus(status ?? '');
     }).catch((err) => setError(err instanceof Error ? err.message : 'Unable to load settings')).finally(() => setBusy(''));
   }, [isOpen]);
 
@@ -167,6 +169,26 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                       <div className="grid grid-cols-2 gap-3">
                         <label className="flex flex-col gap-1 text-xs">Min RAM (MB)<Input type="number" value={settings.defaultMinRamMB} onChange={(event) => update('defaultMinRamMB', Number(event.target.value))} /></label>
                         <label className="flex flex-col gap-1 text-xs">Max RAM (MB)<Input type="number" value={settings.defaultMaxRamMB} onChange={(event) => update('defaultMaxRamMB', Number(event.target.value))} /></label>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg bg-card/40 p-4">
+                      <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Discord Rich Presence</h3>
+                      <p className="mb-3 text-[11px] text-muted-foreground">Show your Minecraft activity on your Discord profile. Applies the next time you launch an instance.</p>
+                      <div className="flex flex-col gap-2">
+                        <label className="flex items-center justify-between gap-3 text-xs">
+                          <span>Show activity in Discord</span>
+                          <input type="checkbox" checked={settings.discordPresenceEnabled} onChange={(event) => update('discordPresenceEnabled', event.target.checked)} aria-label="Show activity in Discord" />
+                        </label>
+                        {settings.discordPresenceEnabled && (
+                          <div className="ml-3 flex flex-col gap-2 border-l border-border pl-3">
+                            <label className="flex items-center justify-between gap-3 text-xs"><span>Instance name</span><input type="checkbox" checked={settings.discordShowInstance} onChange={(event) => update('discordShowInstance', event.target.checked)} aria-label="Show instance name" /></label>
+                            <label className="flex items-center justify-between gap-3 text-xs"><span>Minecraft version</span><input type="checkbox" checked={settings.discordShowVersion} onChange={(event) => update('discordShowVersion', event.target.checked)} aria-label="Show Minecraft version" /></label>
+                            <label className="flex items-center justify-between gap-3 text-xs"><span>Mod loader</span><input type="checkbox" checked={settings.discordShowLoader} onChange={(event) => update('discordShowLoader', event.target.checked)} aria-label="Show mod loader" /></label>
+                            <label className="flex items-center justify-between gap-3 text-xs"><span>Elapsed time</span><input type="checkbox" checked={settings.discordShowElapsed} onChange={(event) => update('discordShowElapsed', event.target.checked)} aria-label="Show elapsed time" /></label>
+                          </div>
+                        )}
+                        {presenceStatus ? <p className="text-[11px] text-muted-foreground" role="status">Discord: {presenceStatus}</p> : null}
                       </div>
                     </div>
                   </div>
