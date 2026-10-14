@@ -8,8 +8,10 @@ import (
 	"plumelauncher/internal/launch"
 	"plumelauncher/internal/logging"
 	"plumelauncher/internal/metadata"
+	"plumelauncher/internal/presence"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -21,6 +23,7 @@ type LaunchService struct {
 	Instances *instances.Manager
 	Logger    *logging.Logger
 	App       *application.App
+	Presence  *presence.Client
 	mu        sync.Mutex
 	processes map[string]*exec.Cmd
 }
@@ -123,6 +126,8 @@ func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instance
 		if s.Registry.IsActive(opts.VersionID) {
 			s.Registry.Fail(opts.VersionID)
 		}
+		// Every monitor exit path (stopped/crashed/failed) lands here.
+		s.clearPresence()
 	}()
 
 	var stderr []string
@@ -163,6 +168,9 @@ func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instance
 			_ = transitionInstanceState(s.App, s.Instances, opts.VersionID, instances.StateRunning, op.ID)
 		}
 		emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: opts.VersionID, State: "running"})
+		// Presence is best-effort and async: an unreachable Discord must
+		// never delay or fail the launch monitor.
+		s.publishPresence(cmd.Process.Pid, opts.VersionID)
 	})
 
 	if err != nil {
@@ -210,6 +218,43 @@ func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instance
 		s.Logger.Info("launch_stopped", "instanceId", opts.VersionID, "operationId", op.ID)
 	}
 	emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: opts.VersionID, State: "stopped"})
+}
+
+// publishPresence sends one activity update for a running game. It runs in
+// its own goroutine and swallows errors; presence is strictly optional.
+func (s *LaunchService) publishPresence(pid int, instanceID string) {
+	if s.Presence == nil || s.Instances == nil {
+		return
+	}
+	presenceClient := s.Presence
+	go func() {
+		inst, err := s.Instances.Get(instanceID)
+		if err != nil || inst == nil {
+			return
+		}
+		defaults, err := instances.LoadConfig(s.DataRoot)
+		if err != nil {
+			return
+		}
+		loader := string(inst.Loader)
+		if loader == "vanilla" {
+			loader = "" // vanilla has no loader art
+		}
+		info := presence.InstanceInfo{Name: inst.Name, MCVersion: inst.MCVersion, Loader: loader}
+		activity := presence.BuildActivity(pid, info, defaults, time.Now())
+		if activity == nil {
+			return
+		}
+		_ = presenceClient.SetActivity(activity)
+	}()
+}
+
+// clearPresence removes the published activity when the game exits.
+func (s *LaunchService) clearPresence() {
+	if s.Presence == nil {
+		return
+	}
+	_ = s.Presence.SetActivity(nil)
 }
 
 func launchLogLevel(line string, isStderr bool) string {
