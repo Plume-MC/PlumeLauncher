@@ -53,6 +53,16 @@ export interface LauncherDefaults {
     "defaultJvmArgs": string;
     "gpuPreference": string;
     "wrapperCommand": string;
+
+    /**
+     * Discord Rich Presence (POST-004). Master toggle defaults to off;
+     * sub-toggles gate what is published when the master is enabled.
+     */
+    "discordPresenceEnabled": boolean;
+    "discordShowInstance": boolean;
+    "discordShowVersion": boolean;
+    "discordShowLoader": boolean;
+    "discordShowElapsed": boolean;
 }
 
 /**
