@@ -15,6 +15,13 @@ type LauncherDefaults struct {
 	DefaultJvmArgs         string   `json:"defaultJvmArgs"`
 	GPUPreference          string   `json:"gpuPreference"`
 	WrapperCommand         string   `json:"wrapperCommand"`
+	// Discord Rich Presence (POST-004). Master toggle defaults to off;
+	// sub-toggles gate what is published when the master is enabled.
+	DiscordPresenceEnabled bool `json:"discordPresenceEnabled"`
+	DiscordShowInstance    bool `json:"discordShowInstance"`
+	DiscordShowVersion     bool `json:"discordShowVersion"`
+	DiscordShowLoader      bool `json:"discordShowLoader"`
+	DiscordShowElapsed     bool `json:"discordShowElapsed"`
 }
 
 // DefaultLauncherDefaults returns sensible defaults.
@@ -28,6 +35,11 @@ func DefaultLauncherDefaults() LauncherDefaults {
 		DefaultResolutionW: 854,
 		DefaultResolutionH: 480,
 		GPUPreference:      "auto",
+		// Presence detail defaults: instance name stays off (user-typed
+		// text may contain private info); version/loader/elapsed are on.
+		DiscordShowVersion: true,
+		DiscordShowLoader:  true,
+		DiscordShowElapsed: true,
 	}
 }
 
