@@ -37,11 +37,17 @@ func TestBuildActivityDefaultGating(t *testing.T) {
 	if strings.Contains(activity.Details, "My World") {
 		t.Errorf("details leaked instance name: %q", activity.Details)
 	}
-	if !strings.Contains(activity.Details, "Minecraft 1.20.1") {
-		t.Errorf("details missing version: %q", activity.Details)
+	if activity.Details != "" {
+		t.Errorf("details = %q, want empty when instance toggle is off", activity.Details)
 	}
-	if !strings.Contains(activity.Details, "Fabric") {
-		t.Errorf("details missing loader: %q", activity.Details)
+	if !strings.Contains(activity.State, "Minecraft 1.20.1") {
+		t.Errorf("state missing version: %q", activity.State)
+	}
+	if !strings.Contains(activity.State, "Fabric") {
+		t.Errorf("state missing loader: %q", activity.State)
+	}
+	if strings.Contains(activity.State, "Playing with Plume") {
+		t.Errorf("state still carries filler text: %q", activity.State)
 	}
 	if activity.Timestamps == nil || activity.Timestamps.Start != 1700000000 {
 		t.Errorf("timestamps = %+v, want start 1700000000", activity.Timestamps)
@@ -94,8 +100,14 @@ func TestBuildActivityInstanceNameOptIn(t *testing.T) {
 	defaults.DiscordShowInstance = true
 
 	activity := BuildActivity(1, InstanceInfo{Name: "My World", MCVersion: "1.20.1"}, defaults, time.Now())
-	if activity == nil || !strings.Contains(activity.Details, "My World") {
-		t.Fatalf("details = %+v, want instance name when opted in", activity)
+	if activity == nil {
+		t.Fatal("activity = nil")
+	}
+	if activity.Details != "My World" {
+		t.Errorf("details = %q, want just the instance name", activity.Details)
+	}
+	if strings.Contains(activity.Details, "Minecraft") {
+		t.Errorf("details = %q, want version kept out of details", activity.Details)
 	}
 }
 
@@ -111,6 +123,7 @@ func TestBuildActivityNoElapsed(t *testing.T) {
 
 func TestBuildActivityAllDetailsOff(t *testing.T) {
 	defaults := baseDefaults()
+	defaults.DiscordShowInstance = false
 	defaults.DiscordShowVersion = false
 	defaults.DiscordShowLoader = false
 
@@ -119,7 +132,10 @@ func TestBuildActivityAllDetailsOff(t *testing.T) {
 		t.Fatal("activity = nil")
 	}
 	if activity.Details != "" {
-		t.Errorf("details = %q, want empty when all segments gated off", activity.Details)
+		t.Errorf("details = %q, want empty when instance toggle is off", activity.Details)
+	}
+	if activity.State != "" {
+		t.Errorf("state = %q, want empty when version and loader toggles are off", activity.State)
 	}
 }
 

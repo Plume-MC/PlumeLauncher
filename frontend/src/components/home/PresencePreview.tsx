@@ -31,10 +31,17 @@ function loaderArt(loader: string): string | null {
   return null;
 }
 
-// Mirrors buildDetails: gated segments joined with an em dash, capped at 128.
+// Mirrors buildDetails in internal/presence/activity_builder.go: the
+// instance name only, empty when its toggle is off.
 function buildDetails(instance: Instance, settings: LauncherDefaults): string {
+  if (!settings.discordShowInstance) return '';
+  return instance.name.slice(0, 128);
+}
+
+// Mirrors buildState: version and loader joined with an em dash, each
+// dropped when its toggle is off.
+function buildState(instance: Instance, settings: LauncherDefaults): string {
   const segments: string[] = [];
-  if (settings.discordShowInstance) segments.push(instance.name);
   if (settings.discordShowVersion && instance.mcVersion) segments.push(`Minecraft ${instance.mcVersion}`);
   if (settings.discordShowLoader) {
     const label = loaderLabel(instance.loader);
@@ -46,6 +53,7 @@ function buildDetails(instance: Instance, settings: LauncherDefaults): string {
 export function PresencePreview({ instance, settings, className }: PresencePreviewProps) {
   const art = instance && settings.discordShowLoader ? loaderArt(instance.loader) : null;
   const details = instance ? buildDetails(instance, settings) : '';
+  const state = instance ? buildState(instance, settings) : '';
 
   return (
     <div className={cn('rounded-lg border border-border bg-background/60 p-3', className)}>
@@ -66,7 +74,7 @@ export function PresencePreview({ instance, settings, className }: PresencePrevi
           {instance ? (
             <>
               {details ? <p className="truncate text-[11px] text-muted-foreground">{details}</p> : null}
-              <p className="truncate text-[11px] text-muted-foreground">Playing with Plume</p>
+              {state ? <p className="truncate text-[11px] text-muted-foreground">{state}</p> : null}
               {settings.discordShowElapsed ? (
                 <p className="mt-1 text-[11px] text-muted-foreground">⏱ elapsed time</p>
               ) : null}

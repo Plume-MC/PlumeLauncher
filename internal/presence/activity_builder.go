@@ -27,19 +27,17 @@ func GameStartTime(startedAt time.Time) *Timestamps {
 //
 // Layout: large_image is always the Plume mark (so every activity has an
 // image), small_image carries the loader art when one applies,
-// details = "{instance} — Minecraft {version} — {loader}" with gated
-// segments omitted, state = "Playing with Plume".
+// details = "{instance}" (gated), state = "Minecraft {version} — {loader}"
+// (gated). Both fields are capped at Discord's 128-byte limit.
 func BuildActivity(pid int, info InstanceInfo, defaults instances.LauncherDefaults, startedAt time.Time) *Activity {
 	if !defaults.DiscordPresenceEnabled {
 		return nil
 	}
 
-	details := buildDetails(info, defaults)
-
 	activity := &Activity{
 		PID:     pid,
-		Details: details,
-		State:   "Playing with Plume",
+		Details: buildDetails(info, defaults),
+		State:   buildState(info, defaults),
 		Assets: &Assets{
 			LargeImage: AssetPlumeMark,
 			LargeText:  "Plume Launcher",
@@ -78,13 +76,18 @@ type InstanceInfo struct {
 	Loader    string // "" counts as vanilla
 }
 
-// buildDetails joins the gated segments; every segment is dropped when
-// its toggle is off, and the whole string is empty when all are off.
+// buildDetails returns the instance name, or empty when its toggle is off.
 func buildDetails(info InstanceInfo, defaults instances.LauncherDefaults) string {
-	segments := make([]string, 0, 3)
-	if defaults.DiscordShowInstance {
-		segments = append(segments, info.Name)
+	if !defaults.DiscordShowInstance {
+		return ""
 	}
+	return truncate(info.Name, 128)
+}
+
+// buildState joins the version and loader segments; each is dropped when
+// its toggle is off, and the whole string is empty when both are off.
+func buildState(info InstanceInfo, defaults instances.LauncherDefaults) string {
+	segments := make([]string, 0, 2)
 	if defaults.DiscordShowVersion && info.MCVersion != "" {
 		segments = append(segments, "Minecraft "+info.MCVersion)
 	}
@@ -93,8 +96,7 @@ func buildDetails(info InstanceInfo, defaults instances.LauncherDefaults) string
 			segments = append(segments, label)
 		}
 	}
-	details := strings.Join(segments, " — ")
-	return truncate(details, 128)
+	return truncate(strings.Join(segments, " — "), 128)
 }
 
 // truncate caps a payload string at Discord's 128-byte field limit.
