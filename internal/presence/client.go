@@ -22,6 +22,11 @@ const (
 	// SetActivityTimeout bounds one SET_ACTIVITY round trip; presence is
 	// best-effort and must never block the launch monitor.
 	SetActivityTimeout = 2 * time.Second
+)
+
+// Retry defaults. The values live on Client so tests can tune one client
+// without racing a background retry loop.
+const (
 	// ReconnectBackoff delays the first reconnection attempt after a drop.
 	ReconnectBackoff = 5 * time.Second
 	// MaxReconnectAttempts caps background reconnection work.
@@ -36,13 +41,18 @@ var ErrDisabled = errors.New("discord presence is disabled")
 type Client struct {
 	ClientID string
 
-	mu      sync.Mutex
-	conn    netConn
-	status  string
-	enabled bool
-	nonce   uint64
-	closed  bool
-	backoff time.Duration
+	mu           sync.Mutex
+	conn         netConn
+	status       string
+	enabled      bool
+	nonce        uint64
+	closed       bool
+	backoff      time.Duration
+	lastActivity *Activity
+	retrying     bool
+	// retryBackoff/retryAttempts are per-client so tests can tune them.
+	retryBackoff  time.Duration
+	retryAttempts int
 }
 
 // netConn is the subset of net.Conn the client needs; narrowed for tests.
@@ -56,7 +66,12 @@ type netConn interface {
 
 // NewClient returns a disabled client for the given application ID.
 func NewClient(clientID string) *Client {
-	return &Client{ClientID: clientID, status: StatusDisabled}
+	return &Client{
+		ClientID:      clientID,
+		status:        StatusDisabled,
+		retryBackoff:  ReconnectBackoff,
+		retryAttempts: MaxReconnectAttempts,
+	}
 }
 
 // Status reports the current connection state.
@@ -77,6 +92,9 @@ func (c *Client) Enable() {
 	c.enabled = true
 	c.status = StatusIdle
 	c.backoff = 0
+	if c.lastActivity != nil {
+		c.scheduleRetryLocked()
+	}
 }
 
 // Enabled reports whether publishing is allowed.
@@ -119,15 +137,21 @@ func (c *Client) SetActivity(activity *Activity) error {
 	if !c.enabled || c.closed {
 		return ErrDisabled
 	}
-	if c.conn == nil {
-		if err := c.connectLocked(); err != nil {
-			return err
-		}
-	}
 	if activity == nil {
 		return c.clearLocked()
 	}
-	return c.setActivityLocked(activity)
+	c.lastActivity = activity
+	if c.conn == nil {
+		if err := c.connectLocked(); err != nil {
+			c.scheduleRetryLocked()
+			return err
+		}
+	}
+	if err := c.setActivityLocked(activity); err != nil {
+		c.scheduleRetryLocked()
+		return err
+	}
+	return nil
 }
 
 // connectLocked dials, performs the handshake, and updates status.
@@ -199,14 +223,77 @@ func (c *Client) setActivityLocked(activity *Activity) error {
 	return nil
 }
 
-// clearLocked removes the current presence (empty activity).
+// clearLocked removes the current presence. It only dials when a connection
+// already exists, so clearing after a failed publish never reconnects.
 func (c *Client) clearLocked() error {
+	c.lastActivity = nil
+	if c.conn == nil {
+		return nil
+	}
 	empty := &Activity{PID: 0}
 	if err := c.setActivityLocked(empty); err != nil {
+		c.closeLocked()
+		c.status = StatusIdle
 		return err
 	}
 	// After clearing, drop the connection so Discord shows no stale state.
 	c.closeLocked()
 	c.status = StatusIdle
 	return nil
+}
+
+// scheduleRetryLocked starts one background retry loop, if none is running.
+// Callers must hold c.mu.
+func (c *Client) scheduleRetryLocked() {
+	if c.retrying || c.closed || !c.enabled || c.lastActivity == nil {
+		return
+	}
+	c.retrying = true
+	activity := c.lastActivity
+	go c.retryLoop(activity)
+}
+
+// retryLoop re-publishes the last activity with bounded backoff. It stops on
+// success, on Disable/Close, or when the attempt budget is exhausted.
+func (c *Client) retryLoop(activity *Activity) {
+	defer func() {
+		c.mu.Lock()
+		c.retrying = false
+		c.mu.Unlock()
+	}()
+	c.mu.Lock()
+	delay := c.retryBackoff
+	attempts := c.retryAttempts
+	c.mu.Unlock()
+	for attempt := 0; attempt < attempts; attempt++ {
+		time.Sleep(delay)
+		c.mu.Lock()
+		if c.closed || !c.enabled {
+			c.mu.Unlock()
+			return
+		}
+		if c.conn == nil {
+			if err := c.connectLocked(); err != nil {
+				c.mu.Unlock()
+				if delay < 30*time.Second {
+					delay *= 2
+				}
+				continue
+			}
+		}
+		if err := c.setActivityLocked(activity); err != nil {
+			c.mu.Unlock()
+			if delay < 30*time.Second {
+				delay *= 2
+			}
+			continue
+		}
+		c.mu.Unlock()
+		return
+	}
+	c.mu.Lock()
+	if c.conn == nil && c.enabled && !c.closed {
+		c.status = StatusUnavailable
+	}
+	c.mu.Unlock()
 }
