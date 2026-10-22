@@ -5,6 +5,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTit
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { JavaRuntimeManager } from '@/components/home/JavaRuntimeManager';
 import { PresenceService, SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { LauncherDefaults } from '../../../bindings/plumelauncher/internal/instances/models.js';
@@ -209,19 +210,58 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                     <div className="rounded-lg bg-card/40 p-4">
                       <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Discord Rich Presence</h3>
                       <p className="mb-3 text-[11px] text-muted-foreground">Show your Minecraft activity on your Discord profile. Applies the next time you launch an instance.</p>
-                      <div className="flex flex-col gap-2">
-                        <label className="flex items-center justify-between gap-3 text-xs">
-                          <span>Show activity in Discord</span>
-                          <input type="checkbox" checked={settings.discordPresenceEnabled} onChange={(event) => update('discordPresenceEnabled', event.target.checked)} aria-label="Show activity in Discord" />
-                        </label>
-                        {settings.discordPresenceEnabled && (
-                          <div className="ml-3 flex flex-col gap-2 border-l border-border pl-3">
-                            <label className="flex items-center justify-between gap-3 text-xs"><span>Instance name</span><input type="checkbox" checked={settings.discordShowInstance} onChange={(event) => update('discordShowInstance', event.target.checked)} aria-label="Show instance name" /></label>
-                            <label className="flex items-center justify-between gap-3 text-xs"><span>Minecraft version</span><input type="checkbox" checked={settings.discordShowVersion} onChange={(event) => update('discordShowVersion', event.target.checked)} aria-label="Show Minecraft version" /></label>
-                            <label className="flex items-center justify-between gap-3 text-xs"><span>Mod loader (Fabric/Quilt)</span><input type="checkbox" checked={settings.discordShowLoader} onChange={(event) => update('discordShowLoader', event.target.checked)} aria-label="Show mod loader" /></label>
-                            <label className="flex items-center justify-between gap-3 text-xs"><span>Elapsed time</span><input type="checkbox" checked={settings.discordShowElapsed} onChange={(event) => update('discordShowElapsed', event.target.checked)} aria-label="Show elapsed time" /></label>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-3 py-1.5">
+                          <label htmlFor="discord-presence-enabled" className="text-xs">Show activity in Discord</label>
+                          <Switch
+                            id="discord-presence-enabled"
+                            checked={settings.discordPresenceEnabled}
+                            onCheckedChange={(checked) => update('discordPresenceEnabled', checked)}
+                            aria-label="Show activity in Discord"
+                          />
+                        </div>
+                        <div className="ml-3 flex flex-col gap-1 border-l border-border pl-3">
+                          <div className="flex items-center justify-between gap-3 py-1.5">
+                            <label htmlFor="discord-show-instance" className="text-xs">Instance name</label>
+                            <Switch
+                              id="discord-show-instance"
+                              checked={settings.discordShowInstance}
+                              disabled={!settings.discordPresenceEnabled}
+                              onCheckedChange={(checked) => update('discordShowInstance', checked)}
+                              aria-label="Show instance name"
+                            />
                           </div>
-                        )}
+                          <div className="flex items-center justify-between gap-3 py-1.5">
+                            <label htmlFor="discord-show-version" className="text-xs">Minecraft version</label>
+                            <Switch
+                              id="discord-show-version"
+                              checked={settings.discordShowVersion}
+                              disabled={!settings.discordPresenceEnabled}
+                              onCheckedChange={(checked) => update('discordShowVersion', checked)}
+                              aria-label="Show Minecraft version"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between gap-3 py-1.5">
+                            <label htmlFor="discord-show-loader" className="text-xs">Mod loader (Fabric/Quilt)</label>
+                            <Switch
+                              id="discord-show-loader"
+                              checked={settings.discordShowLoader}
+                              disabled={!settings.discordPresenceEnabled}
+                              onCheckedChange={(checked) => update('discordShowLoader', checked)}
+                              aria-label="Show mod loader"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between gap-3 py-1.5">
+                            <label htmlFor="discord-show-elapsed" className="text-xs">Elapsed time</label>
+                            <Switch
+                              id="discord-show-elapsed"
+                              checked={settings.discordShowElapsed}
+                              disabled={!settings.discordPresenceEnabled}
+                              onCheckedChange={(checked) => update('discordShowElapsed', checked)}
+                              aria-label="Show elapsed time"
+                            />
+                          </div>
+                        </div>
                         {presenceStatus ? <p className="text-[11px] text-muted-foreground" role="status">Discord: {presenceStatusLabel(presenceStatus)}</p> : null}
                       </div>
                     </div>
