@@ -11,7 +11,9 @@ import (
 // Asset keys must match names uploaded to the Discord application's
 // Art Assets section exactly; unknown keys render as empty boxes.
 const (
-	AssetLargePlume = "plume_mark"
+	AssetPlumeMark = "plume_mark"
+	AssetFabric    = "fabric"
+	AssetQuilt     = "quilt"
 )
 
 // GameStartTime anchors the elapsed clock to the process start.
@@ -23,9 +25,10 @@ func GameStartTime(startedAt time.Time) *Timestamps {
 // and the user's privacy toggles. Gating happens here, not at call sites,
 // so disabled fields can never leak into the wire payload.
 //
-// Layout: details = "{instance} — Minecraft {version} · {loader}"
-// (omitting gated segments), state = "Playing with Plume",
-// small_image = Plume mark, large_image = loader art when available.
+// Layout: large_image is always the Plume mark (so every activity has an
+// image), small_image carries the loader art when one applies,
+// details = "{instance} — Minecraft {version} — {loader}" with gated
+// segments omitted, state = "Playing with Plume".
 func BuildActivity(pid int, info InstanceInfo, defaults instances.LauncherDefaults, startedAt time.Time) *Activity {
 	if !defaults.DiscordPresenceEnabled {
 		return nil
@@ -38,18 +41,34 @@ func BuildActivity(pid int, info InstanceInfo, defaults instances.LauncherDefaul
 		Details: details,
 		State:   "Playing with Plume",
 		Assets: &Assets{
-			SmallImage: AssetLargePlume,
-			SmallText:  "Plume Launcher",
+			LargeImage: AssetPlumeMark,
+			LargeText:  "Plume Launcher",
 		},
 	}
 	if defaults.DiscordShowElapsed {
 		activity.Timestamps = GameStartTime(startedAt)
 	}
-	if defaults.DiscordShowLoader && info.Loader != "" {
-		activity.Assets.LargeImage = loaderAssetKey(info.Loader)
-		activity.Assets.LargeText = strings.Title(info.Loader) // nolint:staticcheck // display label, not code
+	if defaults.DiscordShowLoader {
+		if key := loaderAssetKey(info.Loader); key != "" {
+			activity.Assets.SmallImage = key
+			activity.Assets.SmallText = loaderLabel(info.Loader)
+		}
 	}
 	return activity
+}
+
+// loaderLabel returns the display name for a loader.
+func loaderLabel(loader string) string {
+	switch loader {
+	case "fabric":
+		return "Fabric"
+	case "quilt":
+		return "Quilt"
+	case "vanilla":
+		return "Vanilla"
+	default:
+		return ""
+	}
 }
 
 // InstanceInfo carries the minimal instance facts the builder needs.
@@ -69,8 +88,10 @@ func buildDetails(info InstanceInfo, defaults instances.LauncherDefaults) string
 	if defaults.DiscordShowVersion && info.MCVersion != "" {
 		segments = append(segments, "Minecraft "+info.MCVersion)
 	}
-	if defaults.DiscordShowLoader && info.Loader != "" {
-		segments = append(segments, info.Loader)
+	if defaults.DiscordShowLoader {
+		if label := loaderLabel(info.Loader); label != "" {
+			segments = append(segments, label)
+		}
 	}
 	details := strings.Join(segments, " — ")
 	return truncate(details, 128)
@@ -88,9 +109,9 @@ func truncate(value string, max int) string {
 func loaderAssetKey(loader string) string {
 	switch loader {
 	case "fabric":
-		return "fabric"
+		return AssetFabric
 	case "quilt":
-		return "quilt"
+		return AssetQuilt
 	default:
 		return ""
 	}

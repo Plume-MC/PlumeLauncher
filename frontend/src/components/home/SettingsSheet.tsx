@@ -218,7 +218,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                           <div className="ml-3 flex flex-col gap-2 border-l border-border pl-3">
                             <label className="flex items-center justify-between gap-3 text-xs"><span>Instance name</span><input type="checkbox" checked={settings.discordShowInstance} onChange={(event) => update('discordShowInstance', event.target.checked)} aria-label="Show instance name" /></label>
                             <label className="flex items-center justify-between gap-3 text-xs"><span>Minecraft version</span><input type="checkbox" checked={settings.discordShowVersion} onChange={(event) => update('discordShowVersion', event.target.checked)} aria-label="Show Minecraft version" /></label>
-                            <label className="flex items-center justify-between gap-3 text-xs"><span>Mod loader</span><input type="checkbox" checked={settings.discordShowLoader} onChange={(event) => update('discordShowLoader', event.target.checked)} aria-label="Show mod loader" /></label>
+                            <label className="flex items-center justify-between gap-3 text-xs"><span>Mod loader (Fabric/Quilt)</span><input type="checkbox" checked={settings.discordShowLoader} onChange={(event) => update('discordShowLoader', event.target.checked)} aria-label="Show mod loader" /></label>
                             <label className="flex items-center justify-between gap-3 text-xs"><span>Elapsed time</span><input type="checkbox" checked={settings.discordShowElapsed} onChange={(event) => update('discordShowElapsed', event.target.checked)} aria-label="Show elapsed time" /></label>
                           </div>
                         )}

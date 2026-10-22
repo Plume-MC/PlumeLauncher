@@ -40,14 +40,52 @@ func TestBuildActivityDefaultGating(t *testing.T) {
 	if !strings.Contains(activity.Details, "Minecraft 1.20.1") {
 		t.Errorf("details missing version: %q", activity.Details)
 	}
-	if !strings.Contains(activity.Details, "fabric") {
+	if !strings.Contains(activity.Details, "Fabric") {
 		t.Errorf("details missing loader: %q", activity.Details)
 	}
 	if activity.Timestamps == nil || activity.Timestamps.Start != 1700000000 {
 		t.Errorf("timestamps = %+v, want start 1700000000", activity.Timestamps)
 	}
-	if activity.Assets == nil || activity.Assets.LargeImage != "fabric" {
-		t.Errorf("large image = %+v, want fabric asset", activity.Assets)
+	if activity.Assets == nil {
+		t.Fatal("assets = nil")
+	}
+	if activity.Assets.LargeImage != AssetPlumeMark {
+		t.Errorf("large image = %q, want %q", activity.Assets.LargeImage, AssetPlumeMark)
+	}
+	if activity.Assets.SmallImage != AssetFabric {
+		t.Errorf("small image = %q, want %q", activity.Assets.SmallImage, AssetFabric)
+	}
+	if activity.Assets.SmallText != "Fabric" {
+		t.Errorf("small text = %q, want Fabric", activity.Assets.SmallText)
+	}
+}
+
+func TestBuildActivityVanillaHasNoLoaderArt(t *testing.T) {
+	defaults := baseDefaults()
+	info := InstanceInfo{Name: "Vanilla World", MCVersion: "1.20.1", Loader: "vanilla"}
+
+	activity := BuildActivity(1, info, defaults, time.Now())
+	if activity == nil {
+		t.Fatal("activity = nil")
+	}
+	if activity.Assets.LargeImage != AssetPlumeMark {
+		t.Errorf("large image = %q, want %q", activity.Assets.LargeImage, AssetPlumeMark)
+	}
+	if activity.Assets.SmallImage != "" {
+		t.Errorf("small image = %q, want empty for vanilla", activity.Assets.SmallImage)
+	}
+}
+
+func TestBuildActivityLoaderToggleHidesArt(t *testing.T) {
+	defaults := baseDefaults()
+	defaults.DiscordShowLoader = false
+
+	activity := BuildActivity(1, InstanceInfo{MCVersion: "1.20.1", Loader: "fabric"}, defaults, time.Now())
+	if activity.Assets.SmallImage != "" {
+		t.Errorf("small image = %q, want empty when loader toggle is off", activity.Assets.SmallImage)
+	}
+	if activity.Assets.LargeImage != AssetPlumeMark {
+		t.Errorf("large image = %q, want plume mark", activity.Assets.LargeImage)
 	}
 }
 
@@ -97,10 +135,19 @@ func TestBuildActivityTruncatesLongName(t *testing.T) {
 }
 
 func TestLoaderAssetKey(t *testing.T) {
-	cases := map[string]string{"fabric": "fabric", "quilt": "quilt", "vanilla": "", "": ""}
+	cases := map[string]string{"fabric": AssetFabric, "quilt": AssetQuilt, "vanilla": "", "": ""}
 	for loader, want := range cases {
 		if got := loaderAssetKey(loader); got != want {
 			t.Errorf("loaderAssetKey(%q) = %q, want %q", loader, got, want)
+		}
+	}
+}
+
+func TestLoaderLabel(t *testing.T) {
+	cases := map[string]string{"fabric": "Fabric", "quilt": "Quilt", "vanilla": "Vanilla", "": ""}
+	for loader, want := range cases {
+		if got := loaderLabel(loader); got != want {
+			t.Errorf("loaderLabel(%q) = %q, want %q", loader, got, want)
 		}
 	}
 }
