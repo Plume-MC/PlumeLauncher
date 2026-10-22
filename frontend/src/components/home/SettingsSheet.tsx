@@ -188,7 +188,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                             <label className="flex items-center justify-between gap-3 text-xs"><span>Elapsed time</span><input type="checkbox" checked={settings.discordShowElapsed} onChange={(event) => update('discordShowElapsed', event.target.checked)} aria-label="Show elapsed time" /></label>
                           </div>
                         )}
-                        {presenceStatus ? <p className="text-[11px] text-muted-foreground" role="status">Discord: {presenceStatus}</p> : null}
+                        {presenceStatus ? <p className="text-[11px] text-muted-foreground" role="status">Discord: {presenceStatus === 'idle' ? 'not connected yet' : presenceStatus}</p> : null}
                       </div>
                     </div>
                   </div>

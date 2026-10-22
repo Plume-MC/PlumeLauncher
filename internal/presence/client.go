@@ -10,6 +10,7 @@ import (
 
 // Client state values reported to the UI.
 const (
+	StatusIdle         = "idle"
 	StatusConnected    = "connected"
 	StatusDisabled     = "disabled"
 	StatusUnavailable  = "unavailable"
@@ -38,6 +39,7 @@ type Client struct {
 	mu      sync.Mutex
 	conn    netConn
 	status  string
+	enabled bool
 	nonce   uint64
 	closed  bool
 	backoff time.Duration
@@ -72,8 +74,16 @@ func (c *Client) Enable() {
 	if c.closed {
 		return
 	}
-	c.status = StatusReconnecting
+	c.enabled = true
+	c.status = StatusIdle
 	c.backoff = 0
+}
+
+// Enabled reports whether publishing is allowed.
+func (c *Client) Enabled() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.enabled
 }
 
 // Disable closes any live connection and stops publishing.
@@ -81,6 +91,7 @@ func (c *Client) Disable() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.closeLocked()
+	c.enabled = false
 	c.status = StatusDisabled
 }
 
@@ -105,7 +116,7 @@ func (c *Client) closeLocked() {
 func (c *Client) SetActivity(activity *Activity) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.status == StatusDisabled || c.closed {
+	if !c.enabled || c.closed {
 		return ErrDisabled
 	}
 	if c.conn == nil {
@@ -196,6 +207,6 @@ func (c *Client) clearLocked() error {
 	}
 	// After clearing, drop the connection so Discord shows no stale state.
 	c.closeLocked()
-	c.status = StatusReconnecting
+	c.status = StatusIdle
 	return nil
 }

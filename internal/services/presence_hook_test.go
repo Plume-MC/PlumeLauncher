@@ -51,25 +51,61 @@ func TestPresenceClientEnableDisableCycle(t *testing.T) {
 	defer client.Close()
 
 	client.Enable()
-	if got := client.Status(); got != presence.StatusReconnecting {
-		t.Errorf("status after enable = %q, want reconnecting", got)
+	if got := client.Status(); got != presence.StatusIdle {
+		t.Errorf("status after enable = %q, want idle", got)
+	}
+	if !client.Enabled() {
+		t.Error("Enabled() = false after Enable()")
 	}
 	client.Disable()
 	if got := client.Status(); got != presence.StatusDisabled {
 		t.Errorf("status after disable = %q, want disabled", got)
+	}
+	if client.Enabled() {
+		t.Error("Enabled() = true after Disable()")
+	}
+}
+
+// TestUpdateSettingsTogglesPresence is the regression guard for the bug where
+// presence never activated because nothing called Enable().
+func TestUpdateSettingsTogglesPresence(t *testing.T) {
+	client := presence.NewClient("test-id")
+	defer client.Close()
+	svc := &SystemService{
+		DataRoot: t.TempDir(),
+		Defaults: instances.DefaultLauncherDefaults(),
+		Presence: client,
+	}
+
+	settings := instances.DefaultLauncherDefaults()
+	settings.DiscordPresenceEnabled = true
+	if err := svc.UpdateSettings(settings); err != nil {
+		t.Fatalf("UpdateSettings enable: %v", err)
+	}
+	if !client.Enabled() {
+		t.Fatal("presence client not enabled after saving enabled=true")
+	}
+
+	settings.DiscordPresenceEnabled = false
+	if err := svc.UpdateSettings(settings); err != nil {
+		t.Fatalf("UpdateSettings disable: %v", err)
+	}
+	if client.Enabled() {
+		t.Fatal("presence client still enabled after saving enabled=false")
 	}
 }
 
 func TestPresenceStatusesExist(t *testing.T) {
 	// The UI relies on these exact strings; guard against renames.
 	statuses := map[string]bool{
+		presence.StatusIdle:         true,
 		presence.StatusConnected:    true,
 		presence.StatusDisabled:     true,
 		presence.StatusUnavailable:  true,
 		presence.StatusReconnecting: true,
 		presence.StatusError:        true,
 	}
-	if len(statuses) != 5 {
+	if len(statuses) != 6 {
 		t.Fatalf("unexpected status set: %v", statuses)
 	}
 	_ = time.Now // keep time import if assertions evolve

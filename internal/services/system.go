@@ -10,6 +10,7 @@ import (
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/launch"
 	"plumelauncher/internal/platform"
+	"plumelauncher/internal/presence"
 	"plumelauncher/internal/runtimes"
 )
 
@@ -19,6 +20,7 @@ type SystemService struct {
 	Defaults instances.LauncherDefaults
 	JavaDL   *runtimes.JavaDownloader
 	RuntimeM *runtimes.RuntimeManager
+	Presence *presence.Client
 	Emit     func(string, any) // event emitter
 }
 
@@ -55,6 +57,13 @@ func (s *SystemService) UpdateSettings(settings instances.LauncherDefaults) erro
 		return NewInternalError("Unable to save launcher settings.")
 	}
 	s.Defaults = settings
+	if s.Presence != nil {
+		if settings.DiscordPresenceEnabled {
+			s.Presence.Enable()
+		} else {
+			s.Presence.Disable()
+		}
+	}
 	return nil
 }
 

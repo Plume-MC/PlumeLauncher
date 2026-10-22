@@ -89,9 +89,12 @@ func main() {
 		}
 	}
 	registry := instances.NewRegistry()
-	// Discord Rich Presence (POST-004): disabled until the user opts in
-	// from Settings; Enable/Disable is driven by presence preferences.
+	// Discord Rich Presence (POST-004): off unless the user opted in. The
+	// persisted preference is applied at boot so presence survives restarts.
 	presenceClient := presence.NewClient(presenceAppID)
+	if defaults.DiscordPresenceEnabled {
+		presenceClient.Enable()
+	}
 	accountService := &services.AccountService{DataRoot: config.DataRoot}
 	instanceManager := instances.NewManager(config.DataRoot, defaults)
 	launchService := &services.LaunchService{DataRoot: config.DataRoot, Registry: registry, Instances: instanceManager, Logger: logger, Presence: presenceClient}
@@ -128,14 +131,11 @@ func main() {
 		Defaults: defaults,
 		JavaDL:   javaDL,
 		RuntimeM: runtimeM,
+		Presence: presenceClient,
 		Emit:     func(name string, data any) { app.Event.Emit(name, data) },
 	}
 	app.RegisterService(application.NewService(systemSvc))
-	presenceSvc := &services.PresenceService{
-		DataRoot: config.DataRoot,
-		Defaults: &defaults,
-		Presence: presenceClient,
-	}
+	presenceSvc := &services.PresenceService{Presence: presenceClient}
 	app.RegisterService(application.NewService(presenceSvc))
 	app.RegisterService(application.NewService(&services.HomeService{
 		DataRoot:  config.DataRoot,
