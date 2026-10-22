@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { JavaRuntimeManager } from '@/components/home/JavaRuntimeManager';
-import { PresenceService, SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
-import type { LauncherDefaults } from '../../../bindings/plumelauncher/internal/instances/models.js';
+import { PresencePreview } from '@/components/home/PresencePreview';
+import { HomeService, PresenceService, SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
+import type { Instance, LauncherDefaults } from '../../../bindings/plumelauncher/internal/instances/models.js';
 import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 import plumeMark from '@/assets/plume-mark.webp';
@@ -59,6 +60,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
   const [dataNotice, setDataNotice] = useState('');
   const [discardOpen, setDiscardOpen] = useState(false);
   const [presenceStatus, setPresenceStatus] = useState('');
+  const [previewInstance, setPreviewInstance] = useState<Instance | null>(null);
 
   // Presence connects lazily when a game starts, so the status has to be
   // polled while the sheet is open or it stays stale from the first read.
@@ -70,6 +72,15 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
     refreshStatus();
     const timer = window.setInterval(refreshStatus, 2000);
     return () => window.clearInterval(timer);
+  }, [isOpen]);
+
+  // The preview mirrors the first instance; presence uses the launched one,
+  // so this is representative rather than exact.
+  useEffect(() => {
+    if (!isOpen) return;
+    void HomeService.ListInstances()
+      .then((list) => setPreviewInstance(list?.[0] ?? null))
+      .catch(() => setPreviewInstance(null));
   }, [isOpen]);
 
   useEffect(() => {
@@ -263,6 +274,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                           </div>
                         </div>
                         {presenceStatus ? <p className="text-[11px] text-muted-foreground" role="status">Discord: {presenceStatusLabel(presenceStatus)}</p> : null}
+                        <PresencePreview instance={previewInstance} settings={settings} className="mt-2" />
                       </div>
                     </div>
                   </div>
