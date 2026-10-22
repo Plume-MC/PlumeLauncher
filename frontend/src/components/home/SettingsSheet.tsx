@@ -26,6 +26,26 @@ const NAV_ITEMS = [
   { id: 'about' as const, label: 'About', icon: IconInfoCircle },
 ] as const;
 
+// Backend statuses are internal state names; the sheet shows plain language.
+function presenceStatusLabel(status: string): string {
+  switch (status) {
+    case 'connected':
+      return 'connected';
+    case 'unavailable':
+      return 'Discord is not running';
+    case 'reconnecting':
+      return 'reconnecting';
+    case 'error':
+      return 'could not connect';
+    case 'idle':
+      return 'ready, starts when a game launches';
+    case 'disabled':
+      return 'turned off';
+    default:
+      return status;
+  }
+}
+
 export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
   const [tab, setTab] = useState<SettingsTab>('general');
   const [settings, setSettings] = useState<LauncherDefaults | null>(null);
@@ -39,18 +59,29 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
   const [discardOpen, setDiscardOpen] = useState(false);
   const [presenceStatus, setPresenceStatus] = useState('');
 
+  // Presence connects lazily when a game starts, so the status has to be
+  // polled while the sheet is open or it stays stale from the first read.
+  useEffect(() => {
+    if (!isOpen) return;
+    const refreshStatus = () => {
+      void PresenceService.GetPresenceStatus().then((status) => setPresenceStatus(status ?? '')).catch(() => undefined);
+    };
+    refreshStatus();
+    const timer = window.setInterval(refreshStatus, 2000);
+    return () => window.clearInterval(timer);
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
     setBusy('load');
     setError('');
     setDataNotice('');
-    void Promise.all([SystemService.GetSettings(), SystemService.GetDataRoot(), SystemService.IsPortableMode(), PresenceService.GetPresenceStatus().catch(() => '')]).then(([nextSettings, root, nextPortable, status]) => {
+    void Promise.all([SystemService.GetSettings(), SystemService.GetDataRoot(), SystemService.IsPortableMode()]).then(([nextSettings, root, nextPortable]) => {
       setSettings(nextSettings);
       setSaved(nextSettings);
       setDataRoot(root);
       setSavedDataRoot(root);
       setPortable(nextPortable);
-      setPresenceStatus(status ?? '');
     }).catch((err) => setError(err instanceof Error ? err.message : 'Unable to load settings')).finally(() => setBusy(''));
   }, [isOpen]);
 
@@ -67,6 +98,9 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
       await SystemService.UpdateSettings(settings);
       setSaved(settings);
       document.documentElement.classList.toggle('dark', settings.theme !== 'light');
+      // UpdateSettings also flips the presence client, so refresh at once
+      // instead of waiting for the next poll.
+      void PresenceService.GetPresenceStatus().then((status) => setPresenceStatus(status ?? '')).catch(() => undefined);
       toast.add({ type: 'success', title: 'Settings saved' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save settings');
@@ -188,7 +222,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                             <label className="flex items-center justify-between gap-3 text-xs"><span>Elapsed time</span><input type="checkbox" checked={settings.discordShowElapsed} onChange={(event) => update('discordShowElapsed', event.target.checked)} aria-label="Show elapsed time" /></label>
                           </div>
                         )}
-                        {presenceStatus ? <p className="text-[11px] text-muted-foreground" role="status">Discord: {presenceStatus === 'idle' ? 'not connected yet' : presenceStatus}</p> : null}
+                        {presenceStatus ? <p className="text-[11px] text-muted-foreground" role="status">Discord: {presenceStatusLabel(presenceStatus)}</p> : null}
                       </div>
                     </div>
                   </div>
