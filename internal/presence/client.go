@@ -82,7 +82,8 @@ func (c *Client) Status() string {
 }
 
 // Enable marks the client allowed to connect. It does not dial immediately;
-// the first SetActivity performs the connection.
+// the first SetActivity performs the connection. An already-live connection
+// keeps its status so saving settings mid-game does not report "idle".
 func (c *Client) Enable() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -90,7 +91,9 @@ func (c *Client) Enable() {
 		return
 	}
 	c.enabled = true
-	c.status = StatusIdle
+	if c.conn == nil {
+		c.status = StatusIdle
+	}
 	c.backoff = 0
 	if c.lastActivity != nil {
 		c.scheduleRetryLocked()

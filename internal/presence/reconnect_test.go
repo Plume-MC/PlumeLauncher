@@ -147,3 +147,42 @@ func TestClearAfterStopLeavesIdle(t *testing.T) {
 		t.Errorf("status = %q, want idle after clear", got)
 	}
 }
+
+// TestEnableKeepsConnectedStatus guards the case where saving settings while a
+// game is running overwrote "connected" with "idle".
+func TestEnableKeepsConnectedStatus(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_RUNTIME_DIR", dir)
+	listener, _ := listenFakeDiscord(t, dir)
+	defer listener.Close()
+
+	client := NewClient("test-id")
+	defer client.Close()
+	client.Enable()
+
+	if err := client.SetActivity(&Activity{PID: 1}); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	if got := client.Status(); got != StatusConnected {
+		t.Fatalf("status = %q, want connected", got)
+	}
+
+	// Settings saved mid-game call Enable again on the live client.
+	client.Enable()
+	if got := client.Status(); got != StatusConnected {
+		t.Errorf("status = %q after re-enable, want connected", got)
+	}
+}
+
+// TestEnableAfterDisconnectReportsIdle covers the cold path.
+func TestEnableAfterDisconnectReportsIdle(t *testing.T) {
+	client := NewClient("test-id")
+	defer client.Close()
+
+	client.Enable()
+	client.Disable()
+	client.Enable()
+	if got := client.Status(); got != StatusIdle {
+		t.Errorf("status = %q, want idle", got)
+	}
+}
