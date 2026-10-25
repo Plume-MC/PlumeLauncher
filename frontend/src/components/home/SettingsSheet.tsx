@@ -5,9 +5,11 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTit
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { JavaRuntimeManager } from '@/components/home/JavaRuntimeManager';
-import { SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
-import type { LauncherDefaults } from '../../../bindings/plumelauncher/internal/instances/models.js';
+import { PresencePreview } from '@/components/home/PresencePreview';
+import { HomeService, PresenceService, SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
+import type { Instance, LauncherDefaults } from '../../../bindings/plumelauncher/internal/instances/models.js';
 import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 import plumeMark from '@/assets/plume-mark.webp';
@@ -26,6 +28,26 @@ const NAV_ITEMS = [
   { id: 'about' as const, label: 'About', icon: IconInfoCircle },
 ] as const;
 
+// Backend statuses are internal state names; the sheet shows plain language.
+function presenceStatusLabel(status: string): string {
+  switch (status) {
+    case 'connected':
+      return 'connected';
+    case 'unavailable':
+      return 'Discord is not running';
+    case 'reconnecting':
+      return 'reconnecting';
+    case 'error':
+      return 'could not connect';
+    case 'idle':
+      return 'ready, starts when a game launches';
+    case 'disabled':
+      return 'turned off';
+    default:
+      return status;
+  }
+}
+
 export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
   const [tab, setTab] = useState<SettingsTab>('general');
   const [settings, setSettings] = useState<LauncherDefaults | null>(null);
@@ -37,6 +59,29 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
   const [error, setError] = useState('');
   const [dataNotice, setDataNotice] = useState('');
   const [discardOpen, setDiscardOpen] = useState(false);
+  const [presenceStatus, setPresenceStatus] = useState('');
+  const [previewInstance, setPreviewInstance] = useState<Instance | null>(null);
+
+  // Presence connects lazily when a game starts, so the status has to be
+  // polled while the sheet is open or it stays stale from the first read.
+  useEffect(() => {
+    if (!isOpen) return;
+    const refreshStatus = () => {
+      void PresenceService.GetPresenceStatus().then((status) => setPresenceStatus(status ?? '')).catch(() => undefined);
+    };
+    refreshStatus();
+    const timer = window.setInterval(refreshStatus, 2000);
+    return () => window.clearInterval(timer);
+  }, [isOpen]);
+
+  // The preview mirrors the first instance; presence uses the launched one,
+  // so this is representative rather than exact.
+  useEffect(() => {
+    if (!isOpen) return;
+    void HomeService.ListInstances()
+      .then((list) => setPreviewInstance(list?.[0] ?? null))
+      .catch(() => setPreviewInstance(null));
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -65,6 +110,9 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
       await SystemService.UpdateSettings(settings);
       setSaved(settings);
       document.documentElement.classList.toggle('dark', settings.theme !== 'light');
+      // UpdateSettings also flips the presence client, so refresh at once
+      // instead of waiting for the next poll.
+      void PresenceService.GetPresenceStatus().then((status) => setPresenceStatus(status ?? '')).catch(() => undefined);
       toast.add({ type: 'success', title: 'Settings saved' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save settings');
@@ -167,6 +215,66 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                       <div className="grid grid-cols-2 gap-3">
                         <label className="flex flex-col gap-1 text-xs">Min RAM (MB)<Input type="number" value={settings.defaultMinRamMB} onChange={(event) => update('defaultMinRamMB', Number(event.target.value))} /></label>
                         <label className="flex flex-col gap-1 text-xs">Max RAM (MB)<Input type="number" value={settings.defaultMaxRamMB} onChange={(event) => update('defaultMaxRamMB', Number(event.target.value))} /></label>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg bg-card/40 p-4">
+                      <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Discord Rich Presence</h3>
+                      <p className="mb-3 text-[11px] text-muted-foreground">Show your Minecraft activity on your Discord profile. Applies the next time you launch an instance.</p>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-3 py-1.5">
+                          <label htmlFor="discord-presence-enabled" className="text-xs">Show activity in Discord</label>
+                          <Switch
+                            id="discord-presence-enabled"
+                            checked={settings.discordPresenceEnabled}
+                            onCheckedChange={(checked) => update('discordPresenceEnabled', checked)}
+                            aria-label="Show activity in Discord"
+                          />
+                        </div>
+                        <div className="ml-3 flex flex-col gap-1 border-l border-border pl-3">
+                          <div className="flex items-center justify-between gap-3 py-1.5">
+                            <label htmlFor="discord-show-instance" className="text-xs">Instance name</label>
+                            <Switch
+                              id="discord-show-instance"
+                              checked={settings.discordShowInstance}
+                              disabled={!settings.discordPresenceEnabled}
+                              onCheckedChange={(checked) => update('discordShowInstance', checked)}
+                              aria-label="Show instance name"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between gap-3 py-1.5">
+                            <label htmlFor="discord-show-version" className="text-xs">Minecraft version</label>
+                            <Switch
+                              id="discord-show-version"
+                              checked={settings.discordShowVersion}
+                              disabled={!settings.discordPresenceEnabled}
+                              onCheckedChange={(checked) => update('discordShowVersion', checked)}
+                              aria-label="Show Minecraft version"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between gap-3 py-1.5">
+                            <label htmlFor="discord-show-loader" className="text-xs">Mod loader (Fabric/Quilt)</label>
+                            <Switch
+                              id="discord-show-loader"
+                              checked={settings.discordShowLoader}
+                              disabled={!settings.discordPresenceEnabled}
+                              onCheckedChange={(checked) => update('discordShowLoader', checked)}
+                              aria-label="Show mod loader"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between gap-3 py-1.5">
+                            <label htmlFor="discord-show-elapsed" className="text-xs">Elapsed time</label>
+                            <Switch
+                              id="discord-show-elapsed"
+                              checked={settings.discordShowElapsed}
+                              disabled={!settings.discordPresenceEnabled}
+                              onCheckedChange={(checked) => update('discordShowElapsed', checked)}
+                              aria-label="Show elapsed time"
+                            />
+                          </div>
+                        </div>
+                        {presenceStatus ? <p className="text-[11px] text-muted-foreground" role="status">Discord: {presenceStatusLabel(presenceStatus)}</p> : null}
+                        <PresencePreview instance={previewInstance} settings={settings} className="mt-2" />
                       </div>
                     </div>
                   </div>

@@ -12,6 +12,7 @@ import (
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/logging"
+	"plumelauncher/internal/presence"
 	"plumelauncher/internal/runtimes"
 	"plumelauncher/internal/services"
 
@@ -37,6 +38,11 @@ func init() {
 	application.RegisterEvent[services.LogLineEvent](services.EventLogLine)
 	application.RegisterEvent[services.JavaDownloadProgressEvent](services.EventJavaDownloadProgress)
 }
+
+// presenceAppID is the Discord application ID for Rich Presence. It is a
+// public identifier (visible on every profile showing the activity), not a
+// secret, so it lives in source rather than a build-time injection.
+const presenceAppID = "1562665058754895872"
 
 // main function serves as the application's entry point. It initializes the application, creates a window,
 // and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
@@ -83,9 +89,15 @@ func main() {
 		}
 	}
 	registry := instances.NewRegistry()
+	// Discord Rich Presence (POST-004): off unless the user opted in. The
+	// persisted preference is applied at boot so presence survives restarts.
+	presenceClient := presence.NewClient(presenceAppID)
+	if defaults.DiscordPresenceEnabled {
+		presenceClient.Enable()
+	}
 	accountService := &services.AccountService{DataRoot: config.DataRoot}
 	instanceManager := instances.NewManager(config.DataRoot, defaults)
-	launchService := &services.LaunchService{DataRoot: config.DataRoot, Registry: registry, Instances: instanceManager, Logger: logger}
+	launchService := &services.LaunchService{DataRoot: config.DataRoot, Registry: registry, Instances: instanceManager, Logger: logger, Presence: presenceClient}
 	instanceService := &services.InstanceService{
 		DataRoot: config.DataRoot,
 		Manager:  instanceManager,
@@ -119,9 +131,12 @@ func main() {
 		Defaults: defaults,
 		JavaDL:   javaDL,
 		RuntimeM: runtimeM,
+		Presence: presenceClient,
 		Emit:     func(name string, data any) { app.Event.Emit(name, data) },
 	}
 	app.RegisterService(application.NewService(systemSvc))
+	presenceSvc := &services.PresenceService{Presence: presenceClient}
+	app.RegisterService(application.NewService(presenceSvc))
 	app.RegisterService(application.NewService(&services.HomeService{
 		DataRoot:  config.DataRoot,
 		Defaults:  defaults,
