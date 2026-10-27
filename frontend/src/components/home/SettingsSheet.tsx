@@ -272,6 +272,26 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
                               aria-label="Show elapsed time"
                             />
                           </div>
+                          <div className="flex items-center justify-between gap-3 py-1.5">
+                            <label htmlFor="discord-show-server" className="text-xs">Server address</label>
+                            <Switch
+                              id="discord-show-server"
+                              checked={settings.discordShowServer}
+                              disabled={!settings.discordPresenceEnabled}
+                              onCheckedChange={(checked) => update('discordShowServer', checked)}
+                              aria-label="Show server address"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between gap-3 py-1.5">
+                            <label htmlFor="discord-show-server-port" className="text-xs">Server port</label>
+                            <Switch
+                              id="discord-show-server-port"
+                              checked={settings.discordShowServerPort}
+                              disabled={!settings.discordPresenceEnabled || !settings.discordShowServer}
+                              onCheckedChange={(checked) => update('discordShowServerPort', checked)}
+                              aria-label="Show server port"
+                            />
+                          </div>
                         </div>
                         {presenceStatus ? <p className="text-[11px] text-muted-foreground" role="status">Discord: {presenceStatusLabel(presenceStatus)}</p> : null}
                         <PresencePreview instance={previewInstance} settings={settings} className="mt-2" />

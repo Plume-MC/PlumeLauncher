@@ -38,10 +38,12 @@ function buildDetails(instance: Instance, settings: LauncherDefaults): string {
   return instance.name.slice(0, 128);
 }
 
-// Mirrors buildState: version and loader joined with an em dash, each
-// dropped when its toggle is off.
-function buildState(instance: Instance, settings: LauncherDefaults): string {
+// Mirrors buildState in internal/presence/activity_builder.go: server,
+// version and loader joined with an em dash, each dropped when its toggle
+// is off. The server comes first because it is the most specific context.
+function buildState(instance: Instance, settings: LauncherDefaults, server: string): string {
   const segments: string[] = [];
+  if (settings.discordShowServer && server) segments.push(server);
   if (settings.discordShowVersion && instance.mcVersion) segments.push(`Minecraft ${instance.mcVersion}`);
   if (settings.discordShowLoader) {
     const label = loaderLabel(instance.loader);
@@ -50,10 +52,18 @@ function buildState(instance: Instance, settings: LauncherDefaults): string {
   return segments.join(' — ').slice(0, 128);
 }
 
+// sampleServer stands in for the address the log watcher discovers, which is
+// only known once a game is running. It shows the gated layout without
+// inventing anything about the user's actual play.
+function sampleServer(settings: LauncherDefaults): string {
+  if (!settings.discordShowServer) return '';
+  return settings.discordShowServerPort ? 'play.example.com:25565' : 'play.example.com';
+}
+
 export function PresencePreview({ instance, settings, className }: PresencePreviewProps) {
   const art = instance && settings.discordShowLoader ? loaderArt(instance.loader) : null;
   const details = instance ? buildDetails(instance, settings) : '';
-  const state = instance ? buildState(instance, settings) : '';
+  const state = instance ? buildState(instance, settings, sampleServer(settings)) : '';
 
   return (
     <div className={cn('rounded-lg border border-border bg-background/60 p-3', className)}>
