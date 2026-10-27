@@ -23,33 +23,39 @@ func LogPath(gameDir string) string {
 	return filepath.Join(gameDir, "logs", "latest.log")
 }
 
-// TailLog follows a game log, calling onLine for every complete line written
-// after the game started. A log that does not exist yet is read from the
-// start once it appears, because the game creates it fresh per launch. A
-// pre-existing log is skipped to its end, since its content predates the
-// launch. Replacement (rotation) resets the read position to zero.
-//
-// A missing, rotated, or truncated file is waited out or restarted rather
-// than reported: this backs best-effort POST-005 presence and must never
-// disturb the launch itself.
+// Tailer follows a game log and reports complete lines written after it was
+// created. Splitting construction from Run makes the starting position
+// deterministic: the baseline is recorded by NewTailer, not by whichever
+// goroutine happens to run first.
+type Tailer struct {
+	path   string
+	onLine func(string)
+
+	prevInfo os.FileInfo
+	offset   int64
+	partial  []byte
+}
+
+// NewTailer records the current end of the log. A log that already exists
+// holds content from an earlier launch, so it is skipped; a log that does
+// not exist yet is read from the start once the game creates it.
+func NewTailer(path string, onLine func(string)) *Tailer {
+	t := &Tailer{path: path, onLine: onLine}
+	if info, err := os.Stat(path); err == nil {
+		t.prevInfo = info
+		t.offset = info.Size()
+	}
+	return t
+}
+
+// Run polls the log until ctx is cancelled. A missing, rotated, or truncated
+// file is waited out or restarted rather than reported: this backs
+// best-effort POST-005 presence and must never disturb the launch itself.
 //
 // Known limit: an in-place truncation that regrows past the previous size
 // inside one poll window is not detectable. Minecraft replaces the file
 // rather than truncating it, so that case does not arise in practice.
-func TailLog(ctx context.Context, path string, onLine func(string)) {
-	var (
-		prevInfo os.FileInfo
-		offset   int64
-		partial  []byte
-	)
-
-	// A log that already exists holds content from an earlier launch, so
-	// start after it. One that does not exist yet is read from zero.
-	if info, err := os.Stat(path); err == nil {
-		prevInfo = info
-		offset = info.Size()
-	}
-
+func (t *Tailer) Run(ctx context.Context) {
 	ticker := time.NewTicker(logPollInterval)
 	defer ticker.Stop()
 
@@ -59,60 +65,69 @@ func TailLog(ctx context.Context, path string, onLine func(string)) {
 			return
 		case <-ticker.C:
 		}
-
-		cur, err := os.Stat(path)
-		if err != nil {
-			// The log was rotated away or is not written yet. Keep the
-			// baseline so a replacement is detected when it appears.
-			continue
-		}
-
-		if prevInfo == nil || !os.SameFile(prevInfo, cur) {
-			// First appearance after launch, or a replacement file.
-			offset = 0
-			partial = partial[:0]
-		} else if cur.Size() < offset {
-			// Same file shrank underneath us.
-			offset = 0
-			partial = partial[:0]
-		}
-		prevInfo = cur
-
-		if cur.Size() <= offset {
-			continue
-		}
-		consumed, tail, err := readRange(path, offset, cur.Size()-offset, onLine, partial)
-		if err != nil {
-			continue
-		}
-		offset += consumed
-		partial = tail
+		t.poll()
 	}
 }
 
-// readRange reads the newly appended bytes, emits the complete lines it
-// contains, and returns how many bytes were consumed plus any unterminated
-// tail to carry into the next poll.
-func readRange(path string, offset, count int64, onLine func(string), partial []byte) (int64, []byte, error) {
-	file, err := os.Open(path)
+// poll reads whatever has been appended since the last call.
+func (t *Tailer) poll() {
+	cur, err := os.Stat(t.path)
 	if err != nil {
-		return 0, partial, err
+		// The log was rotated away or is not written yet. Keep the
+		// baseline so a replacement is detected when it appears.
+		return
+	}
+
+	if t.prevInfo == nil || !os.SameFile(t.prevInfo, cur) {
+		// First appearance after launch, or a replacement file.
+		t.offset = 0
+		t.partial = t.partial[:0]
+	} else if cur.Size() < t.offset {
+		// Same file shrank underneath us.
+		t.offset = 0
+		t.partial = t.partial[:0]
+	}
+	t.prevInfo = cur
+
+	if cur.Size() <= t.offset {
+		return
+	}
+	consumed, tail, err := t.readRange(cur.Size() - t.offset)
+	if err != nil {
+		return
+	}
+	t.offset += consumed
+	t.partial = tail
+}
+
+// readRange reads the newly appended bytes, emits the complete lines they
+// contain, and returns how many bytes were consumed plus any unterminated
+// tail to carry into the next poll.
+func (t *Tailer) readRange(count int64) (int64, []byte, error) {
+	file, err := os.Open(t.path)
+	if err != nil {
+		return 0, t.partial, err
 	}
 	defer file.Close()
 
-	if _, err := file.Seek(offset, io.SeekStart); err != nil {
-		return 0, partial, err
+	if _, err := file.Seek(t.offset, io.SeekStart); err != nil {
+		return 0, t.partial, err
 	}
 	data := make([]byte, count)
 	n, err := io.ReadFull(file, data)
 	if n > 0 {
-		partial = append(partial, data[:n]...)
-		partial = emitLines(partial, onLine)
+		t.partial = append(t.partial, data[:n]...)
+		t.partial = emitLines(t.partial, t.onLine)
 	}
 	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-		return int64(n), partial, err
+		return int64(n), t.partial, err
 	}
-	return int64(n), partial, nil
+	return int64(n), t.partial, nil
+}
+
+// TailLog is the convenience wrapper used by the launch monitor.
+func TailLog(ctx context.Context, path string, onLine func(string)) {
+	NewTailer(path, onLine).Run(ctx)
 }
 
 // emitLines splits complete lines out of buf, calls onLine for each, and

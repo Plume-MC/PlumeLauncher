@@ -16,7 +16,7 @@ func fastTail(t *testing.T) {
 	t.Cleanup(func() { logPollInterval = old })
 }
 
-// collector records lines delivered by TailLog.
+// collector records lines delivered by a tailer.
 type collector struct {
 	lines chan string
 }
@@ -65,6 +65,16 @@ func appendLine(t *testing.T, path, line string) {
 	}
 }
 
+// startTail builds the tailer (recording the baseline synchronously) and
+// then starts its poll loop.
+func startTail(t *testing.T, path string, c *collector) {
+	t.Helper()
+	tailer := NewTailer(path, c.collect)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go tailer.Run(ctx)
+}
+
 func TestTailLogSkipsPreexistingContent(t *testing.T) {
 	fastTail(t)
 	path := filepath.Join(t.TempDir(), "latest.log")
@@ -73,11 +83,10 @@ func TestTailLogSkipsPreexistingContent(t *testing.T) {
 	}
 
 	c := newCollector()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go TailLog(ctx, path, c.collect)
+	startTail(t, path, c)
 
-	// The tailer records the initial end, so "old line" must never surface.
+	// The baseline was recorded before the goroutine started, so the old
+	// line can never surface.
 	c.assertNoLine(t)
 
 	appendLine(t, path, "new line\n")
@@ -89,20 +98,12 @@ func TestTailLogSkipsPreexistingContent(t *testing.T) {
 func TestTailLogDeliversAppendedLines(t *testing.T) {
 	fastTail(t)
 	path := filepath.Join(t.TempDir(), "latest.log")
-	file, err := os.Create(path)
-	if err != nil {
+	if err := os.WriteFile(path, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	file.Close()
-	defer os.Remove(path)
 
 	c := newCollector()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go TailLog(ctx, path, c.collect)
-
-	// Let the tailer record the initial end-of-file.
-	time.Sleep(20 * time.Millisecond)
+	startTail(t, path, c)
 
 	appendLine(t, path, "Connecting to play.example.com, 25565\n")
 	if line := c.waitLine(t); line != "Connecting to play.example.com, 25565" {
@@ -115,19 +116,33 @@ func TestTailLogDeliversAppendedLines(t *testing.T) {
 	}
 }
 
+func TestTailLogCarriesPartialLineAcrossPolls(t *testing.T) {
+	fastTail(t)
+	path := filepath.Join(t.TempDir(), "latest.log")
+	if err := os.WriteFile(path, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	c := newCollector()
+	startTail(t, path, c)
+
+	appendLine(t, path, "Connecting to play.example")
+	c.assertNoLine(t)
+	appendLine(t, path, ".com, 25565\n")
+	if line := c.waitLine(t); line != "Connecting to play.example.com, 25565" {
+		t.Fatalf("line = %q", line)
+	}
+}
+
 func TestTailLogRestartsAfterReplacement(t *testing.T) {
 	fastTail(t)
-	dir := t.TempDir()
-	path := filepath.Join(dir, "latest.log")
+	path := filepath.Join(t.TempDir(), "latest.log")
 	if err := os.WriteFile(path, []byte("first line one\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	c := newCollector()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go TailLog(ctx, path, c.collect)
-
+	startTail(t, path, c)
 	c.assertNoLine(t)
 
 	// Minecraft rotates by replacing the file, not truncating in place.
@@ -144,24 +159,19 @@ func TestTailLogRestartsAfterReplacement(t *testing.T) {
 	}
 }
 
-func TestTailLogCarriesPartialLineAcrossPolls(t *testing.T) {
+func TestTailLogEmitsNothingBeforeFileAppears(t *testing.T) {
 	fastTail(t)
 	path := filepath.Join(t.TempDir(), "latest.log")
-	if err := os.WriteFile(path, nil, 0o644); err != nil {
-		t.Fatal(err)
-	}
 
 	c := newCollector()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go TailLog(ctx, path, c.collect)
+	startTail(t, path, c)
 
-	// The tailer must record the initial end before the partial arrives.
-	time.Sleep(20 * time.Millisecond)
-	appendLine(t, path, "Connecting to play.example")
-	c.assertNoLine(t)
-	appendLine(t, path, ".com, 25565\n")
-	if line := c.waitLine(t); line != "Connecting to play.example.com, 25565" {
+	// A log that did not exist at construction is read from the start,
+	// because the game creates it fresh for this launch.
+	if err := os.WriteFile(path, []byte("written later\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if line := c.waitLine(t); line != "written later" {
 		t.Fatalf("line = %q", line)
 	}
 }
@@ -170,11 +180,11 @@ func TestTailLogToleratesMissingFile(t *testing.T) {
 	fastTail(t)
 	path := filepath.Join(t.TempDir(), "not-created-yet", "latest.log")
 
+	tailer := NewTailer(path, func(string) {})
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	done := make(chan struct{})
 	go func() {
-		TailLog(ctx, path, func(string) {})
+		tailer.Run(ctx)
 		close(done)
 	}()
 
@@ -183,25 +193,28 @@ func TestTailLogToleratesMissingFile(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(3 * time.Second):
-		t.Fatal("TailLog did not stop after cancel")
+		t.Fatal("Tailer did not stop after cancel")
 	}
 }
 
-func TestTailLogEmitsNothingBeforeFileAppears(t *testing.T) {
+func TestTailerReportsOnlyLinesAfterConstruction(t *testing.T) {
 	fastTail(t)
-	dir := t.TempDir()
-	path := filepath.Join(dir, "latest.log")
-
-	c := newCollector()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go TailLog(ctx, path, c.collect)
-
-	time.Sleep(20 * time.Millisecond)
-	if err := os.WriteFile(path, []byte("written later\n"), 0o644); err != nil {
+	path := filepath.Join(t.TempDir(), "latest.log")
+	if err := os.WriteFile(path, []byte("before\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if line := c.waitLine(t); line != "written later" {
-		t.Fatalf("line = %q", line)
+
+	c := newCollector()
+	tailer := NewTailer(path, c.collect)
+
+	// Written after construction but before Run starts: still new content.
+	appendLine(t, path, "after\n")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go tailer.Run(ctx)
+
+	if line := c.waitLine(t); line != "after" {
+		t.Fatalf("line = %q, want %q", line, "after")
 	}
 }
