@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/Microsoft/go-winio v0.6.4
 	github.com/google/uuid v1.6.0
-	github.com/wailsapp/wails/v3 v3.0.0-beta.29
+	github.com/wailsapp/wails/v3 v3.0.0
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/sys v0.49.0
 )
