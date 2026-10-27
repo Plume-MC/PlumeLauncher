@@ -22,6 +22,11 @@ type LauncherDefaults struct {
 	DiscordShowVersion     bool `json:"discordShowVersion"`
 	DiscordShowLoader      bool `json:"discordShowLoader"`
 	DiscordShowElapsed     bool `json:"discordShowElapsed"`
+	// Server presence (POST-005). Off by default because a server address
+	// can reveal where someone plays; the port is gated separately since a
+	// hostname alone is often enough context.
+	DiscordShowServer     bool `json:"discordShowServer"`
+	DiscordShowServerPort bool `json:"discordShowServerPort"`
 }
 
 // DefaultLauncherDefaults returns sensible defaults.
@@ -37,9 +42,11 @@ func DefaultLauncherDefaults() LauncherDefaults {
 		GPUPreference:      "auto",
 		// Presence detail defaults: instance name stays off (user-typed
 		// text may contain private info); version/loader/elapsed are on.
-		DiscordShowVersion: true,
-		DiscordShowLoader:  true,
-		DiscordShowElapsed: true,
+		// Server stays off (POST-005 privacy), port follows it when shown.
+		DiscordShowVersion:    true,
+		DiscordShowLoader:     true,
+		DiscordShowElapsed:    true,
+		DiscordShowServerPort: true,
 	}
 }
 
