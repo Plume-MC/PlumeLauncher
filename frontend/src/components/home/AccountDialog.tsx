@@ -6,6 +6,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTit
 import { AccountService, SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { Account } from '../../../bindings/plumelauncher/internal/services/models.js';
 import { Button } from '@/components/ui/button';
+import { SkinCapeDialog } from '@/components/home/SkinCapeDialog';
 import { Input } from '@/components/ui/input';
 import { useMotionPreference } from '@/components/motion/useMotionPreference';
 import { cn } from '@/lib/utils';
@@ -82,6 +83,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [skinCapeOpen, setSkinCapeOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<Account | null>(null);
   const { reduced } = useMotionPreference();
@@ -411,6 +413,17 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
               </motion.section>
             ) : null}
 
+            {active?.type === 'microsoft' ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={() => setSkinCapeOpen(true)}
+              >
+                Skin &amp; Cape
+              </Button>
+            ) : null}
+
             <section aria-label="Switch identity">
               <p className="text-xs font-semibold text-muted-foreground">Switch identity</p>
 
@@ -677,6 +690,14 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
           <div className="mt-5 flex justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setPendingRemove(null)}>Cancel</Button><Button type="button" variant="destructive" disabled={busy} onClick={confirmRemove}>{busy ? 'Removing...' : 'Remove'}</Button></div>
         </AlertDialogContent>
       </AlertDialog>
+      {active ? (
+        <SkinCapeDialog
+          isOpen={skinCapeOpen}
+          onClose={() => setSkinCapeOpen(false)}
+          accountUUID={active.uuid}
+          accountName={active.displayName || active.username}
+        />
+      ) : null}
     </Dialog.Root>
   );
 }
