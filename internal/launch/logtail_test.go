@@ -218,3 +218,26 @@ func TestTailerReportsOnlyLinesAfterConstruction(t *testing.T) {
 		t.Fatalf("line = %q, want %q", line, "after")
 	}
 }
+// TestTailLogDetectsInPlaceRewrite covers the case where the log is rewritten
+// without changing size or inode, which is how a fast rotation or a container
+// filesystem can look. Size and identity alone cannot detect it, so the tailer
+// must compare content at its read position.
+func TestTailLogDetectsInPlaceRewrite(t *testing.T) {
+	fastTail(t)
+	path := filepath.Join(t.TempDir(), "latest.log")
+	if err := os.WriteFile(path, []byte("first line\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	c := newCollector()
+	startTail(t, path, c)
+	c.assertNoLine(t)
+
+	// Same length, same inode, new content.
+	if err := os.WriteFile(path, []byte("other line\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if line := c.waitLine(t); line != "other line" {
+		t.Fatalf("line = %q", line)
+	}
+}
