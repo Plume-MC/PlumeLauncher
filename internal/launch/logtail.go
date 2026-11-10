@@ -14,9 +14,16 @@ import (
 // variable so tests can shrink it.
 var logPollInterval = 500 * time.Millisecond
 
-// maxLogLine caps one buffered line so a corrupt log that never writes a
-// newline cannot grow memory without bound.
-const maxLogLine = 8 * 1024
+const (
+	// maxLogLine caps one buffered line so a corrupt log that never writes a
+	// newline cannot grow memory without bound.
+	maxLogLine = 8 * 1024
+	// tailSampleSize is how many bytes before the read position are kept to
+	// verify the file was not rewritten underneath the tailer. A rotation can
+	// hand the new file the old inode and a size that only grows, so identity
+	// and size are not enough to tell append from replace.
+	tailSampleSize = 64
+)
 
 // LogPath returns the standard client log path inside a game directory.
 func LogPath(gameDir string) string {
@@ -34,6 +41,9 @@ type Tailer struct {
 	prevInfo os.FileInfo
 	offset   int64
 	partial  []byte
+	// sample holds the last bytes consumed before offset. It is compared on
+	// every poll to notice a rewrite that leaves size and inode unchanged.
+	sample []byte
 }
 
 // NewTailer records the current end of the log. A log that already exists
@@ -41,20 +51,44 @@ type Tailer struct {
 // not exist yet is read from the start once the game creates it.
 func NewTailer(path string, onLine func(string)) *Tailer {
 	t := &Tailer{path: path, onLine: onLine}
-	if info, err := os.Stat(path); err == nil {
-		t.prevInfo = info
-		t.offset = info.Size()
+	info, err := os.Stat(path)
+	if err != nil {
+		return t
 	}
+	t.prevInfo = info
+	t.offset = info.Size()
+	t.seedSample()
 	return t
 }
 
-// Run polls the log until ctx is cancelled. A missing, rotated, or truncated
-// file is waited out or restarted rather than reported: this backs
-// best-effort POST-005 presence and must never disturb the launch itself.
-//
-// Known limit: an in-place truncation that regrows past the previous size
-// inside one poll window is not detectable. Minecraft replaces the file
-// rather than truncating it, so that case does not arise in practice.
+// seedSample captures the bytes just before the initial read position so a
+// later rewrite can be told apart from an append.
+func (t *Tailer) seedSample() {
+	count := int64(tailSampleSize)
+	if t.offset < count {
+		count = t.offset
+	}
+	if count == 0 {
+		return
+	}
+	file, err := os.Open(t.path)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	if _, err := file.Seek(t.offset-count, io.SeekStart); err != nil {
+		return
+	}
+	buf := make([]byte, count)
+	if _, err := io.ReadFull(file, buf); err != nil {
+		return
+	}
+	t.sample = buf
+}
+
+// Run polls the log until ctx is cancelled. A missing, rotated, or rewritten
+// file is waited out or restarted rather than reported: this backs best-effort
+// POST-005 presence and must never disturb the launch itself.
 func (t *Tailer) Run(ctx context.Context) {
 	ticker := time.NewTicker(logPollInterval)
 	defer ticker.Stop()
@@ -78,14 +112,10 @@ func (t *Tailer) poll() {
 		return
 	}
 
-	if t.prevInfo == nil || !os.SameFile(t.prevInfo, cur) {
-		// First appearance after launch, or a replacement file.
+	if t.replaced(cur) {
 		t.offset = 0
 		t.partial = t.partial[:0]
-	} else if cur.Size() < t.offset {
-		// Same file shrank underneath us.
-		t.offset = 0
-		t.partial = t.partial[:0]
+		t.sample = t.sample[:0]
 	}
 	t.prevInfo = cur
 
@@ -98,6 +128,41 @@ func (t *Tailer) poll() {
 	}
 	t.offset += consumed
 	t.partial = tail
+}
+
+// replaced reports whether cur is no longer the file the tailer was reading.
+// Identity catches a normal rotation, and the content check catches a
+// replacement that reused the inode or an in-place rewrite.
+func (t *Tailer) replaced(cur os.FileInfo) bool {
+	if t.prevInfo == nil || !os.SameFile(t.prevInfo, cur) {
+		return true
+	}
+	if cur.Size() < t.offset {
+		return true
+	}
+	return !t.sampleMatches()
+}
+
+// sampleMatches verifies the bytes before the read position are unchanged.
+func (t *Tailer) sampleMatches() bool {
+	count := int64(len(t.sample))
+	if count == 0 || t.offset < count {
+		// Nothing to compare against yet.
+		return true
+	}
+	file, err := os.Open(t.path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+	if _, err := file.Seek(t.offset-count, io.SeekStart); err != nil {
+		return false
+	}
+	buf := make([]byte, count)
+	if _, err := io.ReadFull(file, buf); err != nil {
+		return false
+	}
+	return bytes.Equal(buf, t.sample)
 }
 
 // readRange reads the newly appended bytes, emits the complete lines they
@@ -116,6 +181,7 @@ func (t *Tailer) readRange(count int64) (int64, []byte, error) {
 	data := make([]byte, count)
 	n, err := io.ReadFull(file, data)
 	if n > 0 {
+		t.appendSample(data[:n])
 		t.partial = append(t.partial, data[:n]...)
 		t.partial = emitLines(t.partial, t.onLine)
 	}
@@ -123,6 +189,15 @@ func (t *Tailer) readRange(count int64) (int64, []byte, error) {
 		return int64(n), t.partial, err
 	}
 	return int64(n), t.partial, nil
+}
+
+// appendSample keeps the last tailSampleSize consumed bytes.
+func (t *Tailer) appendSample(data []byte) {
+	t.sample = append(t.sample, data...)
+	if n := len(t.sample); n > tailSampleSize {
+		copy(t.sample, t.sample[n-tailSampleSize:])
+		t.sample = t.sample[:tailSampleSize]
+	}
 }
 
 // TailLog is the convenience wrapper used by the launch monitor.
