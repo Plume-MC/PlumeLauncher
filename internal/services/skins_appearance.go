@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"plumelauncher/internal/auth"
+	"plumelauncher/internal/logging"
 	"plumelauncher/internal/skins"
 )
 
@@ -22,6 +23,7 @@ type SkinService struct {
 	Keyring   auth.Keyring
 	Mojang    *skins.Client
 	Debouncer *SkinDebouncer
+	Logger    *logging.Logger
 }
 
 func NewSkinService(dataRoot string) *SkinService {
@@ -80,7 +82,8 @@ func (s *SkinService) GetProfileAppearance(accountUUID string) (*Appearance, err
 	}
 	profile, err := s.Mojang.FetchProfile(token)
 	if err != nil {
-		return nil, appearanceError(err)
+		s.logFailure("fetch_profile", err)
+		return nil, NewUpstreamError("Unable to load your Minecraft profile. Check your connection and try again.")
 	}
 	local, err := s.ListLocalSkins()
 	if err != nil {
@@ -116,6 +119,7 @@ func (s *SkinService) UploadSkin(accountUUID string, pngData []byte, variant ski
 	}
 	profile, err := s.Mojang.UploadSkin(token, normalized, variant)
 	if err != nil {
+		s.logFailure("upload_skin", err)
 		if skins.IsTokenExpired(err) {
 			return nil, NewUpstreamError("Minecraft session expired. Sign in again, then try once more.")
 		}
@@ -141,6 +145,7 @@ func (s *SkinService) ResetSkin(accountUUID string) (*Appearance, error) {
 	}
 	profile, err := s.Mojang.ResetSkin(token)
 	if err != nil {
+		s.logFailure("reset_skin", err)
 		if skins.IsTokenExpired(err) {
 			return nil, NewUpstreamError("Minecraft session expired. Sign in again, then try once more.")
 		}
@@ -169,6 +174,7 @@ func (s *SkinService) EquipCape(accountUUID, capeID string) (*Appearance, error)
 	}
 	profile, err := s.Mojang.EquipCape(token, capeID)
 	if err != nil {
+		s.logFailure("equip_cape", err)
 		if skins.IsTokenExpired(err) {
 			return nil, NewUpstreamError("Minecraft session expired. Sign in again, then try once more.")
 		}
@@ -194,6 +200,7 @@ func (s *SkinService) HideCape(accountUUID string) (*Appearance, error) {
 	}
 	profile, err := s.Mojang.HideCape(token)
 	if err != nil {
+		s.logFailure("hide_cape", err)
 		if skins.IsTokenExpired(err) {
 			return nil, NewUpstreamError("Minecraft session expired. Sign in again, then try once more.")
 		}
@@ -243,6 +250,20 @@ func (s *SkinService) merge(profile *skins.Profile) *Appearance {
 		local = []ClosetSkin{}
 	}
 	return &Appearance{Profile: profile, LocalSkins: local}
+}
+
+// logFailure records the real Mojang cause (status + body) so user-facing
+// upstream messages stay generic without losing diagnostics.
+func (s *SkinService) logFailure(operation string, err error) {
+	if s.Logger == nil {
+		return
+	}
+	detail := err.Error()
+	var mojangErr *skins.MojangError
+	if errors.As(err, &mojangErr) {
+		detail = fmt.Sprintf("status=%d type=%s message=%q", mojangErr.Status, mojangErr.Type, mojangErr.ErrorMessage)
+	}
+	s.Logger.Error("skin_operation_failed", "operation", operation, "error", detail)
 }
 
 // appearanceError maps Mojang errors to the launcher's user-facing taxonomy.

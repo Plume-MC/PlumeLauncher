@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+// withCacheBuster appends a changing query to a http(s) URL so the browser
+// refetches a texture Mojang just replaced instead of serving the old cached
+// copy. Data URLs pass through untouched.
+function cacheBust(url: string, nonce: number): string {
+  if (!url || nonce === 0) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}plume=${nonce}`;
+}
 import { IconUpload, IconX } from '@tabler/icons-react';
 import { Dialog } from '@base-ui/react/dialog';
 import { Button } from '@/components/ui/button';
@@ -14,6 +22,7 @@ import type {
   SkinVariant,
 } from '../../../bindings/plumelauncher/internal/skins/models.js';
 import { cn } from '@/lib/utils';
+import { renderCapeSprite, renderSkinFigure } from '@/lib/skinRender';
 
 interface SkinCapeDialogProps {
   isOpen: boolean;
@@ -48,23 +57,38 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName }: Sk
   const [appearance, setAppearance] = useState<Appearance | null>(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [model, setModel] = useState<ModelChoice>('CLASSIC');
   const [previewPNG, setPreviewPNG] = useState('');
+  const profileUrls = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  const loadProfile = useCallback(() => {
+    setBusy('load');
+    setLoadError('');
+    void SkinService.GetProfileAppearance(accountUUID).then((result) => {
+      setAppearance(result);
+      setLoadError('');
+      const skin = activeSkin(result?.profile ?? null);
+      if (skin) setModel(skin.variant === 'SLIM' ? 'SLIM' : 'CLASSIC');
+    }).catch((err) => {
+      setLoadError(err instanceof Error ? err.message : 'Unable to load your Minecraft profile.');
+    }).finally(() => setBusy(''));
+  }, [accountUUID]);
 
   useEffect(() => {
     if (!isOpen) return;
-    setBusy('load');
-    setError('');
-    void SkinService.GetProfileAppearance(accountUUID).then((result) => {
-      setAppearance(result);
-      const skin = activeSkin(result?.profile ?? null);
-      if (skin) setModel(skin.variant === 'SLIM' ? 'SLIM' : 'CLASSIC');
-    }).catch((err) => setError(err instanceof Error ? err.message : 'Unable to load your profile.')).finally(() => setBusy(''));
-  }, [isOpen, accountUUID]);
+    loadProfile();
+    // Local closet entries survive profile failures; refresh them too.
+    void SkinService.ListLocalSkins().then((skins) => {
+      setAppearance((current) => current ? { ...current, localSkins: skins } : current);
+    }).catch(() => undefined);
+  }, [isOpen, accountUUID, loadProfile]);
 
   const apply = (result: Appearance) => {
     setAppearance(result);
+    profileUrls.current += 1;
+    setPreviewPNG('');
     const skin = activeSkin(result.profile);
     if (skin) setModel(skin.variant === 'SLIM' ? 'SLIM' : 'CLASSIC');
   };
@@ -129,9 +153,9 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName }: Sk
             <section className="rounded-lg border border-border bg-card/40 p-4">
               <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Current skin</h3>
               <div className="flex items-center justify-center rounded-lg bg-black/25 p-4">
-                {previewPNG || skin?.url ? (
+                {(previewPNG || skin?.url) ? (
                   <img
-                    src={previewPNG || skin?.url}
+                    src={previewPNG || cacheBust(skin?.url ?? '', profileUrls.current)}
                     alt="Current skin"
                     className="h-64 [image-rendering:pixelated]"
                   />
@@ -165,7 +189,7 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName }: Sk
                     type="button"
                     onClick={() => setModel(choice)}
                     className={cn(
-                      'flex flex-col items-center gap-2 rounded-lg border p-3 text-xs transition-colors',
+                      'flex flex-col items-center gap-1 rounded-lg border p-3 text-xs transition-colors',
                       model === choice
                         ? 'border-primary bg-primary/10 text-foreground'
                         : 'border-border text-muted-foreground hover:bg-muted/40'
@@ -178,6 +202,10 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName }: Sk
                 ))}
               </div>
               <p className="mt-2 text-[11px] text-muted-foreground">Applied with your next skin upload.</p>
+              <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-black/25 p-3">
+                <SkinFacePreview textureURL={previewPNG || (skin?.url ? cacheBust(skin.url, profileUrls.current) : '')} view="front" model={model === 'SLIM' ? 'slim' : 'classic'} />
+                <SkinFacePreview textureURL={previewPNG || (skin?.url ? cacheBust(skin.url, profileUrls.current) : '')} view="back" model={model === 'SLIM' ? 'slim' : 'classic'} />
+              </div>
             </section>
 
             {/* Upload */}
@@ -230,7 +258,7 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName }: Sk
                   {capes.map((cape) => (
                     <CapeTile
                       key={cape.id}
-                      cape={cape}
+                      cape={{ ...cape, url: cacheBust(cape.url, profileUrls.current) }}
                       selected={equippedCape === cape.id}
                       busy={writeBusy}
                       onSelect={() => void runWrite('cape', () => SkinService.EquipCape(accountUUID, cape.id))}
@@ -252,7 +280,6 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName }: Sk
                       key={entry.textureKey}
                       entry={entry}
                       busy={writeBusy}
-                      dataRoot={accountUUID}
                       onApply={() => {
                         void (async () => {
                           try {
@@ -284,6 +311,14 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName }: Sk
               )}
             </section>
 
+            {loadError ? (
+              <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 md:col-span-2">
+                <p className="text-xs text-destructive">{loadError}</p>
+                <Button variant="secondary" size="sm" disabled={busy === 'load'} onClick={loadProfile}>
+                  {busy === 'load' ? 'Loading...' : 'Retry'}
+                </Button>
+              </div>
+            ) : null}
             {error ? <p role="alert" className="text-xs text-destructive md:col-span-2">{error}</p> : null}
           </div>
         </Dialog.Popup>
@@ -292,56 +327,132 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName }: Sk
   );
 }
 
+// SkinFacePreview composes the front or back of the skin into a clean
+// character render (ely.by style): limbs stacked in draw order, no atlas
+// noise. Slim trims the arm boxes to three pixels.
+function SkinFacePreview({ textureURL, view, model }: { textureURL: string; view: 'front' | 'back'; model: 'classic' | 'slim' }) {
+  const [rendered, setRendered] = useState('');
+
+  useEffect(() => {
+    if (!textureURL) {
+      setRendered('');
+      return;
+    }
+    let cancelled = false;
+    void renderSkinFigure(textureURL, view, model, 5)
+      .then((dataURL) => {
+        if (!cancelled) setRendered(dataURL);
+      })
+      .catch(() => {
+        if (!cancelled) setRendered('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [textureURL, view, model]);
+
+  if (!rendered) {
+    return <div className="h-40 w-20 animate-pulse self-center rounded-lg bg-muted/40" aria-hidden />;
+  }
+  return (
+    <figure className="flex flex-col items-center gap-1">
+      <img src={rendered} alt={`Skin ${view} view`} className="[image-rendering:pixelated]" />
+      <figcaption className="text-[10px] text-muted-foreground">{view === 'front' ? 'Front' : 'Back'}</figcaption>
+    </figure>
+  );
+}
+
+// CapeTile renders the 10x16 cape sprite cropped from the texture atlas and
+// scaled up, instead of the whole raw atlas.
 function CapeTile({ cape, selected, busy, onSelect }: {
   cape: ProfileCape;
   selected: boolean;
   busy: boolean;
   onSelect: () => void;
 }) {
+  const [sprite, setSprite] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    void renderCapeSprite(cape.url, 6)
+      .then((dataURL) => {
+        if (!cancelled) setSprite(dataURL);
+      })
+      .catch(() => {
+        if (!cancelled) setSprite('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cape.url]);
+
   return (
     <button
       type="button"
       onClick={onSelect}
       disabled={busy}
       className={cn(
-        'flex h-20 flex-col items-center justify-center gap-1 rounded-lg border p-2 transition-colors',
+        'flex h-24 flex-col items-center justify-center gap-1 rounded-lg border p-2 transition-colors',
         selected
           ? 'border-primary bg-primary/10 text-foreground'
           : 'border-border text-muted-foreground hover:bg-muted/40'
       )}
       aria-pressed={selected}
     >
-      <img src={cape.url} alt="" aria-hidden className="h-10 w-8 object-contain [image-rendering:pixelated]" />
-      <span className="truncate text-[11px]">{cape.alias || 'Cape'}</span>
+      {sprite ? (
+        <span className="grid h-14 w-11 place-items-center rounded bg-black/25 p-1">
+          <img src={sprite} alt="" aria-hidden className="max-h-12 [image-rendering:pixelated]" />
+        </span>
+      ) : (
+        <span className="h-14 w-11 animate-pulse rounded bg-muted/40" aria-hidden />
+      )}
+      <span className="w-full truncate text-center text-[11px]">{cape.alias || 'Cape'}</span>
     </button>
   );
 }
 
-function LocalSkinTile({ entry, busy, dataRoot, onApply, onDelete }: {
+function LocalSkinTile({ entry, busy, onApply, onDelete }: {
   entry: ClosetSkin;
   busy: boolean;
-  dataRoot: string;
   onApply: () => void;
   onDelete: () => void;
 }) {
-  const [png, setPNG] = useState('');
+  const [figure, setFigure] = useState('');
+  const [failed, setFailed] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
+    setFailed(false);
     void SkinService.LoadLocalSkinPNG(entry.textureKey).then((base64) => {
-      if (!cancelled) setPNG(`data:image/png;base64,${base64}`);
-    }).catch(() => undefined);
+      if (cancelled) return;
+      // The closet stores normalized 64x64 PNGs as base64.
+      return renderSkinFigure(`data:image/png;base64,${base64}`, 'front', entry.variant === 'slim' ? 'slim' : 'classic', 3);
+    }).then((rendered) => {
+      if (cancelled) return;
+      if (rendered) setFigure(rendered);
+      else setFailed(true);
+    }).catch(() => {
+      if (!cancelled) setFailed(true);
+    });
     return () => { cancelled = true; };
-  }, [entry.textureKey]);
+  }, [entry.textureKey, entry.variant]);
 
   return (
-    <div className="flex flex-col items-center gap-1 rounded-lg border border-border p-2">
-      {png ? <img src={png} alt="" aria-hidden className="h-16 [image-rendering:pixelated]" /> : <div className="h-16 w-8 animate-pulse bg-muted" />}
-      <span className="text-[10px] text-muted-foreground">{entry.variant === 'slim' ? 'Slim' : 'Classic'}</span>
-      <div className="flex gap-1">
-        <Button variant="secondary" size="sm" disabled={busy} onClick={onApply}>Apply</Button>
-        <Button variant="ghost" size="sm" className="text-destructive" disabled={busy} onClick={onDelete}>Delete</Button>
+    <div className="flex w-24 flex-col items-center gap-1.5 rounded-lg border border-border bg-card/40 p-2.5">
+      <div className="grid h-24 w-12 place-items-center">
+        {figure ? (
+          <img src={figure} alt="" aria-hidden className="[image-rendering:pixelated]" />
+        ) : failed ? (
+          <span className="text-[10px] text-muted-foreground">Unavailable</span>
+        ) : (
+          <div className="h-20 w-10 animate-pulse rounded bg-muted" aria-hidden />
+        )}
       </div>
-      <span className="hidden">{dataRoot}</span>
+      <span className="text-[10px] text-muted-foreground">{entry.variant === 'slim' ? 'Slim' : 'Classic'}</span>
+      <div className="flex w-full gap-1">
+        <Button variant="secondary" size="sm" className="h-6 flex-1 px-1 text-[10px]" disabled={busy} onClick={onApply}>Apply</Button>
+        <Button variant="ghost" size="sm" className="h-6 flex-1 px-1 text-[10px] text-destructive" disabled={busy} onClick={onDelete}>Delete</Button>
+      </div>
     </div>
   );
 }

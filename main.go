@@ -140,6 +140,7 @@ func main() {
 	app.RegisterService(application.NewService(presenceSvc))
 	skinSvc := services.NewSkinService(config.DataRoot)
 	skinSvc.Keyring = accountService.Keyring
+	skinSvc.Logger = logger
 	app.RegisterService(application.NewService(skinSvc))
 	app.RegisterService(application.NewService(&services.HomeService{
 		DataRoot:  config.DataRoot,
