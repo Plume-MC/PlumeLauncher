@@ -47,11 +47,11 @@ func TestValidateAcceptsLegacyAtlas(t *testing.T) {
 
 func TestValidateRejectsBadInput(t *testing.T) {
 	cases := map[string][]byte{
-		"empty":            {},
-		"not png":          []byte("hello world"),
-		"wrong size 32x32": mustPNG(t, 32, 32, color.NRGBA{A: 255}),
+		"empty":              {},
+		"not png":            []byte("hello world"),
+		"wrong size 32x32":   mustPNG(t, 32, 32, color.NRGBA{A: 255}),
 		"wrong size 128x128": mustPNG(t, 128, 128, color.NRGBA{A: 255}),
-		"oversize png":     bytes.Repeat([]byte{0xFF}, MaxPNGBytes+1),
+		"oversize png":       bytes.Repeat([]byte{0xFF}, MaxPNGBytes+1),
 	}
 	for name, pngData := range cases {
 		t.Run(name, func(t *testing.T) {
