@@ -1,12 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-
-// withCacheBuster appends a changing query to a http(s) URL so the browser
-// refetches a texture Mojang just replaced instead of serving the old cached
-// copy. Data URLs pass through untouched.
-function cacheBust(url: string, nonce: number): string {
-  if (!url || nonce === 0) return url;
-  return `${url}${url.includes('?') ? '&' : '?'}plume=${nonce}`;
-}
 import { IconUpload, IconX } from '@tabler/icons-react';
 import { Dialog } from '@base-ui/react/dialog';
 import { Button } from '@/components/ui/button';
@@ -24,11 +16,21 @@ import type {
 import { cn } from '@/lib/utils';
 import { renderCapeSprite, renderSkinFigure } from '@/lib/skinRender';
 
+// cacheBust appends a changing query to a http(s) URL so the browser
+// refetches a texture Mojang just replaced instead of serving the old cached
+// copy. Data URLs pass through untouched.
+function cacheBust(url: string, nonce: number): string {
+  if (!url || nonce === 0) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}plume=${nonce}`;
+}
+
 interface SkinCapeDialogProps {
   isOpen: boolean;
   onClose: () => void;
   accountUUID: string;
   accountName: string;
+  /** Fired after every successful appearance write so parents can refresh their own skin displays. */
+  onSkinChanged?: () => void;
 }
 
 type ModelChoice = 'CLASSIC' | 'SLIM';
@@ -53,7 +55,7 @@ function activeCapeID(profile: Appearance['profile']): string {
   return capes.find((cape) => cape.state === 'ACTIVE')?.id ?? '';
 }
 
-export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName }: SkinCapeDialogProps) {
+export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName, onSkinChanged }: SkinCapeDialogProps) {
   const [appearance, setAppearance] = useState<Appearance | null>(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -99,6 +101,7 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName }: Sk
     try {
       const result = await action();
       if (result) apply(result);
+      onSkinChanged?.();
       toast.add({ type: 'success', title: 'Saved' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
@@ -322,8 +325,8 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName }: Sk
             {error ? <p role="alert" className="text-xs text-destructive md:col-span-2">{error}</p> : null}
           </div>
         </Dialog.Popup>
-        </Dialog.Portal>
-      </Dialog.Root>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
@@ -352,7 +355,7 @@ function SkinFacePreview({ textureURL, view, model }: { textureURL: string; view
   }, [textureURL, view, model]);
 
   if (!rendered) {
-    return <div className="h-40 w-20 animate-pulse self-center rounded-lg bg-muted/40" aria-hidden />;
+    return <div className="h-40 w-20 self-center rounded-lg bg-muted/40" aria-hidden />;
   }
   return (
     <figure className="flex flex-col items-center gap-1">
@@ -404,7 +407,7 @@ function CapeTile({ cape, selected, busy, onSelect }: {
           <img src={sprite} alt="" aria-hidden className="max-h-12 [image-rendering:pixelated]" />
         </span>
       ) : (
-        <span className="h-14 w-11 animate-pulse rounded bg-muted/40" aria-hidden />
+        <span className="h-14 w-11 rounded bg-muted/40" aria-hidden />
       )}
       <span className="w-full truncate text-center text-[11px]">{cape.alias || 'Cape'}</span>
     </button>
@@ -445,7 +448,7 @@ function LocalSkinTile({ entry, busy, onApply, onDelete }: {
         ) : failed ? (
           <span className="text-[10px] text-muted-foreground">Unavailable</span>
         ) : (
-          <div className="h-20 w-10 animate-pulse rounded bg-muted" aria-hidden />
+          <div className="h-20 w-10 rounded bg-muted" aria-hidden />
         )}
       </div>
       <span className="text-[10px] text-muted-foreground">{entry.variant === 'slim' ? 'Slim' : 'Classic'}</span>

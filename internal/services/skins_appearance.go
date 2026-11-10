@@ -125,6 +125,7 @@ func (s *SkinService) UploadSkin(accountUUID string, pngData []byte, variant ski
 		}
 		return nil, appearanceError(err)
 	}
+	s.invalidateSkinCache(accountUUID)
 	return s.merge(profile), nil
 }
 
@@ -151,6 +152,7 @@ func (s *SkinService) ResetSkin(accountUUID string) (*Appearance, error) {
 		}
 		return nil, appearanceError(err)
 	}
+	s.invalidateSkinCache(accountUUID)
 	return s.merge(profile), nil
 }
 
@@ -264,6 +266,13 @@ func (s *SkinService) logFailure(operation string, err error) {
 		detail = fmt.Sprintf("status=%d type=%s message=%q", mojangErr.Status, mojangErr.Type, mojangErr.ErrorMessage)
 	}
 	s.Logger.Error("skin_operation_failed", "operation", operation, "error", detail)
+}
+
+// invalidateSkinCache drops the rendered-skin cache entry for one account so
+// the next GetAccountSkin re-resolves the texture the player just published.
+func (s *SkinService) invalidateSkinCache(accountUUID string) {
+	svc := s.accountService()
+	svc.InvalidateSkinCache(accountUUID)
 }
 
 // appearanceError maps Mojang errors to the launcher's user-facing taxonomy.

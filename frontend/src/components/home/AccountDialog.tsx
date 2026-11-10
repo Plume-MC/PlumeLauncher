@@ -16,6 +16,10 @@ interface AccountDialogProps {
   onOpenChange: (open: boolean) => void;
   accounts: Account[];
   onChanged: () => Promise<void>;
+  /** Bumped by parents when the selected account's skin may have changed. */
+  skinVersion?: number;
+  /** Fired by the skin dialog after a successful appearance write. */
+  onSkinChanged?: () => void;
 }
 
 type Provider = 'offline' | 'ely.by' | 'microsoft';
@@ -73,7 +77,7 @@ function formatSeconds(total: number) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function AccountDialog({ open, onOpenChange, accounts, onChanged }: AccountDialogProps) {
+export function AccountDialog({ open, onOpenChange, accounts, onChanged, skinVersion = 0, onSkinChanged }: AccountDialogProps) {
   const [type, setType] = useState<Provider>('offline');
   const [elyMethod, setElyMethod] = useState<ElyMethod>('browser');
   const [username, setUsername] = useState('');
@@ -110,6 +114,9 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
       return;
     }
     let cancelled = false;
+    // A skinVersion bump means an appearance write just succeeded; clear the
+    // failure set so accounts that failed earlier retry with fresh data.
+    if (skinVersion > 0) failedSkins.clear();
     for (const account of accounts) {
       if (failedSkins.has(account.uuid)) continue;
       void AccountService.GetAccountSkin(account.uuid)
@@ -124,7 +131,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
     return () => {
       cancelled = true;
     };
-  }, [open, accounts]);
+  }, [open, accounts, skinVersion]);
 
   // Code expiry countdown: bounded by the expires_in Ely.by returned.
   useEffect(() => {
@@ -696,6 +703,10 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
           onClose={() => setSkinCapeOpen(false)}
           accountUUID={active.uuid}
           accountName={active.displayName || active.username}
+          onSkinChanged={() => {
+            onSkinChanged?.();
+            void onChanged();
+          }}
         />
       ) : null}
     </Dialog.Root>

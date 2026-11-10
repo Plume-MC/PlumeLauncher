@@ -16,6 +16,7 @@ function LoadingScreen() {
 function App() {
   const [account, setAccount] = useState<Account | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [skinVersion, setSkinVersion] = useState(0)
   const [instances, setInstances] = useState<Instance[]>([])
   const [setup, setSetup] = useState(true)
   const [loading, setLoading] = useState(true)
@@ -69,7 +70,7 @@ function App() {
 
   return (
     <Suspense fallback={<LoadingScreen />}>
-      <AppShell account={account} accounts={accounts} onAccountsChanged={refresh}>
+      <AppShell account={account} accounts={accounts} onAccountsChanged={refresh} onSkinChanged={() => setSkinVersion((v) => v + 1)} skinVersion={skinVersion}>
         <Suspense fallback={<LoadingScreen />}>
           <Home account={account} instances={instances} onRefresh={refresh} />
         </Suspense>
