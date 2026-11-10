@@ -2,6 +2,7 @@ package presence
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -74,6 +75,9 @@ type InstanceInfo struct {
 	Name      string
 	MCVersion string
 	Loader    string // "" counts as vanilla
+	// Server is a sanitised address from the game log (POST-005), already
+	// gated by DiscordShowServer at the caller. Empty means no server known.
+	Server ServerAddress
 }
 
 // buildDetails returns the instance name, or empty when its toggle is off.
@@ -84,10 +88,15 @@ func buildDetails(info InstanceInfo, defaults instances.LauncherDefaults) string
 	return truncate(info.Name, 128)
 }
 
-// buildState joins the version and loader segments; each is dropped when
-// its toggle is off, and the whole string is empty when both are off.
+// buildState joins the server, version and loader segments; each is dropped
+// when its toggle is off, and the whole string is empty when all are off.
+// The server comes first because it is the most specific context: it tells
+// a viewer *where* before *what*.
 func buildState(info InstanceInfo, defaults instances.LauncherDefaults) string {
-	segments := make([]string, 0, 2)
+	segments := make([]string, 0, 3)
+	if defaults.DiscordShowServer && info.Server.Host != "" {
+		segments = append(segments, formatServer(info.Server, defaults.DiscordShowServerPort))
+	}
 	if defaults.DiscordShowVersion && info.MCVersion != "" {
 		segments = append(segments, "Minecraft "+info.MCVersion)
 	}
@@ -97,6 +106,14 @@ func buildState(info InstanceInfo, defaults instances.LauncherDefaults) string {
 		}
 	}
 	return truncate(strings.Join(segments, " — "), 128)
+}
+
+// formatServer renders host, with the port only when the caller allowed it.
+func formatServer(addr ServerAddress, withPort bool) string {
+	if !withPort || addr.Port == 0 {
+		return addr.Host
+	}
+	return addr.Host + ":" + strconv.Itoa(addr.Port)
 }
 
 // truncate caps a payload string at Discord's 128-byte field limit.

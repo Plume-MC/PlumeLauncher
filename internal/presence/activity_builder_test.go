@@ -179,3 +179,95 @@ func TestValidateTemplate(t *testing.T) {
 		t.Error("over-long template accepted")
 	}
 }
+
+func TestBuildActivityServerDefaultsOff(t *testing.T) {
+	// POST-005 privacy: a server address must not leak unless opted in.
+	defaults := baseDefaults()
+	info := InstanceInfo{
+		Name: "World", MCVersion: "1.20.1", Loader: "fabric",
+		Server: ServerAddress{Host: "play.example.com", Port: 25565},
+	}
+
+	activity := BuildActivity(1, info, defaults, time.Now())
+	if activity == nil {
+		t.Fatal("activity = nil")
+	}
+	if strings.Contains(activity.State, "play.example.com") {
+		t.Errorf("state leaked server while toggle off: %q", activity.State)
+	}
+}
+
+func TestBuildActivityServerOptIn(t *testing.T) {
+	defaults := baseDefaults()
+	defaults.DiscordShowServer = true
+	info := InstanceInfo{
+		Name: "World", MCVersion: "1.20.1", Loader: "fabric",
+		Server: ServerAddress{Host: "play.example.com", Port: 25565},
+	}
+
+	activity := BuildActivity(1, info, defaults, time.Now())
+	if activity == nil {
+		t.Fatal("activity = nil")
+	}
+	want := "play.example.com:25565 — Minecraft 1.20.1 — Fabric"
+	if activity.State != want {
+		t.Errorf("state = %q, want %q", activity.State, want)
+	}
+}
+
+func TestBuildActivityServerPortGate(t *testing.T) {
+	defaults := baseDefaults()
+	defaults.DiscordShowServer = true
+	defaults.DiscordShowServerPort = false
+	info := InstanceInfo{
+		Name: "World", MCVersion: "1.20.1",
+		Server: ServerAddress{Host: "play.example.com", Port: 25565},
+	}
+
+	activity := BuildActivity(1, info, defaults, time.Now())
+	if activity == nil {
+		t.Fatal("activity = nil")
+	}
+	if strings.Contains(activity.State, "25565") {
+		t.Errorf("state leaked port while toggle off: %q", activity.State)
+	}
+	if !strings.Contains(activity.State, "play.example.com") {
+		t.Errorf("state lost host: %q", activity.State)
+	}
+}
+
+func TestBuildActivityServerWithoutPort(t *testing.T) {
+	defaults := baseDefaults()
+	defaults.DiscordShowServer = true
+	info := InstanceInfo{
+		Name: "World", MCVersion: "1.20.1",
+		Server: ServerAddress{Host: "play.example.com"},
+	}
+
+	activity := BuildActivity(1, info, defaults, time.Now())
+	if activity == nil {
+		t.Fatal("activity = nil")
+	}
+	// No stray separator from a missing port.
+	if strings.Contains(activity.State, ": —") || strings.Contains(activity.State, "example.com:") {
+		t.Errorf("state has dangling port separator: %q", activity.State)
+	}
+	if !strings.HasPrefix(activity.State, "play.example.com — Minecraft") {
+		t.Errorf("state = %q, want server first", activity.State)
+	}
+}
+
+func TestBuildActivityNoServerKeepsPost004Layout(t *testing.T) {
+	defaults := baseDefaults()
+	defaults.DiscordShowServer = true
+	info := InstanceInfo{Name: "World", MCVersion: "1.20.1", Loader: "fabric"}
+
+	activity := BuildActivity(1, info, defaults, time.Now())
+	if activity == nil {
+		t.Fatal("activity = nil")
+	}
+	want := "Minecraft 1.20.1 — Fabric"
+	if activity.State != want {
+		t.Errorf("state = %q, want %q (unchanged POST-004 layout)", activity.State, want)
+	}
+}

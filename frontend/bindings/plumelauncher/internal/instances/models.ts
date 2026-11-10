@@ -63,6 +63,14 @@ export interface LauncherDefaults {
     "discordShowVersion": boolean;
     "discordShowLoader": boolean;
     "discordShowElapsed": boolean;
+
+    /**
+     * Server presence (POST-005). Off by default because a server address
+     * can reveal where someone plays; the port is gated separately since a
+     * hostname alone is often enough context.
+     */
+    "discordShowServer": boolean;
+    "discordShowServerPort": boolean;
 }
 
 /**

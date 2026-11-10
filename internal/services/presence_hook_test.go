@@ -1,6 +1,9 @@
 package services
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -15,7 +18,7 @@ import (
 
 func TestPublishPresenceNilClientNoPanic(t *testing.T) {
 	service := &LaunchService{}
-	service.publishPresence(123, "instance") // must not panic
+	service.publishPresence(123, "instance", presence.ServerAddress{}) // must not panic
 	service.clearPresence()
 }
 
@@ -40,7 +43,7 @@ func TestPublishPresenceDisabledPreferenceNoDial(t *testing.T) {
 	_ = inst
 	// publishPresence loads the instance through s.Instances; with a nil
 	// manager it returns early. Verify the manager-nil path is safe.
-	service.publishPresence(1, "inst")
+	service.publishPresence(1, "inst", presence.ServerAddress{})
 	if got := client.Status(); got != presence.StatusDisabled {
 		t.Errorf("status = %q, want disabled (no dial)", got)
 	}
@@ -109,4 +112,39 @@ func TestPresenceStatusesExist(t *testing.T) {
 		t.Fatalf("unexpected status set: %v", statuses)
 	}
 	_ = time.Now // keep time import if assertions evolve
+}
+
+func TestWatchServerStopsOnCancel(t *testing.T) {
+	// watchServer blocks until its context ends; the monitor's defer is
+	// what cancels it, so a leaked watcher would keep reading logs after
+	// the game exits.
+	service := &LaunchService{DataRoot: t.TempDir()}
+	ctx, cancel := context.WithCancel(context.Background())
+
+	logPath := filepath.Join(t.TempDir(), "latest.log")
+	if err := os.WriteFile(logPath, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		service.watchServer(ctx, 1, "inst", logPath)
+		close(done)
+	}()
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("watchServer did not stop after cancel")
+	}
+}
+
+func TestWatchServerNoPresenceClientIsSafe(t *testing.T) {
+	service := &LaunchService{DataRoot: t.TempDir()}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Must return immediately instead of tailing a log nobody reads.
+	service.watchServer(ctx, 1, "inst", "/nonexistent/latest.log")
 }
