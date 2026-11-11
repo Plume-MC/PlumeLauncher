@@ -9,6 +9,7 @@ import (
 
 	"plumelauncher/internal/bootstrap"
 	"plumelauncher/internal/cleanup"
+	"plumelauncher/internal/auth"
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/logging"
@@ -95,7 +96,7 @@ func main() {
 	if defaults.DiscordPresenceEnabled {
 		presenceClient.Enable()
 	}
-	accountService := &services.AccountService{DataRoot: config.DataRoot}
+	accountService := &services.AccountService{DataRoot: config.DataRoot, Keyring: auth.OSKeyring{}}
 	instanceManager := instances.NewManager(config.DataRoot, defaults)
 	launchService := &services.LaunchService{DataRoot: config.DataRoot, Registry: registry, Instances: instanceManager, Logger: logger, Presence: presenceClient}
 	instanceService := &services.InstanceService{
@@ -137,6 +138,10 @@ func main() {
 	app.RegisterService(application.NewService(systemSvc))
 	presenceSvc := &services.PresenceService{Presence: presenceClient}
 	app.RegisterService(application.NewService(presenceSvc))
+	skinSvc := services.NewSkinService(config.DataRoot)
+	skinSvc.Keyring = accountService.Keyring
+	skinSvc.Logger = logger
+	app.RegisterService(application.NewService(skinSvc))
 	app.RegisterService(application.NewService(&services.HomeService{
 		DataRoot:  config.DataRoot,
 		Defaults:  defaults,

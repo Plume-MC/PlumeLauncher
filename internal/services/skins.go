@@ -48,6 +48,13 @@ type skinCacheEntry struct {
 // account dialog does not refetch every profile.
 var skinCache sync.Map
 
+// InvalidateSkinCache drops the cached rendered skin for one account. Called
+// after an appearance write so the avatar in the UI reflects the new texture
+// immediately instead of after the 5 minute TTL.
+func (s *AccountService) InvalidateSkinCache(accountUUID string) {
+	skinCache.Delete(accountUUID)
+}
+
 // GetAccountSkin resolves the player's skin as a PNG data URL for the UI.
 // Offline profiles resolve the official default Steve template; Ely.by and
 // Microsoft profiles resolve their public session profile, then download the

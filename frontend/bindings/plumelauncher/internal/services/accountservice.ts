@@ -67,6 +67,15 @@ export function GetAccountSkin(accountUUID: string): $CancellablePromise<string>
 }
 
 /**
+ * InvalidateSkinCache drops the cached rendered skin for one account. Called
+ * after an appearance write so the avatar in the UI reflects the new texture
+ * immediately instead of after the 5 minute TTL.
+ */
+export function InvalidateSkinCache(accountUUID: string): $CancellablePromise<void> {
+    return $Call.ByID(956508593, accountUUID);
+}
+
+/**
  * ListAccounts returns all accounts.
  */
 export function ListAccounts(): $CancellablePromise<$models.Account[] | null> {
