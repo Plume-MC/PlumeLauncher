@@ -62,6 +62,7 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName, onSk
   const [loadError, setLoadError] = useState('');
   const [model, setModel] = useState<ModelChoice>('CLASSIC');
   const [previewPNG, setPreviewPNG] = useState('');
+  const [view, setView] = useState<'front' | 'back'>('front');
   const profileUrls = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -137,12 +138,15 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName, onSk
   const equippedCape = activeCapeID(profile);
   const localSkins = appearance?.localSkins ?? [];
   const writeBusy = busy !== '' && busy !== 'load';
+  // Draft texture: the just-picked file wins, then the equipped skin. The
+  // nonce makes Mojang URLs refetch after a write.
+  const textureURL = previewPNG || (skin?.url ? cacheBust(skin.url, profileUrls.current) : '');
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-[opacity] duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0" />
-        <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 flex max-h-[min(92vh,760px)] w-[min(880px,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-background shadow-xl outline-none transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0">
+        <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 flex max-h-[min(92vh,720px)] w-[min(860px,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-background shadow-xl outline-none transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0">
           <div className="flex items-start justify-between border-b border-border px-5 py-4">
             <div>
               <Dialog.Title className="text-sm font-semibold">Skin &amp; Cape</Dialog.Title>
@@ -151,178 +155,189 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName, onSk
             <Button variant="ghost" size="icon-xs" onClick={onClose} aria-label="Close skin and cape editor"><IconX className="size-4" /></Button>
           </div>
 
-          <div className="grid min-h-0 flex-1 gap-4 overflow-auto p-5 md:grid-cols-2">
-            {/* Current skin */}
-            <section className="rounded-lg border border-border bg-card/40 p-4">
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Current skin</h3>
-              <div className="flex items-center justify-center rounded-lg bg-black/25 p-4">
-                {(previewPNG || skin?.url) ? (
-                  <img
-                    src={previewPNG || cacheBust(skin?.url ?? '', profileUrls.current)}
-                    alt="Current skin"
-                    className="h-64 [image-rendering:pixelated]"
-                  />
+          <div className="grid min-h-0 flex-1 overflow-auto md:grid-cols-[300px_1fr] md:overflow-hidden">
+            {/* Hero: the character render, the one rich element in the modal */}
+            <div className="relative flex flex-col border-b border-border bg-card/40 p-5 md:border-b-0 md:border-r">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-6 top-8 h-56 rounded-full bg-primary/20 blur-3xl"
+              />
+              <div className="relative flex min-h-[340px] flex-1 items-center justify-center">
+                {loadError ? (
+                  <p className="max-w-[20ch] text-center text-xs text-muted-foreground">{loadError}</p>
+                ) : busy === 'load' && !textureURL ? (
+                  <div className="h-40 w-20 rounded bg-muted/40" aria-hidden />
+                ) : textureURL ? (
+                  <SkinFigure textureURL={textureURL} model={model === 'SLIM' ? 'slim' : 'classic'} view={view} />
                 ) : (
-                  <p className="text-xs text-muted-foreground">No custom skin yet.</p>
+                  <p className="max-w-[20ch] text-center text-xs text-muted-foreground">No custom skin yet. Upload one to get started.</p>
                 )}
               </div>
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                {model === 'SLIM' ? 'Slim (Alex) model' : 'Classic (Steve) model'}
-              </p>
-              {skin ? (
+
+              <div className="relative mt-4 flex flex-col gap-3">
+                <div className="flex items-center justify-center rounded-lg border border-border bg-background/60 p-1" role="tablist" aria-label="Skin view">
+                  {(['front', 'back'] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      role="tab"
+                      aria-selected={view === v}
+                      onClick={() => setView(v)}
+                      className={cn(
+                        'flex-1 rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors',
+                        view === v ? 'bg-primary/15 text-foreground' : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+
+                <p className="text-center text-[11px] text-muted-foreground">
+                  {model === 'SLIM' ? 'Slim (Alex) model' : 'Classic (Steve) model'}
+                </p>
+
+                {skin ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={writeBusy}
+                    onClick={() => void runWrite('reset', () => SkinService.ResetSkin(accountUUID))}
+                  >
+                    {busy === 'reset' ? 'Resetting...' : 'Reset to default skin'}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+
+            {/* Controls: model, upload, capes, saved skins in one scroll column */}
+            <div className="min-h-0 flex-1 space-y-5 overflow-auto p-5">
+              <section>
+                <h3 className="mb-2 text-xs font-medium text-muted-foreground">Model</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['CLASSIC', 'SLIM'] as ModelChoice[]).map((choice) => (
+                    <button
+                      key={choice}
+                      type="button"
+                      onClick={() => setModel(choice)}
+                      className={cn(
+                        'rounded-lg border px-3 py-2.5 text-xs transition-colors',
+                        model === choice
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border text-muted-foreground hover:bg-muted/40'
+                      )}
+                      aria-pressed={model === choice}
+                    >
+                      <span className="block font-medium">{choice === 'CLASSIC' ? 'Classic' : 'Slim'}</span>
+                      <span className="text-[11px] text-muted-foreground">{choice === 'CLASSIC' ? 'Wide arms' : 'Slim arms'}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">Applied with your next skin upload.</p>
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-xs font-medium text-muted-foreground">Custom skin</h3>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept="image/png"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = '';
+                    if (file) void onUpload(file);
+                  }}
+                />
                 <Button
-                  variant="secondary"
                   size="sm"
-                  className="mt-2 w-full"
+                  className="w-full"
                   disabled={writeBusy}
-                  onClick={() => void runWrite('reset', () => SkinService.ResetSkin(accountUUID))}
+                  onClick={() => fileInput.current?.click()}
                 >
-                  {busy === 'reset' ? 'Resetting...' : 'Reset to default skin'}
+                  <IconUpload className="size-4" /> {busy === 'upload' ? 'Uploading...' : 'Select File'}
                 </Button>
-              ) : null}
-            </section>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  PNG, 64×64 (or legacy 64×32). Applies to Minecraft: Java Edition.
+                </p>
+              </section>
 
-            {/* Model */}
-            <section className="rounded-lg border border-border bg-card/40 p-4">
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Select your model</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {(['CLASSIC', 'SLIM'] as ModelChoice[]).map((choice) => (
-                  <button
-                    key={choice}
-                    type="button"
-                    onClick={() => setModel(choice)}
-                    className={cn(
-                      'flex flex-col items-center gap-1 rounded-lg border p-3 text-xs transition-colors',
-                      model === choice
-                        ? 'border-primary bg-primary/10 text-foreground'
-                        : 'border-border text-muted-foreground hover:bg-muted/40'
-                    )}
-                    aria-pressed={model === choice}
-                  >
-                    <span className="text-sm font-medium">{choice === 'CLASSIC' ? 'Classic' : 'Slim'}</span>
-                    <span className="text-[11px] text-muted-foreground">{choice === 'CLASSIC' ? 'Wide arms' : 'Slim arms'}</span>
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-[11px] text-muted-foreground">Applied with your next skin upload.</p>
-              <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-black/25 p-3">
-                <SkinFacePreview textureURL={previewPNG || (skin?.url ? cacheBust(skin.url, profileUrls.current) : '')} view="front" model={model === 'SLIM' ? 'slim' : 'classic'} />
-                <SkinFacePreview textureURL={previewPNG || (skin?.url ? cacheBust(skin.url, profileUrls.current) : '')} view="back" model={model === 'SLIM' ? 'slim' : 'classic'} />
-              </div>
-            </section>
+              <section>
+                <h3 className="mb-2 text-xs font-medium text-muted-foreground">Capes</h3>
+                {capes.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">No capes owned yet.</p>
+                ) : (
+                  <div className="grid grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void runWrite('cape', () => SkinService.HideCape(accountUUID))}
+                      className={cn(
+                        'flex h-24 flex-col items-center justify-center gap-1 rounded-lg border text-[11px] transition-colors',
+                        equippedCape === ''
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border text-muted-foreground hover:bg-muted/40'
+                      )}
+                      aria-pressed={equippedCape === ''}
+                    >
+                      No Cape
+                    </button>
+                    {capes.map((cape) => (
+                      <CapeTile
+                        key={cape.id}
+                        cape={{ ...cape, url: cacheBust(cape.url, profileUrls.current) }}
+                        selected={equippedCape === cape.id}
+                        busy={writeBusy}
+                        onSelect={() => void runWrite('cape', () => SkinService.EquipCape(accountUUID, cape.id))}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
 
-            {/* Upload */}
-            <section className="rounded-lg border border-border bg-card/40 p-4">
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Upload a custom skin</h3>
-              <input
-                ref={fileInput}
-                type="file"
-                accept="image/png"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = '';
-                  if (file) void onUpload(file);
-                }}
-              />
-              <Button
-                size="sm"
-                className="w-full"
-                disabled={writeBusy}
-                onClick={() => fileInput.current?.click()}
-              >
-                <IconUpload className="size-4" /> {busy === 'upload' ? 'Uploading...' : 'Select File'}
-              </Button>
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                PNG, 64×64 (or legacy 64×32). Applies to Minecraft: Java Edition.
-              </p>
-            </section>
+              <section>
+                <h3 className="mb-2 text-xs font-medium text-muted-foreground">Saved skins</h3>
+                {localSkins.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">Uploaded skins are saved here for reuse.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {localSkins.map((entry) => (
+                      <LocalSkinRow
+                        key={entry.textureKey}
+                        entry={entry}
+                        busy={writeBusy}
+                        onApply={() => {
+                          void (async () => {
+                            try {
+                              const pngBase64 = await SkinService.LoadLocalSkinPNG(entry.textureKey);
+                              await runWrite('upload', () => SkinService.UploadSkin(
+                                accountUUID,
+                                pngBase64,
+                                entry.variant === 'slim' ? VARIANT_SLIM : VARIANT_CLASSIC,
+                              ));
+                            } catch (err) {
+                              setError(err instanceof Error ? err.message : 'Unable to load that skin.');
+                            }
+                          })();
+                        }}
+                        onDelete={() => {
+                          void (async () => {
+                            try {
+                              await SkinService.DeleteLocalSkin(entry.textureKey);
+                              const refreshed = await SkinService.ListLocalSkins();
+                              setAppearance((current) => current ? { ...current, localSkins: refreshed } : current);
+                            } catch (err) {
+                              setError(err instanceof Error ? err.message : 'Unable to delete that skin.');
+                            }
+                          })();
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
 
-            {/* Capes */}
-            <section className="rounded-lg border border-border bg-card/40 p-4">
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Choose your cape</h3>
-              {capes.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">No capes owned yet.</p>
-              ) : (
-                <div className="grid grid-cols-4 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void runWrite('cape', () => SkinService.HideCape(accountUUID))}
-                    className={cn(
-                      'flex h-20 flex-col items-center justify-center rounded-lg border text-[11px] transition-colors',
-                      equippedCape === ''
-                        ? 'border-primary bg-primary/10 text-foreground'
-                        : 'border-border text-muted-foreground hover:bg-muted/40'
-                    )}
-                    aria-pressed={equippedCape === ''}
-                  >
-                    No Cape
-                  </button>
-                  {capes.map((cape) => (
-                    <CapeTile
-                      key={cape.id}
-                      cape={{ ...cape, url: cacheBust(cape.url, profileUrls.current) }}
-                      selected={equippedCape === cape.id}
-                      busy={writeBusy}
-                      onSelect={() => void runWrite('cape', () => SkinService.EquipCape(accountUUID, cape.id))}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Local closet */}
-            <section className="rounded-lg border border-border bg-card/40 p-4 md:col-span-2">
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Saved skins</h3>
-              {localSkins.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">Skins you upload are saved here for reuse.</p>
-              ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-2">
-                  {localSkins.map((entry) => (
-                    <LocalSkinTile
-                      key={entry.textureKey}
-                      entry={entry}
-                      busy={writeBusy}
-                      onApply={() => {
-                        void (async () => {
-                          try {
-                            const pngBase64 = await SkinService.LoadLocalSkinPNG(entry.textureKey);
-                            await runWrite('upload', () => SkinService.UploadSkin(
-                              accountUUID,
-                              pngBase64,
-                              entry.variant === 'slim' ? VARIANT_SLIM : VARIANT_CLASSIC,
-                            ));
-                          } catch (err) {
-                            setError(err instanceof Error ? err.message : 'Unable to load that skin.');
-                          }
-                        })();
-                      }}
-                      onDelete={() => {
-                        void (async () => {
-                          try {
-                            await SkinService.DeleteLocalSkin(entry.textureKey);
-                            const refreshed = await SkinService.ListLocalSkins();
-                            setAppearance((current) => current ? { ...current, localSkins: refreshed } : current);
-                          } catch (err) {
-                            setError(err instanceof Error ? err.message : 'Unable to delete that skin.');
-                          }
-                        })();
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {loadError ? (
-              <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 md:col-span-2">
-                <p className="text-xs text-destructive">{loadError}</p>
-                <Button variant="secondary" size="sm" disabled={busy === 'load'} onClick={loadProfile}>
-                  {busy === 'load' ? 'Loading...' : 'Retry'}
-                </Button>
-              </div>
-            ) : null}
-            {error ? <p role="alert" className="text-xs text-destructive md:col-span-2">{error}</p> : null}
+              {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
+            </div>
           </div>
         </Dialog.Popup>
       </Dialog.Portal>
@@ -330,19 +345,14 @@ export function SkinCapeDialog({ isOpen, onClose, accountUUID, accountName, onSk
   );
 }
 
-// SkinFacePreview composes the front or back of the skin into a clean
-// character render (ely.by style): limbs stacked in draw order, no atlas
-// noise. Slim trims the arm boxes to three pixels.
-function SkinFacePreview({ textureURL, view, model }: { textureURL: string; view: 'front' | 'back'; model: 'classic' | 'slim' }) {
+// SkinFigure renders one composed character view of the texture with a soft
+// backdrop, so the hero panel always shows the player, never the raw atlas.
+function SkinFigure({ textureURL, model, view }: { textureURL: string; model: 'classic' | 'slim'; view: 'front' | 'back' }) {
   const [rendered, setRendered] = useState('');
 
   useEffect(() => {
-    if (!textureURL) {
-      setRendered('');
-      return;
-    }
     let cancelled = false;
-    void renderSkinFigure(textureURL, view, model, 5)
+    void renderSkinFigure(textureURL, view, model, 8)
       .then((dataURL) => {
         if (!cancelled) setRendered(dataURL);
       })
@@ -355,14 +365,9 @@ function SkinFacePreview({ textureURL, view, model }: { textureURL: string; view
   }, [textureURL, view, model]);
 
   if (!rendered) {
-    return <div className="h-40 w-20 self-center rounded-lg bg-muted/40" aria-hidden />;
+    return <div className="h-48 w-24 rounded bg-muted/40" aria-hidden />;
   }
-  return (
-    <figure className="flex flex-col items-center gap-1">
-      <img src={rendered} alt={`Skin ${view} view`} className="[image-rendering:pixelated]" />
-      <figcaption className="text-[10px] text-muted-foreground">{view === 'front' ? 'Front' : 'Back'}</figcaption>
-    </figure>
-  );
+  return <img src={rendered} alt={`Skin ${view} view`} className="[image-rendering:pixelated]" />;
 }
 
 // CapeTile renders the 10x16 cape sprite cropped from the texture atlas and
@@ -414,7 +419,9 @@ function CapeTile({ cape, selected, busy, onSelect }: {
   );
 }
 
-function LocalSkinTile({ entry, busy, onApply, onDelete }: {
+// LocalSkinRow is one compact closet entry: figure, variant label, and its
+// two actions in a single row.
+function LocalSkinRow({ entry, busy, onApply, onDelete }: {
   entry: ClosetSkin;
   busy: boolean;
   onApply: () => void;
@@ -441,20 +448,23 @@ function LocalSkinTile({ entry, busy, onApply, onDelete }: {
   }, [entry.textureKey, entry.variant]);
 
   return (
-    <div className="flex w-24 flex-col items-center gap-1.5 rounded-lg border border-border bg-card/40 p-2.5">
-      <div className="grid h-24 w-12 place-items-center">
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-card/40 p-2.5">
+      <div className="grid h-16 w-8 shrink-0 place-items-center">
         {figure ? (
           <img src={figure} alt="" aria-hidden className="[image-rendering:pixelated]" />
         ) : failed ? (
-          <span className="text-[10px] text-muted-foreground">Unavailable</span>
+          <span className="text-[10px] text-muted-foreground">N/A</span>
         ) : (
-          <div className="h-20 w-10 rounded bg-muted" aria-hidden />
+          <div className="h-14 w-7 rounded bg-muted" aria-hidden />
         )}
       </div>
-      <span className="text-[10px] text-muted-foreground">{entry.variant === 'slim' ? 'Slim' : 'Classic'}</span>
-      <div className="flex w-full gap-1">
-        <Button variant="secondary" size="sm" className="h-6 flex-1 px-1 text-[10px]" disabled={busy} onClick={onApply}>Apply</Button>
-        <Button variant="ghost" size="sm" className="h-6 flex-1 px-1 text-[10px] text-destructive" disabled={busy} onClick={onDelete}>Delete</Button>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-foreground">{entry.variant === 'slim' ? 'Slim' : 'Classic'}</p>
+        <p className="font-mono text-[10px] text-muted-foreground">{entry.textureKey.slice(0, 10)}</p>
+      </div>
+      <div className="flex shrink-0 gap-1.5">
+        <Button variant="secondary" size="sm" disabled={busy} onClick={onApply}>Apply</Button>
+        <Button variant="ghost" size="sm" className="text-destructive" disabled={busy} onClick={onDelete}>Delete</Button>
       </div>
     </div>
   );
