@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -228,5 +229,137 @@ func TestEntraPKCELoginRejectsBrowserFailure(t *testing.T) {
 	entraMockServer(t, func(w http.ResponseWriter, r *http.Request) { t.Error("token endpoint must not be called") })
 	if _, err := EntraPKCELogin(context.Background(), func(string) error { return errors.New("no browser") }); err == nil {
 		t.Fatal("expected error when the browser cannot open")
+	}
+}
+
+func overrideEntraChainURLs(t *testing.T, xbox, xsts, mcLogin, entitle string) {
+	t.Helper()
+	prevX, prevS, prevL, prevE := entraXboxAuthURL, entraXstsURL, entraMCLoginURL, entraMCEntitleURL
+	entraXboxAuthURL, entraXstsURL, entraMCLoginURL, entraMCEntitleURL = xbox, xsts, mcLogin, entitle
+	t.Cleanup(func() {
+		entraXboxAuthURL, entraXstsURL, entraMCLoginURL, entraMCEntitleURL = prevX, prevS, prevL, prevE
+	})
+}
+
+func chainTokenJSON(token string) string {
+	return `{"Token":` + strconv.Quote(token) + `,"DisplayClaims":{"xui":[{"uhs":"userhash123"}]}}`
+}
+
+func TestEntraBuildMinecraftSessionFullChain(t *testing.T) {
+	var sawRPS, sawSandbox, sawIdentity, sawBearer string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/user/authenticate", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		sawRPS = string(body)
+		if r.Header.Get("x-xbl-contract-version") != "1" {
+			t.Error("missing x-xbl-contract-version")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(chainTokenJSON("xbox-tok")))
+	})
+	mux.HandleFunc("/xsts/authorize", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		sawSandbox = string(body)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(chainTokenJSON("xsts-tok")))
+	})
+	mux.HandleFunc("/authentication/login_with_xbox", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		sawIdentity = string(body)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"access_token":"mc-access","expires_in":3600}`))
+	})
+	mux.HandleFunc("/entitlements/mcstore", func(w http.ResponseWriter, r *http.Request) {
+		sawBearer = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"items":[{"name":"product_minecraft"},{"name":"game_minecraft"}]}`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	overrideEntraChainURLs(t, srv.URL+"/user/authenticate", srv.URL+"/xsts/authorize",
+		srv.URL+"/authentication/login_with_xbox", srv.URL+"/entitlements/mcstore")
+
+	mcToken, err := EntraBuildMinecraftSession(context.Background(), "ms-access")
+	if err != nil {
+		t.Fatalf("EntraBuildMinecraftSession: %v", err)
+	}
+	if mcToken != "mc-access" {
+		t.Fatalf("mc token = %q", mcToken)
+	}
+	if !strings.Contains(sawRPS, "d=ms-access") || !strings.Contains(sawRPS, `"AuthMethod":"RPS"`) {
+		t.Fatalf("xbox request must carry RPS ticket: %s", sawRPS)
+	}
+	if !strings.Contains(sawSandbox, "rp://api.minecraftservices.com/") || !strings.Contains(sawSandbox, "xbox-tok") {
+		t.Fatalf("xsts request malformed: %s", sawSandbox)
+	}
+	if !strings.Contains(sawIdentity, "XBL3.0 x=userhash123;xsts-tok") {
+		t.Fatalf("identity token malformed: %s", sawIdentity)
+	}
+	if sawBearer != "Bearer mc-access" {
+		t.Fatalf("entitlement bearer = %q", sawBearer)
+	}
+}
+
+func TestEntraBuildMinecraftSessionRejectsNoLicense(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/user/authenticate", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(chainTokenJSON("xbox-tok")))
+	})
+	mux.HandleFunc("/xsts/authorize", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(chainTokenJSON("xsts-tok")))
+	})
+	mux.HandleFunc("/authentication/login_with_xbox", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"access_token":"mc-access","expires_in":3600}`))
+	})
+	mux.HandleFunc("/entitlements/mcstore", func(w http.ResponseWriter, r *http.Request) {
+		// Valid response but no Minecraft items: the account owns nothing.
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"items":[{"name":"some_other_game"}]}`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	overrideEntraChainURLs(t, srv.URL+"/user/authenticate", srv.URL+"/xsts/authorize",
+		srv.URL+"/authentication/login_with_xbox", srv.URL+"/entitlements/mcstore")
+
+	if _, err := EntraBuildMinecraftSession(context.Background(), "ms-access"); !errors.Is(err, ErrNotOwned) {
+		t.Fatalf("empty entitlements must be ErrNotOwned, got %v", err)
+	}
+}
+
+func TestEntraBuildMinecraftSessionSurfacesXErr(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/user/authenticate", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(chainTokenJSON("xbox-tok")))
+	})
+	mux.HandleFunc("/xsts/authorize", func(w http.ResponseWriter, r *http.Request) {
+		// XErr 2148916233 = the account has no Xbox profile.
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"XErr":2148916233,"Message":"Xbox profile missing"}`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	overrideEntraChainURLs(t, srv.URL+"/user/authenticate", srv.URL+"/xsts/authorize", srv.URL+"/unused", srv.URL+"/unused")
+
+	_, err := EntraBuildMinecraftSession(context.Background(), "ms-access")
+	var svcErr *ServiceError
+	if !errors.As(err, &svcErr) || !strings.Contains(svcErr.Error(), "XErr:2148916233") {
+		t.Fatalf("XErr must surface in the error, got %v", err)
+	}
+}
+
+func TestEntraXboxAuthenticateRejectsMissingUHS(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"Token":"tok","DisplayClaims":{"xui":[]}}`))
+	}))
+	defer srv.Close()
+	overrideEntraChainURLs(t, srv.URL, srv.URL, srv.URL, srv.URL)
+
+	if _, err := EntraXboxAuthenticate(context.Background(), "ms-access"); err == nil {
+		t.Fatal("expected error when the user hash is absent")
 	}
 }
