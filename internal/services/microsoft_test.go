@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -187,6 +188,20 @@ func TestRefreshMicrosoftErrorClassification(t *testing.T) {
 	transient := refreshMicrosoftError(auth.ErrTokenNotFound)
 	if strings.Contains(transient.Error(), "sign in again") || !strings.Contains(transient.Error(), "try again") {
 		t.Fatalf("transient failure must be retryable, got %v", transient)
+	}
+}
+
+func TestRefreshMicrosoftErrorCarriesDetail(t *testing.T) {
+	typed := refreshMicrosoftError(&auth.OAuthError{StatusCode: 400, Code: "server_error"})
+	if !strings.Contains(typed.Error(), "400") || !strings.Contains(typed.Error(), "server_error") {
+		t.Fatalf("typed oauth failure must carry status and code, got %v", typed)
+	}
+	if strings.Contains(typed.Error(), "sign in again") {
+		t.Fatalf("non-invalid_grant must stay retryable, got %v", typed)
+	}
+	chain := refreshMicrosoftError(fmt.Errorf("POST https://sisu.example: 401 expired token"))
+	if !strings.Contains(chain.Error(), "401 expired token") {
+		t.Fatalf("chain failure must carry its cause, got %v", chain)
 	}
 }
 

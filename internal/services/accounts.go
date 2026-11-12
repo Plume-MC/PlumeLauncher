@@ -394,11 +394,13 @@ func (s *AccountService) upsertMicrosoftAccount(creds *auth.MicrosoftCredentials
 
 // refreshMicrosoftError classifies a refresh failure: a revoked/expired
 // session asks for re-login, anything else is transient and retryable.
+// The underlying cause is appended so failures in the Xbox/Minecraft chain
+// are diagnosable instead of all reading as "connection problems".
 func refreshMicrosoftError(err error) *ServiceError {
 	if errors.Is(err, auth.ErrInvalidGrant) {
 		return NewUpstreamError("Microsoft session expired; please sign in again")
 	}
-	return NewUpstreamError("Microsoft token refresh failed. Check your connection and try again.")
+	return NewUpstreamError(fmt.Sprintf("Microsoft token refresh failed. Check your connection and try again. (cause: %v)", err))
 }
 
 // RefreshMicrosoftToken explicitly refreshes a Microsoft session on demand.
