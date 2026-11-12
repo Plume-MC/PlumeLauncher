@@ -5,18 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"plumelauncher/internal/auth"
+	"plumelauncher/internal/platform"
 	"plumelauncher/internal/storage"
-
-	"github.com/wailsapp/wails/v3/pkg/application"
-	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // AccountService manages user accounts.
@@ -25,13 +21,14 @@ type AccountService struct {
 	HTTPClient *http.Client
 	ElyByURL   string
 	Keyring    auth.Keyring
-	App        *application.App
 	// ElyOAuthBaseURL overrides the Ely.by OAuth host (tests only).
 	ElyOAuthBaseURL string
 	// ElyOAuthClientID is the OAuth application ID registered at
 	// https://account.ely.by/dev/. Empty means the built-in placeholder,
 	// which the maintainer must replace before release.
 	ElyOAuthClientID string
+	// MicrosoftLoginTimeout bounds the browser sign-in wait (tests only).
+	MicrosoftLoginTimeout time.Duration
 }
 
 func (s *AccountService) LoginElyBy(username, password string) (*Account, error) {
@@ -171,18 +168,6 @@ func (s *AccountService) DeleteAccount(accountUUID string) error {
 	return NewNotFoundError("account not found")
 }
 
-// msAuthBootstrapHTML is a static loading page shown before the Microsoft
-// login page loads. Wails injects its own cross-platform runtime shim, so no
-// manual bridge script is needed here; Microsoft pages never send
-// wails:runtime:ready themselves.
-const msAuthBootstrapHTML = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Microsoft account</title></head>
-<body style="margin:0;background:#121011;color:#f5f2f2;font:14px system-ui;display:flex;align-items:center;justify-content:center;height:100vh">
-<p>Opening Microsoft login…</p>
-</body>
-</html>`
-
 // parseMicrosoftCallback extracts the OAuth code from the loopback callback
 // request. Only the first code wins; error responses are surfaced so the
 // login flow can fail fast instead of hanging until timeout.
@@ -201,141 +186,90 @@ func parseMicrosoftCallback(r *http.Request) (string, error) {
 	return code, nil
 }
 
-// LoginMicrosoft runs the full Microsoft login flow in an in-app window.
+// LoginMicrosoft signs the player in through the system browser. Entra
+// redirects back to a local loopback listener; the Xbox/Minecraft chain and
+// keyring storage run after the code arrives. The wait is bounded by
+// msLoginTimeout so the frontend promise always resolves.
 func (s *AccountService) LoginMicrosoft() (*Account, error) {
-	if s.App == nil {
-		return nil, NewInternalError("application service is unavailable")
+	timeout := s.MicrosoftLoginTimeout
+	if timeout <= 0 {
+		timeout = 5 * time.Minute
 	}
-
-	flow, err := auth.LoginBegin()
-	if err != nil {
-		return nil, NewUpstreamError("Unable to start Microsoft sign-in. Try again.")
-	}
-
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return nil, NewInternalError("failed to start local server")
-	}
-	port := listener.Addr().(*net.TCPAddr).Port
-	callbackURL := fmt.Sprintf("http://127.0.0.1:%d/callback", port)
-
-	codeCh := make(chan string, 1)
-	errCh := make(chan error, 1)
-	done := make(chan struct{})
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/callback" {
-			http.Error(w, "not found", http.StatusNotFound)
-			return
-		}
-		code, callbackErr := parseMicrosoftCallback(r)
-		if callbackErr != nil {
-			http.Error(w, callbackErr.Error(), http.StatusBadRequest)
-			select {
-			case errCh <- callbackErr:
-			default:
-			}
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, `<html><body style="font:14px system-ui;background:#121011;color:#f5f2f2;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p>Login successful. You can close this window.</p></body></html>`)
-		select {
-		case codeCh <- code:
-		default:
-		}
-	})
-
-	server := &http.Server{Handler: mux}
-	go func() { _ = server.Serve(listener) }()
-	defer func() {
-		_ = server.Shutdown(context.Background())
-	}()
-
-	authWindow := s.App.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:                 "microsoft-auth",
-		Title:                "Microsoft account",
-		Width:                900,
-		Height:               700,
-		HTML:                 msAuthBootstrapHTML,
-		AllowSimpleEventEmit: true,
-	})
-	defer authWindow.Close()
-
-	// Closing the auth window cancels the flow so the frontend promise
-	// resolves immediately instead of hanging until the timeout.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	authWindow.RegisterHook(events.Common.WindowClosing, func(*application.WindowEvent) {
-		cancel()
-	})
 
-	// Navigate only after the Wails runtime is ready. ExecJS calls made
-	// before that are queued, and navigating early risks losing the
-	// callback polling script when the page changes to Microsoft.
-	var navigateOnce sync.Once
-	authWindow.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
-		navigateOnce.Do(func() {
-			authWindow.SetURL(flow.AuthRequestURI)
-		})
-	})
-
-	// Poll for the desktop OAuth callback page and forward the code to loopback.
-	callbackScript := fmt.Sprintf(`(() => {
-		try {
-			const url = String(window.location.href || "");
-			if (!url.startsWith("https://login.live.com/oauth20_desktop.srf")) return;
-			if (window.__plumeMsAuthHandled) return;
-			window.__plumeMsAuthHandled = true;
-			const params = new URL(url).searchParams;
-			const code = params.get("code");
-			const error = params.get("error_description") || params.get("error");
-			if (code) {
-				window.location.replace(%q + "?code=" + encodeURIComponent(code));
-			} else if (error) {
-				window.location.replace(%q + "?error=" + encodeURIComponent(error));
-			}
-		} catch (e) {}
-	})();`, callbackURL, callbackURL)
-
-	go func() {
-		ticker := time.NewTicker(200 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-done:
-				return
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				authWindow.ExecJS(callbackScript)
-			}
-		}
-	}()
-	defer close(done)
-
-	var code string
-	select {
-	case code = <-codeCh:
-	case <-errCh:
-		return nil, NewUpstreamError("Microsoft sign-in failed. Try again.")
-	case <-ctx.Done():
-		return nil, NewCancelledError("Microsoft login cancelled")
-	case <-time.After(3 * time.Minute):
-		return nil, NewUpstreamError("Microsoft sign-in timed out. Try again.")
-	}
-
-	return s.completeMicrosoftLogin(code, flow)
-}
-
-// completeMicrosoftLogin finishes the OAuth code exchange and persists the
-// metadata-only account row. Tokens stay in the OS keyring.
-func (s *AccountService) completeMicrosoftLogin(code string, flow *auth.MicrosoftLoginFlow) (*Account, error) {
-	creds, err := auth.LoginFinish(code, flow, s.tokenStore())
+	msToken, err := auth.EntraPKCELogin(ctx, platform.OpenBrowserURL)
 	if err != nil {
+		if errors.Is(err, auth.ErrLoginCancelled) {
+			return nil, NewCancelledError("Microsoft login cancelled")
+		}
 		return nil, NewUpstreamError("Microsoft sign-in failed. Try again.")
+	}
+	creds, err := auth.EntraCompleteLogin(ctx, msToken, s.tokenStore())
+	if err != nil {
+		return nil, microsoftLoginError(err)
 	}
 	return s.upsertMicrosoftAccount(creds)
+}
+
+// microsoftLoginError classifies a login chain failure without leaking
+// tokens or raw response bodies.
+func microsoftLoginError(err error) *ServiceError {
+	if errors.Is(err, auth.ErrNotOwned) {
+		return NewUpstreamError("This Microsoft account does not own Minecraft: Java Edition.")
+	}
+	if errors.Is(err, auth.ErrInvalidGrant) {
+		return NewUpstreamError("Microsoft session expired; please sign in again")
+	}
+	return NewUpstreamError("Microsoft sign-in failed. Try again.")
+}
+
+// StartMicrosoftDeviceCode requests a device code for the Entra device-code
+// sign-in. The frontend shows the user code and polls FinishMicrosoftDeviceCode.
+func (s *AccountService) StartMicrosoftDeviceCode() (auth.MicrosoftDeviceCodeStart, error) {
+	start, err := auth.EntraDeviceCodeStart(context.Background(), platform.OpenBrowserURL, nil)
+	if err != nil {
+		return auth.MicrosoftDeviceCodeStart{}, microsoftLoginError(err)
+	}
+	return auth.MicrosoftDeviceCodeStart{
+		UserCode:        start.UserCode,
+		VerificationURI: start.VerificationURI,
+		ExpiresIn:       start.ExpiresIn,
+		Interval:        start.Interval,
+	}, nil
+}
+
+// FinishMicrosoftDeviceCode polls once for the approved device code and
+// completes the login. The frontend polls at the returned interval.
+func (s *AccountService) FinishMicrosoftDeviceCode(deviceCode string) (*Account, error) {
+	if deviceCode == "" {
+		return nil, NewValidationError("Enter the Microsoft code first.", "deviceCode")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	msToken, _, err := auth.EntraDeviceCodePoll(ctx, deviceCode, 0)
+	if err != nil {
+		return nil, microsoftDeviceError(err)
+	}
+	creds, err := auth.EntraCompleteLogin(ctx, msToken, s.tokenStore())
+	if err != nil {
+		return nil, microsoftLoginError(err)
+	}
+	return s.upsertMicrosoftAccount(creds)
+}
+
+// microsoftDeviceError maps device-code poll states to user-facing errors.
+func microsoftDeviceError(err error) *ServiceError {
+	switch {
+	case errors.Is(err, auth.ErrLoginCancelled):
+		return NewCancelledError("Microsoft login cancelled")
+	case errors.Is(err, auth.ErrLoginPending):
+		return NewUpstreamError("Waiting for Microsoft approval. Confirm the code on the Microsoft website.")
+	case errors.Is(err, context.DeadlineExceeded):
+		return NewUpstreamError("Waiting for Microsoft approval. Confirm the code on the Microsoft website.")
+	default:
+		return microsoftLoginError(err)
+	}
 }
 
 // upsertMicrosoftAccount stores session secrets in the keyring and the
@@ -413,7 +347,7 @@ func (s *AccountService) RefreshMicrosoftToken(accountUUID string) (*Account, er
 	if err != nil {
 		return nil, NewUpstreamError("Microsoft session expired; please sign in again")
 	}
-	creds, err := auth.RefreshMicrosoft(refreshToken, s.tokenStore())
+	creds, err := auth.RefreshMicrosoft(context.Background(), refreshToken, s.tokenStore())
 	if err != nil {
 		return nil, refreshMicrosoftError(err)
 	}
@@ -472,7 +406,7 @@ func (s *AccountService) microsoftLaunchToken(account Account) (Account, string,
 	if raw, err := store.Get(auth.MicrosoftExpiryKey(account.UUID)); err == nil {
 		expiresAt, _ = time.Parse(time.RFC3339, raw)
 	}
-	access, _, newExpiry, err := auth.EnsureValidMicrosoftToken(refreshToken, expiresAt, store)
+	access, _, newExpiry, err := auth.EnsureValidMicrosoftToken(context.Background(), refreshToken, expiresAt, store)
 	if err != nil {
 		return Account{}, "", refreshMicrosoftError(err)
 	}
@@ -493,7 +427,7 @@ func (s *AccountService) microsoftLaunchToken(account Account) (Account, string,
 }
 
 // storeMicrosoftSession persists the short-lived access token and its expiry
-// in the keyring. The refresh token is written by auth.LoginFinish and
+// in the keyring. The refresh token is written by auth.EntraCompleteLogin and
 // auth.RefreshMicrosoft themselves.
 func (s *AccountService) storeMicrosoftSession(accountUUID string, creds *auth.MicrosoftCredentials) error {
 	store := s.tokenStore()

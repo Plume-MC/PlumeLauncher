@@ -3,8 +3,10 @@ package auth
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +16,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -72,7 +75,16 @@ func (e *EntraError) Is(target error) bool {
 	return target == ErrInvalidGrant && e.Code == "invalid_grant"
 }
 
-// EntraDeviceCode is the user-facing part of a device-code session.
+// EntraDeviceCodeStart is the user-facing part of an Entra device-code
+// session, shared by the Microsoft device-code login.
+type MicrosoftDeviceCodeStart struct {
+	UserCode        string `json:"userCode"`
+	VerificationURI string `json:"verificationUri"`
+	ExpiresIn       int    `json:"expiresIn"`
+	Interval        int    `json:"interval"`
+}
+
+// EntraDeviceCodeStart is the user-facing part of a device-code session.
 type EntraDeviceCode struct {
 	UserCode        string
 	VerificationURI string
@@ -397,7 +409,7 @@ func safeEntraDescription(description, code string) string {
 
 // Xbox/Minecraft session chain, ported from the legacy launcher's approach:
 // the Microsoft access token is presented directly to Xbox Live as an RPS
-// ticket, so no device token, ECDSA signing, or SISU round trip is needed.
+// ticket, so no device token or ECDSA signing round trip is needed.
 
 var (
 	entraXboxAuthURL  = "https://user.auth.xboxlive.com/user/authenticate"
@@ -618,6 +630,15 @@ func entraGetJSON(ctx context.Context, endpoint, service, bearer string, output 
 	return nil
 }
 
+func generateRandomHex(length int) string {
+	b := make([]byte, (length+1)/2)
+	if _, err := rand.Read(b); err != nil {
+		// crypto/rand failing is unrecoverable; a zero buffer would weaken PKCE.
+		panic("crypto/rand unavailable: " + err.Error())
+	}
+	return fmt.Sprintf("%x", b[:length/2])
+}
+
 // ServiceError is a structured HTTP failure from the Xbox/Minecraft chain.
 type ServiceError struct {
 	Service string
@@ -635,3 +656,140 @@ func (e *ServiceError) Error() string {
 
 // ErrNotOwned marks an account without a Minecraft Java Edition license.
 var ErrNotOwned = errors.New("this Microsoft account does not own Minecraft Java Edition")
+
+// ErrInvalidGrant marks a revoked/expired refresh token. Only this case
+// requires interactive re-login; any other refresh failure is transient.
+var ErrInvalidGrant = errors.New("microsoft session expired; please sign in again")
+
+// MicrosoftCredentials is transient: handed to the caller in memory and never
+// persisted to JSON, logs, or bindings. Only the refresh token is stored,
+// in the OS keyring under MicrosoftRefreshKey.
+type MicrosoftCredentials struct {
+	AccessToken  string
+	RefreshToken string
+	ExpiresAt    time.Time
+	UUID         string
+	Username     string
+}
+
+// MicrosoftProfileResponse is the Minecraft services profile payload.
+type MinecraftProfileResponse struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Skins []struct {
+		ID      string `json:"id"`
+		State   string `json:"state"`
+		URL     string `json:"url"`
+		Variant string `json:"variant"`
+	} `json:"skins"`
+	Capes []struct {
+		ID    string `json:"id"`
+		State string `json:"state"`
+		URL   string `json:"url"`
+		Alias string `json:"alias"`
+	} `json:"capes"`
+}
+
+var mcProfileURL = "https://api.minecraftservices.com/minecraft/profile"
+
+// entraMinecraftProfile fetches the player profile behind a Minecraft token.
+func entraMinecraftProfile(ctx context.Context, accessToken string) (*MinecraftProfileResponse, error) {
+	var profile MinecraftProfileResponse
+	if err := entraGetJSON(ctx, mcProfileURL, "Minecraft profile lookup", accessToken, &profile); err != nil {
+		return nil, err
+	}
+	if profile.ID == "" || profile.Name == "" {
+		return nil, fmt.Errorf("Minecraft profile is not available")
+	}
+	return &profile, nil
+}
+
+// EntraCompleteLogin turns a Microsoft OAuth token set into launcher
+// credentials: Xbox/Minecraft chain, ownership check, profile, and the
+// refresh token into the keyring.
+func EntraCompleteLogin(ctx context.Context, msToken EntraToken, store Keyring) (*MicrosoftCredentials, error) {
+	mcToken, err := EntraBuildMinecraftSession(ctx, msToken.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+	profile, err := entraMinecraftProfile(ctx, mcToken)
+	if err != nil {
+		return nil, err
+	}
+	if store != nil {
+		if err := store.Set(MicrosoftRefreshKey(profile.ID), msToken.RefreshToken); err != nil {
+			return nil, fmt.Errorf("store microsoft session: %w", err)
+		}
+	}
+	return &MicrosoftCredentials{
+		AccessToken:  mcToken,
+		RefreshToken: msToken.RefreshToken,
+		ExpiresAt:    msToken.ExpiresAt,
+		UUID:         profile.ID,
+		Username:     profile.Name,
+	}, nil
+}
+
+// refreshFlight dedupes concurrent RefreshMicrosoft calls sharing one refresh
+// token, so token rotation cannot invalidate a racing sibling. Callers are
+// keyed by the SHA-256 of the token; the secret itself is never retained.
+type refreshCall struct {
+	done  chan struct{}
+	creds *MicrosoftCredentials
+	err   error
+}
+
+var refreshFlights = struct {
+	sync.Mutex
+	calls map[string]*refreshCall
+}{calls: map[string]*refreshCall{}}
+
+func refreshFlightKey(refreshToken string) string {
+	sum := sha256.Sum256([]byte(refreshToken))
+	return hex.EncodeToString(sum[:])
+}
+
+// RefreshMicrosoft refreshes the Microsoft session for one refresh token.
+// The rotated refresh token (or the old one when Entra does not rotate) is
+// written to the keyring before returning.
+func RefreshMicrosoft(ctx context.Context, refreshToken string, store Keyring) (*MicrosoftCredentials, error) {
+	key := refreshFlightKey(refreshToken)
+	refreshFlights.Lock()
+	if call, ok := refreshFlights.calls[key]; ok {
+		refreshFlights.Unlock()
+		<-call.done
+		return call.creds, call.err
+	}
+	call := &refreshCall{done: make(chan struct{})}
+	refreshFlights.calls[key] = call
+	refreshFlights.Unlock()
+
+	call.creds, call.err = refreshMicrosoftUnshared(ctx, refreshToken, store)
+
+	refreshFlights.Lock()
+	delete(refreshFlights.calls, key)
+	refreshFlights.Unlock()
+	close(call.done)
+	return call.creds, call.err
+}
+
+func refreshMicrosoftUnshared(ctx context.Context, refreshToken string, store Keyring) (*MicrosoftCredentials, error) {
+	msToken, err := EntraRefresh(ctx, refreshToken)
+	if err != nil {
+		return nil, err
+	}
+	return EntraCompleteLogin(ctx, msToken, store)
+}
+
+// EnsureValidMicrosoftToken returns refreshed credentials when the token
+// expires within 5 minutes, or empty access/refresh on a still-valid token.
+func EnsureValidMicrosoftToken(ctx context.Context, refreshToken string, expiresAt time.Time, store Keyring) (string, string, time.Time, error) {
+	if time.Until(expiresAt) > 5*time.Minute {
+		return "", "", expiresAt, nil
+	}
+	creds, err := RefreshMicrosoft(ctx, refreshToken, store)
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+	return creds.AccessToken, creds.RefreshToken, creds.ExpiresAt, nil
+}
