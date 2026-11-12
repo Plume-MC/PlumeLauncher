@@ -217,7 +217,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged, skinVer
 
   const openDevicePage = () => {
     if (!device) return;
-    openDevicePageFrom(device.verificationUri, 'Unable to open the Ely.by page. Use the URL shown below instead.');
+    openDevicePageFrom(device.verificationUri);
   };
 
   const copyCode = async () => {
@@ -233,9 +233,10 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged, skinVer
 
   // openDevicePageFrom shares the open-again helper between the Ely.by and
   // Microsoft device flows.
-  const openDevicePageFrom = (uri: string, fallback: string) => {
+  const openDevicePageFrom = (uri: string) => {
+    const label = deviceCodeSource === 'microsoft' ? 'Microsoft' : 'Ely.by';
     void SystemService.OpenBrowserURL(uri).catch(() => {
-      setError(fallback);
+      setError(`Unable to open the ${label} page. Use the URL shown below instead.`);
     });
   };
 

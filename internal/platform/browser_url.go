@@ -25,7 +25,11 @@ func validateBrowserURL(rawURL string) error {
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return fmt.Errorf("unsupported browser URL")
 	}
-	if parsed.User != nil || parsed.Port() != "" || !browserURLHosts[strings.ToLower(parsed.Hostname())] {
+	host := strings.ToLower(parsed.Hostname())
+	// Verification pages are often served under www; strip the prefix so
+	// https://www.microsoft.com/link matches the allowlist entry.
+	host = strings.TrimPrefix(host, "www.")
+	if parsed.User != nil || parsed.Port() != "" || !browserURLHosts[host] {
 		return fmt.Errorf("unsupported browser URL")
 	}
 	return nil
