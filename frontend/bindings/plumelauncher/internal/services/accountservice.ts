@@ -57,7 +57,8 @@ export function FinishElyByOAuth(deviceCode: string): $CancellablePromise<$model
 
 /**
  * FinishMicrosoftDeviceCode polls once for the approved device code and
- * completes the login. The frontend polls at the returned interval.
+ * completes the login. The frontend polls at the returned interval, passing
+ * the device code from StartMicrosoftDeviceCode.
  */
 export function FinishMicrosoftDeviceCode(deviceCode: string): $CancellablePromise<$models.Account | null> {
     return $Call.ByID(300739385, deviceCode);

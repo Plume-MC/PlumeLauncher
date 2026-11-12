@@ -19,6 +19,7 @@ export interface ElyDeviceCodeStart {
  * session, shared by the Microsoft device-code login.
  */
 export interface MicrosoftDeviceCodeStart {
+    "deviceCode": string;
     "userCode": string;
     "verificationUri": string;
     "expiresIn": number;

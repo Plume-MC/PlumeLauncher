@@ -232,6 +232,7 @@ func (s *AccountService) StartMicrosoftDeviceCode() (auth.MicrosoftDeviceCodeSta
 		return auth.MicrosoftDeviceCodeStart{}, microsoftLoginError(err)
 	}
 	return auth.MicrosoftDeviceCodeStart{
+		DeviceCode:      start.DeviceCode,
 		UserCode:        start.UserCode,
 		VerificationURI: start.VerificationURI,
 		ExpiresIn:       start.ExpiresIn,
@@ -240,7 +241,8 @@ func (s *AccountService) StartMicrosoftDeviceCode() (auth.MicrosoftDeviceCodeSta
 }
 
 // FinishMicrosoftDeviceCode polls once for the approved device code and
-// completes the login. The frontend polls at the returned interval.
+// completes the login. The frontend polls at the returned interval, passing
+// the device code from StartMicrosoftDeviceCode.
 func (s *AccountService) FinishMicrosoftDeviceCode(deviceCode string) (*Account, error) {
 	if deviceCode == "" {
 		return nil, NewValidationError("Enter the Microsoft code first.", "deviceCode")

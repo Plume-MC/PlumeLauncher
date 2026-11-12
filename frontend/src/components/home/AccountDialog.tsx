@@ -256,7 +256,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged, skinVer
     if (flowGen.current !== gen) return;
     const totalSeconds = Math.max(1, start.expiresIn || 900);
     setDevice({
-      deviceCode: '',
+      deviceCode: start.deviceCode,
       userCode: start.userCode,
       verificationUri: start.verificationUri,
       interval: Math.max(5, start.interval || 5),
@@ -270,7 +270,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged, skinVer
         const poll = async () => {
           if (flowGen.current !== gen) return;
           try {
-            const call = AccountService.FinishMicrosoftDeviceCode('');
+            const call = AccountService.FinishMicrosoftDeviceCode(start.deviceCode);
             finishCancel.current = () => call.cancel();
             const account = await call;
             if (flowGen.current !== gen) return;

@@ -78,6 +78,7 @@ func (e *EntraError) Is(target error) bool {
 // EntraDeviceCodeStart is the user-facing part of an Entra device-code
 // session, shared by the Microsoft device-code login.
 type MicrosoftDeviceCodeStart struct {
+	DeviceCode      string `json:"deviceCode"`
 	UserCode        string `json:"userCode"`
 	VerificationURI string `json:"verificationUri"`
 	ExpiresIn       int    `json:"expiresIn"`
@@ -86,6 +87,7 @@ type MicrosoftDeviceCodeStart struct {
 
 // EntraDeviceCodeStart is the user-facing part of a device-code session.
 type EntraDeviceCode struct {
+	DeviceCode      string
 	UserCode        string
 	VerificationURI string
 	Message         string
@@ -260,6 +262,7 @@ func EntraDeviceCodeStart(ctx context.Context, openURL func(string) error, onCod
 	}
 
 	info := EntraDeviceCode{
+		DeviceCode:      device.DeviceCode,
 		UserCode:        device.UserCode,
 		VerificationURI: device.VerificationURI,
 		Message:         device.Message,
