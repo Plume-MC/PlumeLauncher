@@ -140,7 +140,7 @@ func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {
 	args = append(args, "-Duser.language=en", "-Duser.country=US")
 
 	// Launcher branding
-	args = append(args, "-Dlauncher.name=PlumeLauncher", "-Dlauncher.version=1.1.0")
+	args = append(args, "-Dlauncher.name=PlumeLauncher", "-Dlauncher.version=1.2.0")
 
 	// Classpath
 	if version.Arguments != nil && len(version.Arguments.JVM) > 0 {
@@ -327,7 +327,7 @@ func replaceVars(s string, version metadata.VersionDetail, opts Options) string 
 		"${version_type}":          "PlumeLauncher",
 		"${natives_directory}":     opts.NativesDir,
 		"${launcher_name}":         "PlumeLauncher",
-		"${launcher_version}":      "1.1.0",
+		"${launcher_version}":      "1.2.0",
 		"${classpath}":             buildClasspath(version, opts),
 		"${resolution_width}":      fmt.Sprintf("%d", opts.Width),
 		"${resolution_height}":     fmt.Sprintf("%d", opts.Height),
