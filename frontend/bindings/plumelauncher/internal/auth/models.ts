@@ -13,3 +13,15 @@ export interface ElyDeviceCodeStart {
     "expiresIn": number;
     "interval": number;
 }
+
+/**
+ * EntraDeviceCodeStart is the user-facing part of an Entra device-code
+ * session, shared by the Microsoft device-code login.
+ */
+export interface MicrosoftDeviceCodeStart {
+    "deviceCode": string;
+    "userCode": string;
+    "verificationUri": string;
+    "expiresIn": number;
+    "interval": number;
+}

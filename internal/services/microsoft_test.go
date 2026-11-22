@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -161,10 +162,21 @@ func TestSelectedMicrosoftAccountFailsClosedWithoutSession(t *testing.T) {
 	}
 }
 
-func TestLoginMicrosoftRequiresApp(t *testing.T) {
-	svc := &AccountService{DataRoot: t.TempDir(), Keyring: msMemoryKeyring{}}
-	if _, err := svc.LoginMicrosoft(); err == nil {
-		t.Fatal("expected error when App is not wired")
+func TestLoginMicrosoftTimesOutWithoutCallback(t *testing.T) {
+	// platform.OpenBrowserURL starts xdg-open successfully on most dev
+	// machines, so the flow waits for the Entra redirect. The bounded
+	// timeout must surface a user-facing failure, not hang.
+	svc := &AccountService{DataRoot: t.TempDir(), Keyring: msMemoryKeyring{}, MicrosoftLoginTimeout: 200 * time.Millisecond}
+	start := time.Now()
+	_, err := svc.LoginMicrosoft()
+	if err == nil {
+		t.Fatal("expected timeout error without a callback")
+	}
+	if !strings.Contains(err.Error(), "Try again") && !strings.Contains(err.Error(), "cancel") {
+		t.Fatalf("error must be user-facing, got %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("login must respect its timeout, took %v", elapsed)
 	}
 }
 
@@ -187,6 +199,20 @@ func TestRefreshMicrosoftErrorClassification(t *testing.T) {
 	transient := refreshMicrosoftError(auth.ErrTokenNotFound)
 	if strings.Contains(transient.Error(), "sign in again") || !strings.Contains(transient.Error(), "try again") {
 		t.Fatalf("transient failure must be retryable, got %v", transient)
+	}
+}
+
+func TestRefreshMicrosoftErrorCarriesDetail(t *testing.T) {
+	typed := refreshMicrosoftError(&auth.EntraError{Code: "server_error"})
+	if !strings.Contains(typed.Error(), "server_error") {
+		t.Fatalf("typed oauth failure must carry its code, got %v", typed)
+	}
+	if strings.Contains(typed.Error(), "sign in again") {
+		t.Fatalf("non-invalid_grant must stay retryable, got %v", typed)
+	}
+	chain := refreshMicrosoftError(fmt.Errorf("POST https://sisu.example: 401 expired token"))
+	if !strings.Contains(chain.Error(), "401 expired token") {
+		t.Fatalf("chain failure must carry its cause, got %v", chain)
 	}
 }
 

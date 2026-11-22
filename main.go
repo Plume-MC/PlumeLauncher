@@ -7,9 +7,9 @@ import (
 
 	"log"
 
+	"plumelauncher/internal/auth"
 	"plumelauncher/internal/bootstrap"
 	"plumelauncher/internal/cleanup"
-	"plumelauncher/internal/auth"
 	"plumelauncher/internal/instances"
 	"plumelauncher/internal/java"
 	"plumelauncher/internal/logging"
@@ -126,7 +126,6 @@ func main() {
 		},
 	})
 	launchService.App = app
-	accountService.App = app
 	systemSvc := &services.SystemService{
 		DataRoot: config.DataRoot,
 		Defaults: defaults,
