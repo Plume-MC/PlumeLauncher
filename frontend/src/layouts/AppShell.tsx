@@ -18,6 +18,9 @@ interface AppShellProps {
   account?: Account | null;
   accounts?: Account[];
   onAccountsChanged?: () => Promise<void>;
+  /** Bumped whenever a skin write succeeds; forwarded so avatars refetch. */
+  onSkinChanged?: () => void;
+  skinVersion?: number;
 }
 
 export function AppShell({
@@ -25,6 +28,8 @@ export function AppShell({
   account = null,
   accounts = [],
   onAccountsChanged,
+  onSkinChanged,
+  skinVersion = 0,
 }: AppShellProps) {
   const [activityOpen, setActivityOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -138,6 +143,7 @@ export function AppShell({
       <Suspense fallback={<LoadingOverlay />}>
         <TopBar
           account={account}
+          skinVersion={skinVersion}
           activityCount={activityCount}
           onActivityToggle={() => {
             setSettings(false);
@@ -174,6 +180,8 @@ export function AppShell({
           onOpenChange={setAccounts}
           accounts={accounts}
           onChanged={onAccountsChanged ?? (async () => undefined)}
+          skinVersion={skinVersion}
+          onSkinChanged={onSkinChanged}
         />}
       </Suspense>
     </div>

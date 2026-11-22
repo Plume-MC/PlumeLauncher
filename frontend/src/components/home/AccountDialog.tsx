@@ -6,6 +6,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTit
 import { AccountService, SystemService } from '../../../bindings/plumelauncher/internal/services/index.js';
 import type { Account } from '../../../bindings/plumelauncher/internal/services/models.js';
 import { Button } from '@/components/ui/button';
+import { SkinCapeDialog } from '@/components/home/SkinCapeDialog';
 import { Input } from '@/components/ui/input';
 import { useMotionPreference } from '@/components/motion/useMotionPreference';
 import { cn } from '@/lib/utils';
@@ -15,10 +16,16 @@ interface AccountDialogProps {
   onOpenChange: (open: boolean) => void;
   accounts: Account[];
   onChanged: () => Promise<void>;
+  /** Bumped by parents when the selected account's skin may have changed. */
+  skinVersion?: number;
+  /** Fired by the skin dialog after a successful appearance write. */
+  onSkinChanged?: () => void;
 }
 
 type Provider = 'offline' | 'ely.by' | 'microsoft';
 type ElyMethod = 'browser' | 'password';
+type MicrosoftMethod = 'browser' | 'device';
+type DeviceCodeSource = 'ely.by' | 'microsoft';
 
 const providerLabel: Record<Provider, string> = {
   offline: 'Offline',
@@ -72,9 +79,13 @@ function formatSeconds(total: number) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function AccountDialog({ open, onOpenChange, accounts, onChanged }: AccountDialogProps) {
+export function AccountDialog({ open, onOpenChange, accounts, onChanged, skinVersion = 0, onSkinChanged }: AccountDialogProps) {
   const [type, setType] = useState<Provider>('offline');
   const [elyMethod, setElyMethod] = useState<ElyMethod>('browser');
+  const [msMethod, setMsMethod] = useState<MicrosoftMethod>('browser');
+  // deviceCodeSource says which provider the visible device panel belongs to,
+  // so one panel serves both the Ely.by and Microsoft device flows.
+  const [deviceCodeSource, setDeviceCodeSource] = useState<DeviceCodeSource>('ely.by');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [device, setDevice] = useState<{ deviceCode: string; userCode: string; verificationUri: string; interval: number; browserOpened: boolean; expiresAt: number; totalSeconds: number } | null>(null);
@@ -82,6 +93,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [skinCapeOpen, setSkinCapeOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<Account | null>(null);
   const { reduced } = useMotionPreference();
@@ -108,6 +120,9 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
       return;
     }
     let cancelled = false;
+    // A skinVersion bump means an appearance write just succeeded; clear the
+    // failure set so accounts that failed earlier retry with fresh data.
+    if (skinVersion > 0) failedSkins.clear();
     for (const account of accounts) {
       if (failedSkins.has(account.uuid)) continue;
       void AccountService.GetAccountSkin(account.uuid)
@@ -122,7 +137,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
     return () => {
       cancelled = true;
     };
-  }, [open, accounts]);
+  }, [open, accounts, skinVersion]);
 
   // Code expiry countdown: bounded by the expires_in Ely.by returned.
   useEffect(() => {
@@ -187,6 +202,8 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
     if (!next) {
       if (device) cancelDeviceFlow();
       setAdding(false);
+      setMsMethod('browser');
+      setDeviceCodeSource('ely.by');
     }
     onOpenChange(next);
   };
@@ -200,9 +217,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
 
   const openDevicePage = () => {
     if (!device) return;
-    void SystemService.OpenBrowserURL(device.verificationUri).catch(() => {
-      setError('Unable to open the Ely.by page. Use the URL shown below instead.');
-    });
+    openDevicePageFrom(device.verificationUri);
   };
 
   const copyCode = async () => {
@@ -213,6 +228,77 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
       setTimeout(() => setCopied(false), 1600);
     } catch {
       setError('Unable to copy the code. Select it and copy manually.');
+    }
+  };
+
+  // openDevicePageFrom shares the open-again helper between the Ely.by and
+  // Microsoft device flows.
+  const openDevicePageFrom = (uri: string) => {
+    const label = deviceCodeSource === 'microsoft' ? 'Microsoft' : 'Ely.by';
+    void SystemService.OpenBrowserURL(uri).catch(() => {
+      setError(`Unable to open the ${label} page. Use the URL shown below instead.`);
+    });
+  };
+
+  // runMicrosoftDeviceFlow drives the Entra device-code sign-in: request a
+  // code, show it, then poll FinishMicrosoftDeviceCode at the returned
+  // interval until approval, denial, expiry, or cancel.
+  const runMicrosoftDeviceFlow = async () => {
+    const gen = ++flowGen.current;
+    setDeviceCodeSource('microsoft');
+    const start = await AccountService.StartMicrosoftDeviceCode();
+    if (flowGen.current !== gen) return;
+    let browserOpened = true;
+    try {
+      await SystemService.OpenBrowserURL(start.verificationUri);
+    } catch {
+      browserOpened = false;
+    }
+    if (flowGen.current !== gen) return;
+    const totalSeconds = Math.max(1, start.expiresIn || 900);
+    setDevice({
+      deviceCode: start.deviceCode,
+      userCode: start.userCode,
+      verificationUri: start.verificationUri,
+      interval: Math.max(5, start.interval || 5),
+      browserOpened,
+      expiresAt: Date.now() + totalSeconds * 1000,
+      totalSeconds,
+    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        deviceReject.current = () => reject(new Error('Cancelled'));
+        const poll = async () => {
+          if (flowGen.current !== gen) return;
+          try {
+            const call = AccountService.FinishMicrosoftDeviceCode(start.deviceCode);
+            finishCancel.current = () => call.cancel();
+            const account = await call;
+            if (flowGen.current !== gen) return;
+            if (account) {
+              stopDevicePoll();
+              deviceReject.current = null;
+              finishCancel.current = null;
+              resolve();
+            }
+          } catch (err) {
+            if (flowGen.current !== gen) return;
+            const message = err instanceof Error ? err.message : '';
+            // Still waiting: keep polling. Anything else fails fast.
+            if (/waiting|approval/i.test(message)) return;
+            stopDevicePoll();
+            deviceReject.current = null;
+            finishCancel.current = null;
+            reject(err);
+          }
+        };
+        void poll();
+        deviceTimer.current = setInterval(() => void poll(), Math.max(5, start.interval || 5) * 1000);
+      });
+      setDevice(null);
+    } catch (err) {
+      setDevice(null);
+      throw err;
     }
   };
 
@@ -240,11 +326,15 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
   const addAccount = (event: React.FormEvent) => {
     event.preventDefault();
     if (type === 'microsoft') {
-      const call = AccountService.LoginMicrosoft();
-      pendingLogin.current = call;
       void run(async () => {
         try {
-          await call;
+          if (msMethod === 'browser') {
+            const call = AccountService.LoginMicrosoft();
+            pendingLogin.current = call;
+            await call;
+          } else {
+            await runMicrosoftDeviceFlow();
+          }
           setUsername('');
           setAdding(false);
         } catch (err) {
@@ -272,6 +362,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
       // Browser (device-code) flow: fetch the user code, then poll until
       // the player confirms on the Ely.by website.
       const gen = ++flowGen.current;
+      setDeviceCodeSource('ely.by');
       const start = await AccountService.StartElyByOAuth();
       if (flowGen.current !== gen) return;
       if (!start) throw new Error('Unable to start Ely.by sign-in');
@@ -337,7 +428,9 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
   const submitLabel = busy
     ? 'Working…'
     : type === 'microsoft'
-      ? 'Continue with Microsoft'
+      ? msMethod === 'device'
+        ? 'Continue with device code'
+        : 'Continue with Microsoft'
       : type === 'ely.by'
         ? elyMethod === 'browser'
           ? 'Continue with Ely.by'
@@ -409,6 +502,17 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                   </p>
                 </div>
               </motion.section>
+            ) : null}
+
+            {active?.type === 'microsoft' ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={() => setSkinCapeOpen(true)}
+              >
+                Skin &amp; Cape
+              </Button>
             ) : null}
 
             <section aria-label="Switch identity">
@@ -544,7 +648,7 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                 >
                   <div className="flex items-start justify-between gap-3 rounded-md border border-border bg-background p-3.5">
                     <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">Enter this code on Ely.by</p>
+                      <p className="text-xs text-muted-foreground">{deviceCodeSource === 'microsoft' ? 'Enter this code on Microsoft' : 'Enter this code on Ely.by'}</p>
                       <p className="mt-1 select-all text-3xl font-bold tracking-[0.16em] uppercase">{device.userCode}</p>
                       <p className="mt-1 select-all break-all text-xs text-muted-foreground">{device.verificationUri}</p>
                     </div>
@@ -572,7 +676,9 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
 
                   <p className="flex items-center gap-2 text-xs text-muted-foreground">
                     <IconLoader2 className="size-3.5 shrink-0 animate-spin text-ring" />
-                    {device.browserOpened ? 'Browser opened. Waiting for approval on Ely.by.' : 'Open the page manually. Waiting for approval on Ely.by.'}
+                    {deviceCodeSource === 'microsoft'
+                      ? device.browserOpened ? 'Browser opened. Waiting for approval on Microsoft.' : 'Open the page manually. Waiting for approval on Microsoft.'
+                      : device.browserOpened ? 'Browser opened. Waiting for approval on Ely.by.' : 'Open the page manually. Waiting for approval on Ely.by.'}
                   </p>
 
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -581,9 +687,11 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                     </Button>
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" size="sm" variant="secondary" onClick={openDevicePage}>Open page again</Button>
-                      <Button type="button" size="sm" variant="secondary" onClick={usePasswordInstead}>
-                        Use password instead
-                      </Button>
+                      {deviceCodeSource === 'ely.by' ? (
+                        <Button type="button" size="sm" variant="secondary" onClick={usePasswordInstead}>
+                          Use password instead
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 </motion.div>
@@ -596,13 +704,32 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: reduced ? 0.01 : 0.16, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                    <IconLock className="mt-px size-3.5 shrink-0" />
-                    {busy ? 'Waiting for Microsoft sign-in. Close the sign-in window to cancel.' : 'Opens a Microsoft sign-in window. Tokens stay safely on this device.'}
-                  </p>
+                  {!busy ? (
+                    <div className="inline-flex rounded-md border border-border bg-background p-1" role="group" aria-label="Microsoft sign-in method">
+                      <Button type="button" size="sm" variant={msMethod === 'browser' ? 'secondary' : 'ghost'} aria-pressed={msMethod === 'browser'} onClick={() => { setMsMethod('browser'); setError(''); }}>Browser</Button>
+                      <Button type="button" size="sm" variant={msMethod === 'device' ? 'secondary' : 'ghost'} aria-pressed={msMethod === 'device'} onClick={() => { setMsMethod('device'); setError(''); }}>Device code</Button>
+                    </div>
+                  ) : null}
+                  {msMethod === 'device' ? (
+                    <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                      <IconWorld className="mt-px size-3.5 shrink-0" />
+                      Shows a code to enter on the Microsoft website. Useful when no browser is available.
+                    </p>
+                  ) : (
+                    <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                      <IconLock className="mt-px size-3.5 shrink-0" />
+                      {busy
+                        ? 'Waiting for Microsoft sign-in. Cancel here if the browser did not open.'
+                        : 'Opens your browser for the Microsoft sign-in. Tokens stay safely on this device.'}
+                    </p>
+                  )}
                   <div className="flex items-center justify-end gap-2">
                     <div className="flex gap-2">
-                      {busy ? <Button type="button" size="sm" variant="ghost" onClick={cancelLogin}>Cancel</Button> : null}
+                      {busy && device ? (
+                        <Button type="button" size="sm" variant="ghost" onClick={cancelDeviceFlow}>Cancel</Button>
+                      ) : busy ? (
+                        <Button type="button" size="sm" variant="ghost" onClick={cancelLogin}>Cancel</Button>
+                      ) : null}
                       <Button type="submit" size="sm" disabled={submitDisabled}>
                         {busy ? <IconLoader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
                         {submitLabel}
@@ -677,6 +804,18 @@ export function AccountDialog({ open, onOpenChange, accounts, onChanged }: Accou
           <div className="mt-5 flex justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setPendingRemove(null)}>Cancel</Button><Button type="button" variant="destructive" disabled={busy} onClick={confirmRemove}>{busy ? 'Removing...' : 'Remove'}</Button></div>
         </AlertDialogContent>
       </AlertDialog>
+      {active ? (
+        <SkinCapeDialog
+          isOpen={skinCapeOpen}
+          onClose={() => setSkinCapeOpen(false)}
+          accountUUID={active.uuid}
+          accountName={active.displayName || active.username}
+          onSkinChanged={() => {
+            onSkinChanged?.();
+            void onChanged();
+          }}
+        />
+      ) : null}
     </Dialog.Root>
   );
 }

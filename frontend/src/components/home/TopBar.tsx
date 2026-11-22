@@ -14,6 +14,8 @@ interface TopBarProps {
   onAccountsClick?: () => void;
   activityCount?: number;
   account?: Account | null;
+  /** Bumped whenever a skin write succeeds so the avatar refetches. */
+  skinVersion?: number;
 }
 
 export function TopBar({
@@ -22,6 +24,7 @@ export function TopBar({
   onAccountsClick,
   activityCount = 0,
   account = null,
+  skinVersion = 0,
 }: TopBarProps) {
   const name = account?.displayName || account?.username || 'No account';
   const typeLabel = account?.type === 'ely.by' ? 'Ely.by' : account?.type === 'microsoft' ? 'Microsoft' : 'Offline';
@@ -47,7 +50,7 @@ export function TopBar({
     return () => {
       cancelled = true;
     };
-  }, [accountUUID]);
+  }, [accountUUID, skinVersion]);
 
   return (
     <header

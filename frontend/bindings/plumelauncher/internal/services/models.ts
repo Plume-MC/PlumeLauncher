@@ -4,6 +4,9 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as runtimes$0 from "../runtimes/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as skins$0 from "../skins/models.js";
 
 /**
  * Account represents a user account. Accounts.json stores metadata only:
@@ -23,6 +26,25 @@ export interface Account {
      * RefreshElyBy asks for a fresh browser sign-in instead.
      */
     "oauth"?: boolean;
+}
+
+/**
+ * Appearance is the merged view shown in the dialog: the Mojang profile
+ * plus the local closet.
+ */
+export interface Appearance {
+    "profile": skins$0.Profile | null;
+    "localSkins": ClosetSkin[] | null;
+}
+
+/**
+ * ClosetSkin is one saved skin in the local closet.
+ */
+export interface ClosetSkin {
+    "textureKey": string;
+    "variant": string;
+    "savedAt": string;
+    "fileName": string;
 }
 
 /**

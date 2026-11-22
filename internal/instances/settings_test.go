@@ -1,6 +1,8 @@
 package instances_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"plumelauncher/internal/instances"
@@ -108,5 +110,112 @@ func TestDefaultLauncherDefaults(t *testing.T) {
 	}
 	if defaults.DefaultMaxRamMB != 4096 {
 		t.Errorf("DefaultMaxRamMB = %d, want 4096", defaults.DefaultMaxRamMB)
+	}
+}
+
+func TestDefaultDiscordPresenceDefaults(t *testing.T) {
+	defaults := instances.DefaultLauncherDefaults()
+
+	if defaults.DiscordPresenceEnabled {
+		t.Error("DiscordPresenceEnabled = true, want false (opt-in)")
+	}
+	if defaults.DiscordShowInstance {
+		t.Error("DiscordShowInstance = true, want false (user-typed text)")
+	}
+	if !defaults.DiscordShowVersion {
+		t.Error("DiscordShowVersion = false, want true")
+	}
+	if !defaults.DiscordShowLoader {
+		t.Error("DiscordShowLoader = false, want true")
+	}
+	if !defaults.DiscordShowElapsed {
+		t.Error("DiscordShowElapsed = false, want true")
+	}
+}
+
+func TestLauncherDefaultsDiscordRoundTrip(t *testing.T) {
+	dataRoot := t.TempDir()
+	defaults := instances.DefaultLauncherDefaults()
+	defaults.DiscordPresenceEnabled = true
+	defaults.DiscordShowServer = true
+	defaults.DiscordShowServerPort = false
+
+	if err := instances.SaveConfig(dataRoot, defaults); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+	loaded, err := instances.LoadConfig(dataRoot)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if !loaded.DiscordPresenceEnabled {
+		t.Error("DiscordPresenceEnabled did not survive round-trip")
+	}
+	if !loaded.DiscordShowVersion || !loaded.DiscordShowLoader || !loaded.DiscordShowElapsed {
+		t.Error("sub-toggles did not survive round-trip")
+	}
+	if !loaded.DiscordShowServer {
+		t.Error("DiscordShowServer did not survive round-trip")
+	}
+	if loaded.DiscordShowServerPort {
+		t.Error("DiscordShowServerPort did not survive round-trip")
+	}
+}
+
+func TestDefaultDiscordServerDefaults(t *testing.T) {
+	// POST-005 privacy: a server address can reveal where someone plays,
+	// so the toggle ships off. The port only matters when it is on, but
+	// defaults to true so enabling the host immediately shows a usable
+	// address rather than a bare hostname.
+	defaults := instances.DefaultLauncherDefaults()
+
+	if defaults.DiscordShowServer {
+		t.Error("DiscordShowServer = true, want false (opt-in)")
+	}
+	if !defaults.DiscordShowServerPort {
+		t.Error("DiscordShowServerPort = false, want true")
+	}
+}
+
+func TestLoadConfigMissingServerFields(t *testing.T) {
+	// A config written before the server fields existed must still load,
+	// with server publishing off.
+	dataRoot := t.TempDir()
+	path := filepath.Join(dataRoot, "config.json")
+	legacy := `{"schemaVersion":1,"settings":{"theme":"dark","discordPresenceEnabled":true}}`
+	if err := os.WriteFile(path, []byte(legacy), 0o644); err != nil {
+		t.Fatalf("write legacy config: %v", err)
+	}
+
+	loaded, err := instances.LoadConfig(dataRoot)
+	if err != nil {
+		t.Fatalf("LoadConfig legacy: %v", err)
+	}
+	if !loaded.DiscordPresenceEnabled {
+		t.Error("DiscordPresenceEnabled = false, want true")
+	}
+	if loaded.DiscordShowServer {
+		t.Error("DiscordShowServer = true, want false for legacy config")
+	}
+}
+
+func TestLoadConfigMissingDiscordFields(t *testing.T) {
+	// A config written before the Discord fields existed must still load,
+	// with the master toggle defaulting to off.
+	dataRoot := t.TempDir()
+	path := filepath.Join(dataRoot, "config.json")
+	legacy := `{"schemaVersion":1,"settings":{"theme":"dark"}}`
+	if err := os.WriteFile(path, []byte(legacy), 0o644); err != nil {
+		t.Fatalf("write legacy config: %v", err)
+	}
+
+	loaded, err := instances.LoadConfig(dataRoot)
+	if err != nil {
+		t.Fatalf("LoadConfig legacy: %v", err)
+	}
+	if loaded.Theme != "dark" {
+		t.Errorf("Theme = %q, want %q", loaded.Theme, "dark")
+	}
+	if loaded.DiscordPresenceEnabled {
+		t.Error("DiscordPresenceEnabled = true, want false for legacy config")
 	}
 }

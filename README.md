@@ -264,6 +264,7 @@ Generated bindings live in `frontend/bindings/`. Do not edit those files by hand
 | Windows app does not open | Install or repair Microsoft WebView2 Runtime. |
 | Linux app does not start | Install GTK4 and WebKitGTK 6 for the distribution. |
 | Ely.by session expired | Sign in again; the stored token was removed or rejected. |
+| Discord Rich Presence does not appear | Enable "Show activity in Discord" in Settings, launch an instance, and keep Discord running. Flatpak/Snap Discord installs are detected automatically. |
 
 ## Contributing
 

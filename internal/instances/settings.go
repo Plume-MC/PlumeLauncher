@@ -15,6 +15,18 @@ type LauncherDefaults struct {
 	DefaultJvmArgs         string   `json:"defaultJvmArgs"`
 	GPUPreference          string   `json:"gpuPreference"`
 	WrapperCommand         string   `json:"wrapperCommand"`
+	// Discord Rich Presence (POST-004). Master toggle defaults to off;
+	// sub-toggles gate what is published when the master is enabled.
+	DiscordPresenceEnabled bool `json:"discordPresenceEnabled"`
+	DiscordShowInstance    bool `json:"discordShowInstance"`
+	DiscordShowVersion     bool `json:"discordShowVersion"`
+	DiscordShowLoader      bool `json:"discordShowLoader"`
+	DiscordShowElapsed     bool `json:"discordShowElapsed"`
+	// Server presence (POST-005). Off by default because a server address
+	// can reveal where someone plays; the port is gated separately since a
+	// hostname alone is often enough context.
+	DiscordShowServer     bool `json:"discordShowServer"`
+	DiscordShowServerPort bool `json:"discordShowServerPort"`
 }
 
 // DefaultLauncherDefaults returns sensible defaults.
@@ -28,6 +40,13 @@ func DefaultLauncherDefaults() LauncherDefaults {
 		DefaultResolutionW: 854,
 		DefaultResolutionH: 480,
 		GPUPreference:      "auto",
+		// Presence detail defaults: instance name stays off (user-typed
+		// text may contain private info); version/loader/elapsed are on.
+		// Server stays off (POST-005 privacy), port follows it when shown.
+		DiscordShowVersion:    true,
+		DiscordShowLoader:     true,
+		DiscordShowElapsed:    true,
+		DiscordShowServerPort: true,
 	}
 }
 

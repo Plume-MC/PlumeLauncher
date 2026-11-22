@@ -106,16 +106,10 @@ func ValidateWrapper(wrapper []string) error {
 
 // EnvironmentForGPU returns platform-specific process environment overrides.
 func EnvironmentForGPU(preference string) map[string]string {
-	if runtime.GOOS != "linux" || preference == "" || preference == "auto" {
+	if preference == "" || preference == "auto" {
 		return nil
 	}
-	if preference == "discrete" {
-		return map[string]string{"DRI_PRIME": "1"}
-	}
-	if preference == "integrated" {
-		return map[string]string{"DRI_PRIME": "0"}
-	}
-	return nil
+	return gpuEnvironment(preference)
 }
 
 func buildJvmArgs(version metadata.VersionDetail, opts Options) []string {

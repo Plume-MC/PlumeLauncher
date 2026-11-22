@@ -56,6 +56,15 @@ export function FinishElyByOAuth(deviceCode: string): $CancellablePromise<$model
 }
 
 /**
+ * FinishMicrosoftDeviceCode polls once for the approved device code and
+ * completes the login. The frontend polls at the returned interval, passing
+ * the device code from StartMicrosoftDeviceCode.
+ */
+export function FinishMicrosoftDeviceCode(deviceCode: string): $CancellablePromise<$models.Account | null> {
+    return $Call.ByID(300739385, deviceCode);
+}
+
+/**
  * GetAccountSkin resolves the player's skin as a PNG data URL for the UI.
  * Offline profiles resolve the official default Steve template; Ely.by and
  * Microsoft profiles resolve their public session profile, then download the
@@ -64,6 +73,15 @@ export function FinishElyByOAuth(deviceCode: string): $CancellablePromise<$model
  */
 export function GetAccountSkin(accountUUID: string): $CancellablePromise<string> {
     return $Call.ByID(2101393135, accountUUID);
+}
+
+/**
+ * InvalidateSkinCache drops the cached rendered skin for one account. Called
+ * after an appearance write so the avatar in the UI reflects the new texture
+ * immediately instead of after the 5 minute TTL.
+ */
+export function InvalidateSkinCache(accountUUID: string): $CancellablePromise<void> {
+    return $Call.ByID(956508593, accountUUID);
 }
 
 /**
@@ -78,7 +96,10 @@ export function LoginElyBy(username: string, password: string): $CancellableProm
 }
 
 /**
- * LoginMicrosoft runs the full Microsoft login flow in an in-app window.
+ * LoginMicrosoft signs the player in through the system browser. Entra
+ * redirects back to a local loopback listener; the Xbox/Minecraft chain and
+ * keyring storage run after the code arrives. The wait is bounded by
+ * msLoginTimeout so the frontend promise always resolves.
  */
 export function LoginMicrosoft(): $CancellablePromise<$models.Account | null> {
     return $Call.ByID(4231905050);
@@ -117,4 +138,12 @@ export function SelectAccount(accountUUID: string): $CancellablePromise<void> {
  */
 export function StartElyByOAuth(): $CancellablePromise<auth$0.ElyDeviceCodeStart> {
     return $Call.ByID(474463787);
+}
+
+/**
+ * StartMicrosoftDeviceCode requests a device code for the Entra device-code
+ * sign-in. The frontend shows the user code and polls FinishMicrosoftDeviceCode.
+ */
+export function StartMicrosoftDeviceCode(): $CancellablePromise<auth$0.MicrosoftDeviceCodeStart> {
+    return $Call.ByID(3524320370);
 }

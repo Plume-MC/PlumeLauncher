@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"os/exec"
 	"plumelauncher/internal/instances"
@@ -8,8 +9,10 @@ import (
 	"plumelauncher/internal/launch"
 	"plumelauncher/internal/logging"
 	"plumelauncher/internal/metadata"
+	"plumelauncher/internal/presence"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -21,6 +24,7 @@ type LaunchService struct {
 	Instances *instances.Manager
 	Logger    *logging.Logger
 	App       *application.App
+	Presence  *presence.Client
 	mu        sync.Mutex
 	processes map[string]*exec.Cmd
 }
@@ -116,13 +120,19 @@ func (s *LaunchService) Launch(detail metadata.VersionDetail, opts launch.Option
 
 func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instances.Operation) {
 	started := false
+	// The server watcher shares the monitor's lifetime: every exit path
+	// lands in this defer, so the tailer cannot outlive the game.
+	serverCtx, stopServerWatch := context.WithCancel(context.Background())
 	defer func() {
+		stopServerWatch()
 		s.mu.Lock()
 		delete(s.processes, opts.VersionID)
 		s.mu.Unlock()
 		if s.Registry.IsActive(opts.VersionID) {
 			s.Registry.Fail(opts.VersionID)
 		}
+		// Every monitor exit path (stopped/crashed/failed) lands here.
+		s.clearPresence()
 	}()
 
 	var stderr []string
@@ -163,6 +173,14 @@ func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instance
 			_ = transitionInstanceState(s.App, s.Instances, opts.VersionID, instances.StateRunning, op.ID)
 		}
 		emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: opts.VersionID, State: "running"})
+		// Presence is best-effort and async: an unreachable Discord must
+		// never delay or fail the launch monitor.
+		s.publishPresence(cmd.Process.Pid, opts.VersionID, presence.ServerAddress{})
+		if opts.GameDir != "" {
+			// The log tailer republishes presence as the player moves
+			// between servers; watchServer blocks until serverCtx ends.
+			go s.watchServer(serverCtx, cmd.Process.Pid, opts.VersionID, launch.LogPath(opts.GameDir))
+		}
 	})
 
 	if err != nil {
@@ -210,6 +228,73 @@ func (s *LaunchService) monitor(cmd *exec.Cmd, opts launch.Options, op *instance
 		s.Logger.Info("launch_stopped", "instanceId", opts.VersionID, "operationId", op.ID)
 	}
 	emit(s.App, EventLaunchState, LaunchStateEvent{OperationID: op.ID, InstanceID: opts.VersionID, State: "stopped"})
+}
+
+// publishPresence sends one activity update for a running game. It runs in
+// its own goroutine and swallows errors; presence is strictly optional.
+func (s *LaunchService) publishPresence(pid int, instanceID string, server presence.ServerAddress) {
+	if s.Presence == nil || s.Instances == nil {
+		return
+	}
+	presenceClient := s.Presence
+	go func() {
+		inst, err := s.Instances.Get(instanceID)
+		if err != nil || inst == nil {
+			return
+		}
+		defaults, err := instances.LoadConfig(s.DataRoot)
+		if err != nil {
+			return
+		}
+		loader := string(inst.Loader)
+		if loader == "vanilla" {
+			loader = "" // vanilla has no loader art
+		}
+		info := presence.InstanceInfo{Name: inst.Name, MCVersion: inst.MCVersion, Loader: loader, Server: server}
+		activity := presence.BuildActivity(pid, info, defaults, time.Now())
+		if activity == nil {
+			return
+		}
+		_ = presenceClient.SetActivity(activity)
+	}()
+}
+
+// watchServer tails the game log and republishes presence whenever the
+// detected server changes. It returns once ctx is cancelled, so the monitor's
+// defer stops it. Every failure is swallowed: POST-005 is best-effort and a
+// broken log must not disturb the launch.
+func (s *LaunchService) watchServer(ctx context.Context, pid int, instanceID, logPath string) {
+	if s.Presence == nil || s.Instances == nil {
+		return
+	}
+	var last presence.ServerAddress
+	known := false
+	launch.TailLog(ctx, logPath, func(line string) {
+		event, addr := presence.ParseServerLine(line)
+		switch event {
+		case presence.ServerConnected:
+			if known && addr == last {
+				return // unchanged, no need to republish
+			}
+			last, known = addr, true
+		case presence.ServerCleared:
+			if !known {
+				return
+			}
+			last, known = presence.ServerAddress{}, false
+		default:
+			return
+		}
+		s.publishPresence(pid, instanceID, last)
+	})
+}
+
+// clearPresence removes the published activity when the game exits.
+func (s *LaunchService) clearPresence() {
+	if s.Presence == nil {
+		return
+	}
+	_ = s.Presence.SetActivity(nil)
 }
 
 func launchLogLevel(line string, isStderr bool) string {
