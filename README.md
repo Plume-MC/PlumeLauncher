@@ -7,54 +7,27 @@
 <p align="center">A desktop Minecraft launcher for managing multiple instances in one place.</p>
 
 <p align="center">
-  <a href="https://github.com/Plume-MC/PlumeLauncher/stargazers">
-    <img src="https://img.shields.io/github/stars/Plume-MC/PlumeLauncher?style=flat&amp;logo=github&amp;label=Stars" alt="GitHub stars">
-  </a>
-  <a href="https://github.com/Plume-MC/PlumeLauncher/issues">
-    <img src="https://img.shields.io/github/issues/Plume-MC/PlumeLauncher?style=flat&amp;logo=github&amp;label=Issues" alt="Open GitHub issues">
-  </a>
-  <a href="https://github.com/Plume-MC/PlumeLauncher/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/Plume-MC/PlumeLauncher?style=flat&amp;label=License" alt="MIT license">
-  </a>
-  <a href="https://github.com/Plume-MC/PlumeLauncher/releases">
-    <img src="https://img.shields.io/github/v/tag/Plume-MC/PlumeLauncher?style=flat&amp;label=Latest%20tag" alt="Latest Git tag">
-  </a>
-  <a href="https://github.com/Plume-MC/PlumeLauncher/actions/workflows/ci.yml">
-    <img src="https://github.com/Plume-MC/PlumeLauncher/actions/workflows/ci.yml/badge.svg" alt="CI status">
-  </a>
+  <img src="https://shieldcn.dev/github/downloads/Plume-MC/PlumeLauncher.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=fab387" alt="Downloads">
+  <img src="https://shieldcn.dev/github/stars/Plume-MC/PlumeLauncher.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=f9e2af" alt="Stars">
+  <img src="https://shieldcn.dev/github/forks/Plume-MC/PlumeLauncher.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=89b4fa" alt="Forks">
+  <img src="https://shieldcn.dev/github/ci/Plume-MC/PlumeLauncher.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&workflow=ci.yml" alt="CI status">
+  <img src="https://shieldcn.dev/github/release/Plume-MC/PlumeLauncher.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=cba6f7" alt="Latest release">
+  <img src="https://shieldcn.dev/github/license/Plume-MC/PlumeLauncher.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=89b4fa" alt="License">
 </p>
 
 <p align="center">
-  <a href="#supported-platforms">
-    <img src="https://img.shields.io/badge/Linux-GTK4%20%2B%20WebKitGTK%206-4c9a2a?style=flat&amp;logo=linux&amp;logoColor=white" alt="Linux with GTK4 and WebKitGTK 6">
-  </a>
-  <a href="#supported-platforms">
-    <img src="https://img.shields.io/badge/Windows%2010%2B-WebView2-0078d6?style=flat&amp;logo=windows&amp;logoColor=white" alt="Windows 10 and later with WebView2">
-  </a>
+  <img src="https://shieldcn.dev/badge/Linux-GTK4%20%2B%20WebKitGTK%206-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logo=linux&logoColor=94e2d5" alt="Linux with GTK4 and WebKitGTK 6">
+  <img src="https://shieldcn.dev/badge/Windows%2010%2B-WebView2-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logo=ri%3AFaWindows&logoColor=0096ef" alt="Windows 10 and later with WebView2">
 </p>
 
 <p align="center">
-  <a href="#development">
-    <img src="https://img.shields.io/badge/Go-1.26%2B-00ADD8?style=flat&amp;logo=go&amp;logoColor=white" alt="Go 1.26 or later">
-  </a>
-  <a href="#development">
-    <img src="https://img.shields.io/badge/Wails-v3.0.0--beta.20-4b5563?style=flat" alt="Wails v3.0.0 beta.20">
-  </a>
-  <a href="#development">
-    <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat&amp;logo=react&amp;logoColor=20232a" alt="React 19">
-  </a>
-  <a href="#development">
-    <img src="https://img.shields.io/badge/TypeScript-7-3178C6?style=flat&amp;logo=typescript&amp;logoColor=white" alt="TypeScript 7">
-  </a>
-  <a href="#development">
-    <img src="https://img.shields.io/badge/Vite-8-646CFF?style=flat&amp;logo=vite&amp;logoColor=white" alt="Vite 8">
-  </a>
-  <a href="#development">
-    <img src="https://img.shields.io/badge/Bun-package%20manager-f9f1e1?style=flat&amp;logo=bun&amp;logoColor=14151a" alt="Bun package manager">
-  </a>
-  <a href="#development">
-    <img src="https://img.shields.io/badge/Tailwind%20CSS-v4-06B6D4?style=flat&amp;logo=tailwindcss&amp;logoColor=white" alt="Tailwind CSS v4">
-  </a>
+  <img src="https://shieldcn.dev/badge/Go-1.26%2B-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logo=go&logoColor=89dceb" alt="Go 1.26 or later">
+  <img src="https://shieldcn.dev/badge/Wails-v3.1.0-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logo=wails&logoColor=f63b3b" alt="Wails v3.1.0">
+  <img src="https://shieldcn.dev/badge/React-19-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logo=react&logoColor=89dceb" alt="React 19">
+  <img src="https://shieldcn.dev/badge/TypeScript-7-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logo=typescript&logoColor=89b4fa" alt="TypeScript 7">
+  <img src="https://shieldcn.dev/badge/Vite-8-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logo=vite&logoColor=cba6f7" alt="Vite 8">
+  <img src="https://shieldcn.dev/badge/Bun-package%20manager-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logo=bun" alt="Bun package manager">
+  <img src="https://shieldcn.dev/badge/Tailwind%20CSS-v4-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logo=tailwindcss&logoColor=94e2d5" alt="Tailwind CSS v4">
 </p>
 
 <p align="center">
@@ -96,9 +69,21 @@ backend and a React frontend.
 ### Accounts
 
 - Play offline with a local profile name.
-- Sign in with an Ely.by account, refresh the session, and sign out.
-- Ely.by tokens are stored in the OS keyring, not in plain config files.
+- Sign in with a Microsoft account through Entra OAuth, using the system browser or a device code.
+- Sign in with an Ely.by account through a browser verification page, refresh the session, and sign out.
+- Tokens are stored in the OS keyring, not in plain config files.
 - Select which account launches an instance.
+
+### Skin and cape
+
+- Upload a skin and choose the Classic or Slim model.
+- Equip or hide one of your capes, or reset to the default skin.
+- Keep uploaded skins in a local closet and re-apply them later.
+
+### Discord presence
+
+- Show your current activity on Discord with live status and a preview card in settings.
+- Presence publishes during gameplay and names the current server when the game log reports one.
 
 ### Java runtimes
 
@@ -130,27 +115,28 @@ and their runtime dependencies.
 
 Download the package for your platform from the
 [Plume Launcher releases page](https://github.com/Plume-MC/PlumeLauncher/releases).
+Grab the latest release from that page; the file names below use `*` as a placeholder for the version.
 
 ### Linux
 
 For an AppImage:
 
 ```bash
-chmod +x ./plume-launcher-1.1.0-linux-x86_64-system.AppImage
-./plume-launcher-1.1.0-linux-x86_64-system.AppImage
+chmod +x ./plume-launcher-*-linux-x86_64-system.AppImage
+./plume-launcher-*-linux-x86_64-system.AppImage
 ```
 
 Install a system package with the matching tool:
 
 ```bash
-sudo apt install ./plume-launcher_1.1.0-1_amd64.deb
-sudo dnf install ./plume-launcher-1.1.0-1.x86_64.rpm
-sudo pacman -U ./plume-launcher-1.1.0-1-x86_64.pkg.tar.zst
+sudo apt install ./plume-launcher_*-1_amd64.deb
+sudo dnf install ./plume-launcher-*-1.x86_64.rpm
+sudo pacman -U ./plume-launcher-*-1-x86_64.pkg.tar.zst
 ```
 
 ### Windows
 
-Run the downloaded `.exe` portable executable. v1.1.0 is unsigned, so Windows SmartScreen may ask for confirmation.
+Run the downloaded `.exe` portable executable. The current build is unsigned, so Windows SmartScreen may ask for confirmation.
 Verify checksums where a `SHA256SUMS` file is attached to the release:
 
 ```bash
@@ -177,11 +163,13 @@ relocate everything together. Keep the folder somewhere writable; a system
 program folder is not a good portable location.
 
 Explicit overrides still win: a custom path argument beats `PLUME_DATA_ROOT`,
-which beats portable mode, which beats a saved data root. Signed-in Ely.by
-sessions stay on the machine because tokens live in the OS keyring, so expect
+which beats portable mode, which beats a saved data root. Signed-in sessions
+stay on the machine because tokens live in the OS keyring, so expect
 to sign in again after moving portable data to another computer.
 
 ## Development
+
+Stack: Go 1.26, Wails v3, React 19, TypeScript 7, Vite 8, Bun, and Tailwind CSS v4.
 
 ### Requirements
 
@@ -190,7 +178,7 @@ to sign in again after moving portable data to another computer.
 - Wails v3 CLI
 - Platform dependencies required by Wails and the target operating system
 
-The repository currently uses Wails `v3.0.0-beta.20`.
+The repository currently uses Wails `v3.1.0`.
 
 Clone the repository and install dependencies:
 
@@ -263,6 +251,7 @@ Generated bindings live in `frontend/bindings/`. Do not edit those files by hand
 | Launch ends as crashed or failed | Open the log folder from settings and read the latest game log. |
 | Windows app does not open | Install or repair Microsoft WebView2 Runtime. |
 | Linux app does not start | Install GTK4 and WebKitGTK 6 for the distribution. |
+| Microsoft session expired | Sign in again. Accounts created before the Entra migration need one new sign-in under the new app ID. |
 | Ely.by session expired | Sign in again; the stored token was removed or rejected. |
 | Discord Rich Presence does not appear | Enable "Show activity in Discord" in Settings, launch an instance, and keep Discord running. Flatpak/Snap Discord installs are detected automatically. |
 
